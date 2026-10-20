@@ -639,3 +639,29 @@ targets with none failed/ignored and 25 current-source rebuilt-browser smoke gro
 benchmark checks alone do not establish those gates. Size benefit is demonstrated,
 but material regression and release acceptance remain pending. No default, public
 type, or ABI change is authorized.
+
+## Issue #42: integrated matched repetition — 2026-10-20
+
+The [complete #42 record](benchmarks/integer-integrated-42/README.md) repeats the
+unchanged 27-case corpus and historical timing boundaries twice, current None
+versus Basic with reversed preset order and no concurrent agent-launched builds or
+tests. Historical records remain unchanged. This measures the cumulative
+#39/#40/#41 implementation, not isolated incremental timing.
+
+All None source/module identities match #38; all None/Basic identities match #41.
+The unweighted independent-module sum remains **13,414 → 9,538 bytes (−28.90%)**.
+Source compilation medians rise in both repetitions for 23/27 cases, typed
+compilation for 25/27. `compare_32` typed compilation rises **142.26% / 140.27%**,
+while guest medians improve **50.41% / 48.88%**. Guest timings worsen in both runs
+for 11/26 cases, improve for four, and are mixed/equal for 11; `loop_local` worsens
+**17.57% / 9.11%**. All cases, spread and raw guest samples are retained in the
+[derived tables](benchmarks/integer-integrated-42/results.md) and underlying logs.
+Compiler data are Divan aggregates, not invented per-compilation raw samples.
+
+OS/background load, thermals and JIT tiering are uncontrolled; there is no general
+guest-speed claim or post-hoc acceptance threshold. Static conversion counts are
+explicitly inherited from identical #41 binaries, not new dynamic measurements.
+Separate [#42 correctness gates](integer-specialization.md#42-integrated-validation-and-release-readiness-2026-10-20)
+passed 1,296 workspace tests across 81 targets, none failed/ignored, and 25 freshly
+rebuilt browser groups. **Keep experimental pending explicit regression/release
+acceptance**; None remains default. Measurements authorize no general WP13 work.

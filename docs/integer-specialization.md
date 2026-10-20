@@ -14,9 +14,12 @@ module-size benefit, but mixed timing results include material regression signal
 pending explicit user acceptance. Historical [#39 correctness gates](#correctness-validation-2026-10-17)
 and review against `09dcb5c` retain their #39-only scope. Final [#40 correctness
 gates passed](#correctness-validation-2026-10-20), and its [review is complete](#review-completion-40).
-Neither correctness validation, implementation authorization nor measurements
-establish release acceptance. `None` remains the default and
-byte-compatibility baseline.
+[#42 integrated validation and decision](#42-integrated-validation-and-release-readiness-2026-10-20)
+now records the complete composition/current-source adapter gates and repeated
+matched measurements. The decision remains **keep experimental pending explicit
+regression/release acceptance**. Neither correctness validation, implementation
+authorization nor measurements establish that acceptance. `None` remains the
+default and byte-compatibility baseline.
 
 The approved #39/#40/#41 subset is a narrow scheduling exception ahead of deferred
 WP12, not general WP13 authorization. #41 preserves the existing proof interface,
@@ -360,6 +363,120 @@ and negation, then passed decoded instructions, negative controls, forged/skippe
 errors and bounded independent runtime expectations. Browser smoke checks passed
 25 groups with freshly rebuilt bindings. The full workspace passed **1,287 tests
 across 81 targets, zero failed and zero ignored**.
+
+## #42 integrated validation and release readiness (2026-10-20)
+
+Issue #42 authorizes integrated evidence and a release-readiness decision, not a
+new transformation, proof scope, public API or ABI. The user confirmed the existing
+compiler/forged-tree, bounded guest runtime, adapter parity and measurement seams
+before tests were added. This work changes tests and evidence only; no production
+source, baseline golden fixture or historical benchmark input was changed.
+
+### Composition and negative controls
+
+| Seam / owning suite | Integrated evidence |
+| --- | --- |
+| `crates/compiler/tests/integer_locals.rs` | Six added tests: scoped local add/sub/negation chains with all six comparisons inside match arms; exact local layouts, instruction sequences and widening counts; unchanged f64 signatures and normalized pipeline/default bindings; no parameter/contract refinement; zero/minimum/overflow/value-join fallbacks; independent helper-local proofs with f64 captured cells; forged unknown negated reads and later invalid operands in both skipped/unreachable match arms, preserving first error and span. |
+| Same suite, bounded ignored runtime | All four presets against independent values: nested for/while/value-loop transfers, matches, calls/defaults/contracts, capture mutation, numeric-array aliasing, written argument effect order, contract traps, signed zero, NaN, infinities and overflow. Repeated invocations and enabled-preset byte identity are checked. |
+| `crates/cli/tests/cli.rs`, `crates/browser/tests/integer_specialization_adapters.rs` | Shared new `tests/support/integer_composition_cases.rs` scenarios combine defaults/contracts/pipelines/matches and loop shadowing/capture exclusions/skipped writes. Independent results 48 and 60.5, contract traps and repeat execution; same-preset library/adapter bytes and WAT, enabled-preset identity and reset/default parity; composed skipped/unreachable diagnostic variant/message/span/rendering equality. Browser execution follows a fresh source rebuild. |
+| Existing numeric suites and historical corpus | Retained unsafe/unsupported controls, sparse IDs, uninitialized/forged annotations, skipped/unreachable writes, unchanged no-proof bytes, exact baseline/direct-codegen goldens, IEEE-754 extremes and indexed trap order. The unchanged 27-case corpus checks 108 independent workload/preset pairs. |
+
+Decoded checks use `wasmparser::Validator` plus instruction/local/signature assertions;
+valid Wasm alone is not the semantic oracle. New coverage was added and run one
+slice at a time. Initial focused failures were test-fixture/counting errors, not
+compiler defects; no production red/green regression fix is claimed. Tests retain
+the existing ignored Node/browser policy. Calls, memory loads, captured/promoted,
+iteration and synthetic bindings still supply no numeric proofs; branches,
+contracts and callers do not refine them. Unsupported arithmetic and unsafe parents
+stay f64 even when eligible children independently specialize.
+
+### Repeated measurements and decision
+
+The [complete #42 measurement record](benchmarks/integer-integrated-42/README.md)
+and [all-case tables](benchmarks/integer-integrated-42/results.md) retain commands,
+environment, raw outputs, guest samples, parsed compiler aggregates and hashes.
+Two sequential matched repetitions reverse None/Basic order with no concurrent
+agent-launched builds/tests. Base revision is
+`0e1b5225a6d63c18244ab8c06fc460dd2d7a0020` plus the recorded new test diff;
+production/historical harness inputs remained stable. All 27 None identities match
+#38, and both None/Basic identities match #41 exactly. This is cumulative pass
+measurement, not incremental #41 or #42 timing attribution.
+
+- **Benefit:** 24/27 modules shrink, three unchanged, none grow; unweighted
+  independent-module sum **13,414 → 9,538 bytes (−3,876; −28.90%)**. This is not a
+  production-traffic or combined-application estimate.
+- **Compilation trade-off:** medians rise in both repetitions for 23/27 source
+  and 25/27 typed cases. `locals_32` typed cost is **+69.64% / +63.68%**;
+  `compare_32` **+142.26% / +140.27%**; `negate_32` **+124.02% / +69.21%**.
+- **Mixed guest timing:** 11/26 cases worsen in both repeats, four improve, 11
+  mixed/equal. `compare_32` improves **50.41% / 48.88%**, but `loop_local` worsens
+  **17.57% / 9.11%** and `locals_32` **5.19% / 1.92%**. The trap case is verify-only.
+  Background OS load, power/thermals and JIT tiering remain uncontrolled. There is
+  no stable general guest-speed claim and no invented acceptance threshold.
+- **Conversions:** identical #41 binaries permit reuse of its explicitly historical
+  decoded counts: `locals_32` has 96 i32 / 1 f64 locals with 33 widenings;
+  `compare_32` has 129 widenings; `negate_32` has 33. Integer negation's zero/operand/
+  subtraction sequence can cost more bytes than `f64.neg`. These are static counts,
+  not dynamic conversion frequencies or evidence of a speedup by themselves.
+
+**Readiness decision: keep experimental; return material regressions for explicit
+user acceptance.** Correctness gates passed and size benefit is demonstrated,
+but implementation authorization and the user's test-seam approval do not accept
+these regressions or authorize shipping. No release success, default change or
+broader WP13 authorization is declared. A subsequent decision must explicitly accept
+these trade-offs or authorize a bounded follow-up and fresh matched evidence.
+
+### Final correctness gates
+
+[validate.py](benchmarks/integer-integrated-42/validate.py) ran the following
+finite offline commands in order, after measurements, with a 600-second per-command
+bound. [Command metadata](benchmarks/integer-integrated-42/validation-1/commands.json)
+records every exit code (all zero), UTC interval and raw-log path. No prerequisite
+was unavailable or installed, no command timed out and no gate was skipped.
+
+```sh
+cargo check --offline --all-targets
+cargo test --offline -p was-compiler --test integer_specialization --test integer_locals -- --include-ignored
+cargo test --offline
+cargo clippy --offline --all-targets -- -D warnings
+cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown
+wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline
+node tests/browser.cjs pkg
+cargo test --offline --workspace -- --include-ignored
+cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings
+```
+
+Focused numeric suites: **31 passed**, zero failed/ignored. Native default suite:
+**1,088 passed, 195 ignored**, zero failed (70 targets); its ignored cases are not
+counted as executed there. The subsequent
+[full workspace including ignored cases](benchmarks/integer-integrated-42/validation-1/workspace-ignored.txt)
+passed **1,296 tests across 81 targets, zero failed and zero ignored**, including
+current-source adapter parity and explicit bounded runtimes. Fresh browser smoke
+passed **25 groups**. Historical #39/#40/#41 records remain unchanged and retain
+their original scope. Final source/hash/link reconciliation is recorded by the
+[#42 audit](benchmarks/integer-integrated-42/audit.json).
+
+### Two-axis review completion (#42)
+
+Independent read-only reviews covered the working tree against starting revision
+`0e1b5225a6d63c18244ab8c06fc460dd2d7a0020`, including the new shared adapter cases,
+measurement collectors/reports, raw evidence and validation logs.
+
+- **Standards:** zero documented-standard breaches. One low-priority heuristic
+  suggestion: replace the shared four-field composition-case tuple with a small
+  named-field test-only struct if the scenario set grows. Deferred deliberately;
+  the current two-case tuple matches existing lightweight test-data patterns and
+  does not affect correctness.
+- **Spec:** one initial documentation finding: `docs/limitations.md` still claimed
+  comparisons/negation remained f64. Its numeric and level summaries were corrected
+  to describe the implemented subset, conservative fallbacks and #42's pending
+  acceptance; the roadmap now links the integrated decision. The spec reviewer
+  rechecked those changes and confirmed **zero remaining actionable findings**.
+
+Review independently reconciled raw results, test totals and artifact/source
+hashes. Only documentation and postprocessing-audit coverage changed after the
+full correctness run; production/test sources remain the validated versions.
+Review completion does not accept material regressions or authorize release.
 
 ## Review completion (#41)
 

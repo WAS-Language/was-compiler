@@ -1,6 +1,9 @@
 #[path = "../../../tests/support/process.rs"]
 mod test_process;
 
+#[path = "../../../tests/support/integer_composition_cases.rs"]
+mod integer_composition_cases;
+
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -1974,6 +1977,75 @@ fn integer_specialization_comparisons_and_negation_cli_match_library_at_every_le
 }
 
 #[test]
+fn integer_specialization_composition_cli_matches_library_at_every_level() {
+    for &(name, source, _, _) in integer_composition_cases::CASES {
+        let scratch = Scratch::new(name);
+        let mut compiler = Compiler::new();
+        let baseline = compiler.compile_source(source).unwrap();
+        assert_eq!(scratch.compile(source, &[]), baseline, "{name}: default");
+        let mut enabled = None;
+
+        for (flag, level) in [
+            ("-O0", was_compiler::OptimizationLevel::None),
+            ("-O1", was_compiler::OptimizationLevel::Basic),
+            ("-O2", was_compiler::OptimizationLevel::Standard),
+            ("-O3", was_compiler::OptimizationLevel::Aggressive),
+        ] {
+            compiler.set_optimization_level(level);
+            let expected = compiler.compile_source(source).unwrap();
+            decode(&expected);
+            if level == was_compiler::OptimizationLevel::None {
+                assert_eq!(expected, baseline, "{name}: baseline");
+            } else {
+                assert_ne!(expected, baseline, "{name}: eligible composition");
+                if let Some(previous) = &enabled {
+                    assert_eq!(&expected, previous, "{name}: enabled preset parity");
+                } else {
+                    enabled = Some(expected.clone());
+                }
+            }
+            assert_eq!(scratch.compile(source, &[flag]), expected, "{name}: {flag}");
+            let wat = success(scratch.cli(&["program.was", flag, "--emit", "wat"], None));
+            assert_eq!(
+                assert_plain_wat(&wat),
+                wasmprinter::print_bytes(&expected).unwrap(),
+                "{name}: {flag} WAT"
+            );
+        }
+        assert_eq!(scratch.compile(source, &["-O0"]), baseline, "{name}: reset");
+        scratch.assert_entries(&["program.was", "program.wasm"]);
+    }
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn integer_specialization_composition_cli_runtime_has_independent_oracles() {
+    for &(name, source, expected_result, trap_export) in integer_composition_cases::CASES {
+        let scratch = Scratch::new(name);
+        for flag in ["-O0", "-O1", "-O2", "-O3"] {
+            scratch.compile(source, &[flag]);
+            let trap = trap_export.map_or("null".to_owned(), |name| format!("{name:?}"));
+            let script = format!(
+                r#"
+                const assert = require('node:assert/strict');
+                const fs = require('node:fs');
+                const bytes = fs.readFileSync('program.wasm');
+                const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes));
+                assert.ok(Object.is(instance.exports.main(), {expected_result:?}));
+                const trap = {trap};
+                if (trap !== null) {{
+                    assert.throws(() => instance.exports[trap](), WebAssembly.RuntimeError);
+                }}
+                assert.ok(Object.is(instance.exports.main(), {expected_result:?}));
+                "#
+            );
+            success(scratch.node_script(&script));
+        }
+        scratch.assert_entries(&["program.was", "program.wasm"]);
+    }
+}
+
+#[test]
 fn integer_specialization_comparisons_and_negation_cli_diagnostics_match_library() {
     let scratch = Scratch::new("integer_comparison_negation_errors");
     let sentinel = b"existing artifact";
@@ -1986,7 +2058,10 @@ fn integer_specialization_comparisons_and_negation_cli_diagnostics_match_library
             "fn main() -> number {\n    return 1;\n    -true;\n}",
             "Type mismatch: expected Number, found Bool",
         ),
-    ] {
+    ]
+    .into_iter()
+    .chain(integer_composition_cases::DIAGNOSTICS.iter().copied())
+    {
         scratch.write("program.was", source);
         let mut compiler = Compiler::new();
         let baseline = compiler.compile_source(source).unwrap_err();
@@ -2006,6 +2081,7 @@ fn integer_specialization_comparisons_and_negation_cli_diagnostics_match_library
         ] {
             compiler.set_optimization_level(level);
             let error = compiler.compile_source(source).unwrap_err();
+            assert_eq!(error, baseline);
             assert_eq!(error.span(), baseline.span());
             let expected = was_compiler::diagnostic::render("program.was", source, &error);
             assert_eq!(expected, baseline_diagnostic);

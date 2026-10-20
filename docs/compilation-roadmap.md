@@ -72,6 +72,11 @@ Separate [#41 correctness gates passed](integer-specialization.md#41-measurement
 [Two-axis #41 review is complete](integer-specialization.md#review-completion-41),
 with zero hard standards/spec findings and one deferred test-data suggestion. Material-regression
 and release acceptance remain pending; there is no release/default change.
+[#42 integrated evidence and decision](integer-specialization.md#42-integrated-validation-and-release-readiness-2026-10-20)
+adds composition and current-source adapter validation, with 1,296 workspace tests
+across 81 targets, none failed/ignored, and 25 rebuilt-browser groups. Repeated
+matched measurements confirm size benefit with material compilation regressions
+and mixed guest timings: keep experimental pending explicit acceptance.
 
 ## Pipeline and ownership
 

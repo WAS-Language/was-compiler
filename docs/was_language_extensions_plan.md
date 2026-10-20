@@ -24,7 +24,11 @@ validates #41. [#41 measurements](benchmarks/integer-comparisons-negation-41/REA
 show cumulative size benefit with mixed guest timings and compilation regressions.
 Separate [#41 correctness gates passed](integer-specialization.md#41-measurements-and-correctness-validation-2026-10-20);
 [two-axis review is complete](integer-specialization.md#review-completion-41). The subset remains experimental, with no regression/release acceptance or release/default change.
-General WP13 and remaining #38 implementation remain separately gated.
+[#42 integrated validation and decision](integer-specialization.md#42-integrated-validation-and-release-readiness-2026-10-20)
+adds cross-feature composition and current-source adapter evidence; repeated matched
+measurements confirm size benefit but material compilation regressions and mixed
+guest timings. Correctness gates passed; **keep experimental pending explicit
+regression/release acceptance**. General WP13 remains separately gated.
 
 **Baseline:** Extension specification v0.3.
 

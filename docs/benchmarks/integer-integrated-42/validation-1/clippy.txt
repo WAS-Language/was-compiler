@@ -1,0 +1,3 @@
+    Checking was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Checking was-compiler-cli v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.81s

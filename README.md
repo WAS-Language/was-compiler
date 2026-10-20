@@ -916,8 +916,13 @@ neither validates #41. Separate [#41 correctness gates passed](docs/integer-spec
 1,287 workspace tests across 81 targets, zero failed/ignored, and 25 rebuilt-browser
 groups. [Two-axis #41 review is complete](docs/integer-specialization.md#review-completion-41)
 with zero hard standards/spec findings and one deferred low-priority test-data suggestion.
-Material-regression and release acceptance remain pending; there is no release or
-default change.
+[#42 integrated validation](docs/integer-specialization.md#42-integrated-validation-and-release-readiness-2026-10-20)
+passed 1,296 workspace tests across 81 targets, none failed/ignored, plus 25
+rebuilt-browser groups. [Repeated matched measurements](docs/benchmarks/integer-integrated-42/README.md)
+confirm the same size benefit, but typed compilation medians rise in 25/27 cases
+in both repetitions; guest timing remains mixed. Material-regression and release
+acceptance remain pending: the decision is **keep experimental**, with no release
+or default change.
 
 ```rust
 use was_compiler::{Compiler, CompilerOptions, OptimizationLevel};

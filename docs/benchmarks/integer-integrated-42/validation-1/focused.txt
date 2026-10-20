@@ -1,0 +1,45 @@
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.10s
+     Running tests\integer_locals.rs (target\debug\deps\integer_locals-9d578fb177ac7470.exe)
+
+running 18 tests
+test forged_sparse_reads_still_require_initialization_and_scope ... ok
+test skipped_and_unreachable_local_initializers_retain_checked_error_order ... ok
+test repeated_mutation_cannot_reuse_local_proofs_across_compilations ... ok
+test forged_duplicate_types_annotations_and_first_error_order_match_none ... ok
+test comparisons_and_negation_compose_with_proven_local_reads ... ok
+test forged_negated_local_reads_in_skipped_match_arms_keep_validation_and_error_order ... ok
+test sparse_ids_preserve_declaration_slots_proofs_abi_and_borrowed_input ... ok
+test local_pipeline_arguments_widen_without_refining_defaults_contracts_or_parameters ... ok
+test normalized_explicit_default_and_pipeline_bindings_keep_f64_storage ... ok
+test unsafe_local_negation_and_value_joins_keep_f64_fallback_boundaries ... ok
+test helpers_have_separate_write_sets_and_captured_cells_do_not_specialize ... ok
+test helper_integer_chains_do_not_change_captured_cell_storage_or_comparison_proofs ... ok
+test local_bounds_require_every_intermediate_and_exclude_unsupported_initializers ... ok
+test parameters_loop_carried_state_and_iteration_bindings_are_not_ordinary_locals ... ok
+test all_owner_local_writes_block_storage_even_when_skipped_or_unreachable ... ok
+test scoped_local_negation_chains_feed_all_comparisons_inside_match_arms ... ok
+test bounded_runtime_checks_effects_zeros_overflow_scopes_loops_calls_and_captures ... ok
+test bounded_composition_executes_scopes_loops_calls_contracts_matches_and_exclusions ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests\integer_specialization.rs (target\debug\deps\integer_specialization-40accf1ead7f4aa8.exe)
+
+running 13 tests
+test comparison_and_negation_candidates_preserve_forged_and_skipped_errors ... ok
+test proven_subtrees_use_integer_operations_without_folding_or_changing_the_abi ... ok
+test never_reassigned_local_chains_use_i32_slots_and_one_return_conversion ... ok
+test proof_cache_preserves_forged_tree_errors_and_does_not_survive_compilation ... ok
+test safe_negation_uses_integer_subtraction_and_propagates_bounds ... ok
+test proven_numeric_comparisons_use_signed_integer_operands_without_result_conversion ... ok
+test unsafe_negation_keeps_float_and_does_not_hide_supported_children ... ok
+test parsed_values_and_every_intermediate_bound_control_specialization ... ok
+test unknown_inputs_mutable_storage_and_unspecialized_consumers_remain_floating ... ok
+test nonnumeric_comparisons_and_unaffected_unknown_programs_preserve_baseline_bytes ... ok
+test bounded_numeric_edges_execute_against_independent_expected_results ... ok
+test comparisons_and_negation_execute_against_independent_edges_effects_and_traps ... ok
+test insufficient_comparison_proofs_keep_floating_consumers_and_independent_children ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+

@@ -1,0 +1,5 @@
+# Evidence hashes describe exact bytes, independent of Windows checkout settings.
+* -text whitespace=cr-at-eol
+*.txt whitespace=cr-at-eol,-blank-at-eof
+# Preserve the verbatim diff snapshot, including its context-line whitespace.
+collection-1/git-diff-before.txt -diff

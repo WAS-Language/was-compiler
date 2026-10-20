@@ -1,0 +1,173 @@
+{
+  "utc_finished": "2026-10-20T18:46:34.826582+00:00",
+  "cwd": "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler",
+  "offline": true,
+  "all_gates_passed": true,
+  "commands": [
+    {
+      "name": "check",
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--all-targets"
+      ],
+      "utc_started": "2026-10-20T18:41:36.450659+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "check.txt",
+      "utc_finished": "2026-10-20T18:41:39.983901+00:00"
+    },
+    {
+      "name": "focused",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "was-compiler",
+        "--test",
+        "integer_specialization",
+        "--test",
+        "integer_locals",
+        "--",
+        "--include-ignored"
+      ],
+      "utc_started": "2026-10-20T18:41:39.984333+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "focused.txt",
+      "utc_finished": "2026-10-20T18:41:45.222260+00:00"
+    },
+    {
+      "name": "native",
+      "command": [
+        "cargo",
+        "test",
+        "--offline"
+      ],
+      "utc_started": "2026-10-20T18:41:45.222792+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "native.txt",
+      "utc_finished": "2026-10-20T18:44:20.609854+00:00"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "utc_started": "2026-10-20T18:44:20.610493+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "clippy.txt",
+      "utc_finished": "2026-10-20T18:44:30.774949+00:00"
+    },
+    {
+      "name": "core-wasm",
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "-p",
+        "was-compiler",
+        "--lib",
+        "--target",
+        "wasm32-unknown-unknown"
+      ],
+      "utc_started": "2026-10-20T18:44:30.775577+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "core-wasm.txt",
+      "utc_finished": "2026-10-20T18:44:32.250004+00:00"
+    },
+    {
+      "name": "browser-build",
+      "command": [
+        "wasm-pack",
+        "build",
+        "crates/browser",
+        "--target",
+        "web",
+        "--out-dir",
+        "../../pkg",
+        "--out-name",
+        "was_compiler",
+        "--mode",
+        "no-install",
+        "--no-opt",
+        "--offline"
+      ],
+      "utc_started": "2026-10-20T18:44:32.250833+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "browser-build.txt",
+      "utc_finished": "2026-10-20T18:44:36.875914+00:00"
+    },
+    {
+      "name": "browser-smoke",
+      "command": [
+        "node",
+        "tests/browser.cjs",
+        "pkg"
+      ],
+      "utc_started": "2026-10-20T18:44:36.876353+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "browser-smoke.txt",
+      "utc_finished": "2026-10-20T18:44:37.847817+00:00"
+    },
+    {
+      "name": "workspace-ignored",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--workspace",
+        "--",
+        "--include-ignored"
+      ],
+      "utc_started": "2026-10-20T18:44:37.848229+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "workspace-ignored.txt",
+      "utc_finished": "2026-10-20T18:46:32.909682+00:00"
+    },
+    {
+      "name": "browser-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "-p",
+        "was-compiler-browser",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--lib",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "utc_started": "2026-10-20T18:46:32.910110+00:00",
+      "timeout_seconds": 600,
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "browser-clippy.txt",
+      "utc_finished": "2026-10-20T18:46:34.826212+00:00"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "utc_started": "2026-10-20T18:37:18.338601+00:00",
+  "recorder": "docs/benchmarks/integer-add-sub-39/record_matched.py",
+  "recorder_sha256": "d20dbc781d22247b7a5f57890880db834e3649cf013d9e402acc57b4d63c5dd6",
+  "launcher_sha256": "2dfd527ed7ee2af43ae4dcae6c7523b8d3528422239d7a335cea508971f0e5eb",
+  "output": "docs/benchmarks/integer-integrated-42/collection-1",
+  "adaptation": "Redirect only the #39 output-location assertion; historical recorder unchanged",
+  "original_argv": [
+    "docs/benchmarks/integer-integrated-42/collect.py"
+  ],
+  "isolation": "No agent-launched concurrent builds, tests or benchmarks during this collection; OS/background load, thermals and JIT tiering uncontrolled",
+  "redirects": [
+    {
+      "original_condition": false,
+      "original_message": "Output must be a NEW child of docs/benchmarks/integer-add-sub-39",
+      "allowed_destination": "docs/benchmarks/integer-integrated-42/collection-1"
+    }
+  ],
+  "completed": true,
+  "utc_finished": "2026-10-20T18:37:30.440199+00:00"
+}

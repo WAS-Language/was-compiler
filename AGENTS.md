@@ -171,8 +171,12 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
     dependency. [#41 correctness/review evidence](docs/integer-specialization.md#41-measurements-and-correctness-validation-2026-10-20)
   records 1,287 tests across 81 targets, none failed/ignored, 25 rebuilt-browser
   groups and zero hard two-axis findings; a low-priority shared test-data suggestion
-  is deferred. No regression acceptance, release/default change or public type/ABI
-  change is authorized.
+  is deferred. [#42 integrated evidence](docs/integer-specialization.md#42-integrated-validation-and-release-readiness-2026-10-20)
+  adds composition/adapter checks and records 1,296 workspace tests across 81 targets,
+  none failed/ignored, plus 25 rebuilt-browser groups. Repeated matched measurements
+  confirm size benefit with material compilation regressions and mixed guest timings;
+  keep experimental pending explicit regression/release acceptance. No release/default
+  change, broader proof scope or public type/ABI change is authorized.
 
 ## Current language support
 

@@ -1,6 +1,9 @@
 #[path = "../../../tests/support/process.rs"]
 mod test_process;
 
+#[path = "../../../tests/support/integer_composition_cases.rs"]
+mod integer_composition_cases;
+
 use std::{path::Path, process::Command, time::Duration};
 use was_compiler::{Compiler, OptimizationLevel};
 use wasmparser::Validator;
@@ -55,7 +58,7 @@ fn rebuilt_browser_integer_specialization_bytes_and_wat_match_library_at_every_l
             40.0,
         ),
     ] {
-        assert_rebuilt_browser_parity(name, source, expected_result);
+        assert_rebuilt_browser_parity(name, source, expected_result, None);
     }
 }
 
@@ -104,7 +107,15 @@ fn rebuilt_browser_integer_comparisons_and_negation_match_library_at_every_level
             -30.0,
         ),
     ] {
-        assert_rebuilt_browser_parity(name, source, expected_result);
+        assert_rebuilt_browser_parity(name, source, expected_result, None);
+    }
+}
+
+#[test]
+#[ignore = "requires Node.js and freshly rebuilt browser bindings in pkg"]
+fn rebuilt_browser_integer_composition_matches_library_and_independent_oracles() {
+    for &(name, source, expected_result, trap_export) in integer_composition_cases::CASES {
+        assert_rebuilt_browser_parity(name, source, expected_result, trap_export);
     }
 }
 
@@ -121,7 +132,10 @@ fn rebuilt_browser_integer_comparisons_and_negation_diagnostics_match_library() 
             "fn main() -> number {\n    return 1;\n    -true;\n}",
             "Type mismatch: expected Number, found Bool",
         ),
-    ] {
+    ]
+    .into_iter()
+    .chain(integer_composition_cases::DIAGNOSTICS.iter().copied())
+    {
         let mut compiler = Compiler::new();
         let baseline = compiler.compile_source(source).unwrap_err();
         assert!(baseline.span().is_some());
@@ -135,6 +149,7 @@ fn rebuilt_browser_integer_comparisons_and_negation_diagnostics_match_library() 
         ] {
             compiler.set_optimization_level(level);
             let error = compiler.compile_source(source).unwrap_err();
+            assert_eq!(error, baseline);
             assert_eq!(error.span(), baseline.span());
             assert_eq!(
                 was_compiler::diagnostic::render("<browser>", source, &error),
@@ -204,7 +219,12 @@ fn rebuilt_browser_integer_comparisons_and_negation_diagnostics_match_library() 
     );
 }
 
-fn assert_rebuilt_browser_parity(name: &str, source: &str, expected_result: f64) {
+fn assert_rebuilt_browser_parity(
+    name: &str,
+    source: &str,
+    expected_result: f64,
+    trap_export: Option<&str>,
+) {
     let mut compiler = Compiler::new();
     let baseline = compiler.compile_source(source).unwrap();
     let mut native = Vec::new();
@@ -225,6 +245,9 @@ fn assert_rebuilt_browser_parity(name: &str, source: &str, expected_result: f64)
                 bytes, baseline,
                 "{name}: {level:?} must specialize eligible literals or locals"
             );
+            if let Some(previous) = native.get(1) {
+                assert_eq!(&bytes, previous, "{name}: enabled preset parity");
+            }
         }
         native_wat.push(wasmprinter::print_bytes(&bytes).unwrap());
         native.push(bytes);
@@ -238,15 +261,16 @@ fn assert_rebuilt_browser_parity(name: &str, source: &str, expected_result: f64)
             "rebuild browser bindings before this test"
         );
     }
+    let trap = trap_export.map_or("null".to_owned(), |name| format!("{name:?}"));
     let payload = format!(
-        r#"{{"source": {source:?}, "native": {native:?}, "nativeWat": {native_wat:?}, "expectedResult": {expected_result:?}}}"#
+        r#"{{"source": {source:?}, "native": {native:?}, "nativeWat": {native_wat:?}, "expectedResult": {expected_result:?}, "trapExport": {trap}}}"#
     );
     let script = r#"
         const assert = require('node:assert/strict');
         const path = require('node:path');
         const fs = require('node:fs');
         const { pathToFileURL } = require('node:url');
-        const { source, native, nativeWat, expectedResult } = JSON.parse(fs.readFileSync(0, 'utf8'));
+        const { source, native, nativeWat, expectedResult, trapExport } = JSON.parse(fs.readFileSync(0, 'utf8'));
         (async () => {
             const directory = process.argv[1];
             const { default: init, Compiler } = await import(pathToFileURL(path.join(directory, 'was_compiler.js')).href);
@@ -262,6 +286,10 @@ fn assert_rebuilt_browser_parity(name: &str, source: &str, expected_result: f64)
                     assert.ok(WebAssembly.validate(bytes));
                     const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes));
                     assert.ok(Object.is(instance.exports.main(), expectedResult), `result: level ${level}`);
+                    if (trapExport !== null) {
+                        assert.throws(() => instance.exports[trapExport](), WebAssembly.RuntimeError);
+                    }
+                    assert.ok(Object.is(instance.exports.main(), expectedResult), `repeat: level ${level}`);
                     if (level > 0) {
                         assert.notDeepEqual(Array.from(bytes), native[0]);
                         assert.deepEqual(Array.from(bytes), native[1]);
