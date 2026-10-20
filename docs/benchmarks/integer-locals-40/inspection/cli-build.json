@@ -1,0 +1,15 @@
+{
+  "command": [
+    "cargo",
+    "build",
+    "--offline",
+    "-p",
+    "was-compiler-cli"
+  ],
+  "utc_started": "2026-10-20T14:41:39.962181+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "cli-build.txt",
+  "utc_finished": "2026-10-20T14:41:40.234088+00:00"
+}

@@ -1,25 +1,29 @@
-# Proven integer specialization: #38 contracts and experimental #39 subset
+# Proven integer specialization: #38 contracts and experimental #39/#40 subset
 
 ## Status and authorization
 
 Issue #38 established bounded workloads, reproducible unoptimized measurements,
-and the broader proof contract below. User-approved issue #39 implements only
-exact parsed signed-i32 literals and proven addition/subtraction subtrees in
-`Basic`, `Standard`, and `Aggressive`. This subset is **experimental**: measurements
-show a module-size benefit, but noisy timing results include material regression
-signals pending explicit user acceptance. [Correctness gates passed](#correctness-validation-2026-10-17);
-Review against `09dcb5c` is complete. Neither validation nor
-measurements establish release acceptance. `None` remains the default and
+and the broader proof contract below. User-approved issue #39 implemented exact
+parsed signed-i32 literals and proven addition/subtraction subtrees. User authorization
+via ticket #40 extends that implementation to eligible never-reassigned ordinary
+numeric local storage and read-fact propagation in `Basic`, `Standard`, and
+`Aggressive`. This subset remains **experimental**: cumulative measurements show a
+module-size benefit, but mixed timing results include material regression signals
+pending explicit user acceptance. Historical [#39 correctness gates](#correctness-validation-2026-10-17)
+and review against `09dcb5c` retain their #39-only scope. Final [#40 correctness
+gates passed](#correctness-validation-2026-10-20), and its [review is complete](#review-completion-40).
+Neither correctness validation, implementation authorization nor measurements
+establish release acceptance. `None` remains the default and
 byte-compatibility baseline.
 
-The approved #39 subset is a narrow scheduling exception ahead of deferred WP12,
-not general WP13 authorization. Local-storage, comparison and unary-negation
-specialization remain future work under #38's broader contract, not #39 support.
+The approved #39/#40 subset is a narrow scheduling exception ahead of deferred WP12,
+not general WP13 authorization. Comparison and unary-negation specialization, and
+the remaining #38 scope, remain future work.
 The [extension plan](was_language_extensions_plan.md#issue-38--proven-integer-specialization-baseline-exception)
 reconciles this exception with the ordered work packages. The broader optimizer
 candidates and WP13 entry gates remain unchanged.
 
-## Implemented subset (#39)
+## Implemented subset (#39 literals/add-sub; #40 ordinary locals)
 
 - Literal eligibility uses the parsed binary64 value: exact signed-i32 integer,
   excluding negative zero. Decimal spelling alone neither qualifies nor excludes it.
@@ -29,11 +33,20 @@ candidates and WP13 entry gates remain unchanged.
 - Independent eligible subtrees specialize even within an unsupported or unsafe
   parent, converting exactly with `f64.convert_i32_s` at every unspecialized consumer.
   An unsupported parent therefore need not retain byte-identical children.
-- All numeric locals remain `f64`, including never-reassigned and loop-local lets.
-  Identifier/parameter/iteration reads, calls, loads and captured reads supply unknown
-  facts. Comparisons and unary operations retain their existing lowering; so do
-  multiplication, division and remainder. A source `-1` uses unary negation and is
-  not itself a proven literal subtree, though its literal operand may specialize.
+- #40 stores eligible ordinary numeric lets in `i32` slots and propagates initializer
+  bounds through their reads and later eligible add/sub/local chains. Eligibility
+  requires a proven initializer and no ordinary or compound writes anywhere in the
+  owning body, including skipped/unreachable children. An ordinary loop-body let
+  may qualify independently on each execution; reassigned/loop-carried state does not.
+- Parameters, iteration bindings, normalized-call synthetic bindings, and
+  captured/promoted bindings are excluded. Their reads, call results and memory
+  loads supply unknown facts. Each user/helper body has separate binding ownership
+  and write discovery; helper-local eligible lets may specialize without changing
+  captured cells. Slot order and indices are preserved, including sparse IDs.
+- Numeric comparisons and unary negation still use `f64`, widening proven reads at those
+  consumers; so do multiplication, division and remainder. A source `-1` uses unary
+  negation and is not itself a proven literal subtree, though its literal operand
+  may specialize.
 - `Compiler::compile` / `compile_source` select a private numeric policy from the
   preset. The typed-AST optimization boundary still borrows without rewriting.
   Direct `codegen::compile` and `codegen::compile_with_exports` retain baseline policy.
@@ -45,14 +58,17 @@ candidates and WP13 entry gates remain unchanged.
   node, malformed literals/annotations, and unreachable/skipped children in existing
   order. Unknown facts fall back rather than introducing errors or runtime guards.
 
-Language types, public AST, numeric local/storage layouts and all ABI boundaries
-remain unchanged. #39 adds no branch/caller/contract refinement, constant folding,
-algebraic rewrite, or preliminary baseline compilation.
+Language types, public AST and all ABI boundaries remain unchanged; only eligible
+private local slot types change under #40. Function parameters/results, array elements,
+captured cells and range records keep their existing representation. There is no
+branch/caller/contract refinement, constant folding, algebraic rewrite, or
+preliminary baseline compilation.
 
-## Broader first-pass representation contract (#38; future beyond #39)
+## Broader first-pass representation contract (#38; remaining future scope)
 
-The table below is the broader design envelope, **not** a list of implemented #39
-features. Ordinary-local, comparison and negation specialization need later work.
+The table below is the broader design envelope, **not** a list of fully implemented
+features. #39/#40 cover literals, eligible ordinary locals/reads and proven add/sub;
+comparison and negation specialization still need later work.
 
 The language retains one `number` type with IEEE-754 binary64 semantics. Signed
 `i32` is a private representation only where static proof establishes identical
@@ -92,7 +108,7 @@ Constant folding and algebraic rewriting are outside this pass.
 
 - **Baseline:** `None` stays default and preserves baseline bytes, as do direct
   codegen entry points. #38's recorded cross-preset byte identity is historical.
-- **Enabled subset:** `Basic`, `Standard`, and `Aggressive` use the same #39 policy
+- **Enabled subset:** `Basic`, `Standard`, and `Aggressive` use the same #39/#40 policy
   and produce identical bytes to each other. They may differ from `None`. Programs
   with no eligible subtree retain existing bytes; unsupported parents alone do not
   establish this condition because their children can specialize independently.
@@ -121,7 +137,8 @@ The corpus contains 27 bounded workloads; verification covers 108 workload/prese
 pairs across all four levels. Independent worked expectations live in
 [`integer_measure.cjs`](../tests/support/integer_measure.cjs), not in the
 representation proof analysis. Corpus case names describe workloads, not implemented
-specialization: local/comparison/negation cases can shrink through literal children.
+specialization: comparison/negation cases can shrink through eligible children
+and local storage without specializing those consumers.
 
 | Cases | Count | Coverage / independent expectation |
 | --- | ---: | --- |
@@ -184,7 +201,8 @@ run-to-run variation, not an enabled optimization benefit or release result.
 Historical benchmark records retain their original scope and measurement boundaries.
 
 The [#39 matched measurement record](benchmarks/integer-add-sub-39/README.md)
-measures this working-tree literal/add-sub subset, not the broader #38 design.
+measures the historical #39 working-tree literal/add-sub subset, not #40 local
+storage or the broader #38 design.
 24 of 27 modules shrink and none grow; summed independent corpus module sizes
 fall from 13,414 to 9,702 bytes (27.67%), not a production-application estimate.
 Compilation medians show regressions; guest timings are noisy, with reversals and
@@ -197,6 +215,9 @@ acceptance; this work remains experimental, with no release claim or default cha
 Review against `09dcb5c` is complete.
 
 ## Correctness validation (2026-10-17)
+
+**Historical #39 only:** these gates and the #39 review do not validate #40.
+See the separate [final #40 correctness evidence](#correctness-validation-2026-10-20).
 
 Final integration correctness gates passed with the commands below, as reported by
 the integration owner. The [raw final workspace test output](integer-specialization-validation-2026-10-17.txt)
@@ -218,7 +239,76 @@ These are correctness gates, not a release decision or acceptance of noisy mater
 timing regressions. Explicit user acceptance remains pending, and `None` remains
 the default. Review against `09dcb5c` is complete.
 
-## Review completion
+## #40 measurements and validation status (2026-10-20)
+
+The [new #40 measurement record](benchmarks/integer-locals-40/README.md) compares
+matched current `None` and `Basic`, cumulatively including #39 and #40. The synthetic
+27-module sum is **13,414 → 9,701 bytes (−27.68%)**. Against historical #39 Basic
+(9,702 bytes), the incremental total is only **one byte smaller**: `locals_32` saves
+64 bytes, `compare_32` grows 64 bytes, and `loop_local` saves one byte. Conversion
+boundaries can offset local-storage savings; historical timings are not matched
+incremental #40 controls.
+
+The record reports 108 independent-oracle checks and independent WAT/local-storage
+inspection, not final workspace, diagnostic or current-source browser release gates.
+Guest timings are mixed/inconclusive and compilation measurements show material
+regression signals. Separate [final correctness gates passed](#correctness-validation-2026-10-20);
+#40 remains experimental pending explicit acceptance of material regressions and a
+release decision. Ticket #40 authorizes implementation,
+not release acceptance or a default change. Preserve the evidence verbatim, including
+the README's warning about inherited stale #39 narrative in raw recorder output.
+
+`crates/compiler/tests/integer_locals.rs` covers decoded storage/read chains, sparse
+IDs, write exclusions, helper ownership, synthetic-call storage, checked forged-input
+errors and ignored bounded runtime cases. CLI/browser adapter tests cover the matching
+local-chain contract. Their final execution is recorded separately below, without
+broadening the historical raw measurement evidence's validation scope.
+
+## Correctness validation (2026-10-20)
+
+Final #40 integration correctness gates **passed**, as reported by the integration
+owner. The [raw final workspace test output](integer-locals-validation-2026-10-20.txt)
+records **1,276 tests across 81 targets, zero failed and zero ignored**. Browser
+bindings were rebuilt from current source before browser and full ignored-suite
+execution. This documentation update records the final results; it did not rerun
+the compiler validation commands.
+
+| Exact command (repository root) | Result |
+| --- | --- |
+| `cargo check --offline --workspace --all-targets` | Passed; rerun on the final tree |
+| `cargo clippy --offline --all-targets -- -D warnings` | Passed on the final tree |
+| `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown` | Passed |
+| `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline` | Passed; current-source browser package rebuilt |
+| `node tests/browser.cjs pkg` | Passed: 25 groups |
+| `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings` | Passed |
+| `cargo test --offline --workspace -- --include-ignored` | Passed: 1,276 tests, 81 targets, zero failed/ignored |
+
+Earlier runs are preserved, not replaced by the successful log:
+
+- [Initial run](integer-locals-validation-2026-10-20-initial.txt): stale inference
+  storage expectation.
+- [Second run](integer-locals-validation-2026-10-20-second.txt): stale pipeline
+  ordinary-local slot expectation.
+- [Third run](integer-locals-validation-2026-10-20-third.txt): Windows error 206
+  from oversized browser-test Node arguments; fixed by passing the payload via stdin.
+
+The integration owner verified the exact measurement input manifest: no production
+inputs changed after the measured hashes, with no changed inputs. Test expectation
+and adapter-harness fixes do not turn the historical raw measurements into a new
+collection or broaden their scope. Final correctness evidence is separate from
+benchmark evidence and does not accept material timing regressions or authorize
+release/default changes; `None` remains default.
+
+## Review completion (#40)
+
+Review against initial `dc619db46e9dac3694adb7cc5855203a18233426`, covering the
+uncommitted #40 tree, completed with **zero hard standards findings and zero spec
+findings**, as reported by the review owner. One low-priority suggestion to reduce
+duplicate adapter scenarios was deliberately deferred. The [review record](integer-specialization-review-40.md)
+is forthcoming. Review completion is not regression acceptance, release acceptance
+or permission to change the default.
+
+## Review completion (#39)
 
 The [two-axis review against `09dcb5c`](integer-specialization-review-39.md)
 records the standards findings, fixes, zero spec findings, final split validation

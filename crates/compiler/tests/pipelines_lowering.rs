@@ -992,9 +992,14 @@ fn injections_accept_caller_locals_and_each_concrete_storage_type() {
                 .into_iter()
                 .map(Result::unwrap)
                 .collect();
+            let input_storage = if ty == "number" && level != OptimizationLevel::None {
+                ValType::I32
+            } else {
+                storage
+            };
             assert_eq!(
                 &locals[..3],
-                [(1, storage), (1, storage), (1, ValType::F64)],
+                [(1, input_storage), (1, storage), (1, ValType::F64)],
                 "{ty}"
             );
             let mut calls = Vec::new();

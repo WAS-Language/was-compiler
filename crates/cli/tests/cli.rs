@@ -1833,6 +1833,111 @@ fn integer_specialization_cli_bytes_and_wat_match_library_at_every_level() {
 }
 
 #[test]
+fn integer_specialization_local_cli_bytes_and_wat_match_library_at_every_level() {
+    let cases = [
+        (
+            "chain",
+            "fn main() -> number { let a = 10; let b = a + 20; let c = b - 3; return c; }",
+        ),
+        (
+            "writes",
+            "fn main() -> number { let a = 10; a = 2.5; let b = 20; b += a; b -= 1; b *= 2; b /= 4; b %= 3; return a + b; }",
+        ),
+        (
+            "skipped_write",
+            "fn main() -> number { let a = 10; false && { a = 2.5; true }; if false { a += 0.5; } let b = a + 20; return b; }",
+        ),
+        (
+            "unreachable_write",
+            "fn main() -> number { let a = 10; let b = a + 20; return b; a = 2.5; a += 0.5; }",
+        ),
+        (
+            "captures",
+            "fn main() -> number { let a = 10; let read = () => { let b = 20; let c = b + 3; return a + c; }; let before = read(); a += 0.5; return before + read(); }",
+        ),
+        (
+            "readonly_capture",
+            "fn main() -> number { let a = 10; let read = () => a; let b = 20; return read() + b; }",
+        ),
+        (
+            "loop_scope",
+            "fn main() -> number { let a = 10; let total = 0; for i in 0..3 { let a = 20; let b = a + 3; if i == 1 { continue; } total += b; } return total + a; }",
+        ),
+        (
+            "calls",
+            "fn identity(x: number) -> number { return x; } fn main() -> number { let a = 10; let b = a + 20; let c = identity(b); return c + a; }",
+        ),
+    ];
+
+    for (name, source) in cases {
+        let scratch = Scratch::new(name);
+        let mut compiler = Compiler::new();
+        let baseline = compiler.compile_source(source).unwrap();
+        assert_eq!(scratch.compile(source, &[]), baseline, "{name}: default");
+        let mut enabled = None;
+
+        for (flag, level) in [
+            ("-O0", was_compiler::OptimizationLevel::None),
+            ("-O1", was_compiler::OptimizationLevel::Basic),
+            ("-O2", was_compiler::OptimizationLevel::Standard),
+            ("-O3", was_compiler::OptimizationLevel::Aggressive),
+        ] {
+            compiler.set_optimization_level(level);
+            let expected = compiler.compile_source(source).unwrap();
+            decode(&expected);
+            if level != was_compiler::OptimizationLevel::None {
+                if let Some(previous) = &enabled {
+                    assert_eq!(&expected, previous, "{name}: enabled preset parity");
+                } else {
+                    enabled = Some(expected.clone());
+                }
+            }
+            assert_eq!(scratch.compile(source, &[flag]), expected, "{name}: {flag}");
+            let wat = success(scratch.cli(&["program.was", flag, "--emit", "wat"], None));
+            assert_eq!(
+                assert_plain_wat(&wat),
+                wasmprinter::print_bytes(&expected).unwrap(),
+                "{name}: {flag} WAT"
+            );
+        }
+        assert_eq!(scratch.compile(source, &["-O0"]), baseline, "{name}: reset");
+        scratch.assert_entries(&["program.was", "program.wasm"]);
+    }
+}
+
+#[test]
+fn integer_specialization_cli_uses_i32_for_proven_local_chain() {
+    let scratch = Scratch::new("integer_local_storage");
+    let source = "fn main() -> number { let a = 10; let b = a + 20; let c = b - 3; return c; }";
+
+    for flag in ["-O1", "-O2", "-O3"] {
+        let bytes = scratch.compile(source, &[flag]);
+        let integer_locals: u32 = Parser::new(0)
+            .parse_all(&bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(
+                    body.get_locals_reader()
+                        .unwrap()
+                        .into_iter()
+                        .map(|local| {
+                            let (count, ty) = local.unwrap();
+                            if ty == wasmparser::ValType::I32 {
+                                count
+                            } else {
+                                0
+                            }
+                        })
+                        .sum::<u32>(),
+                ),
+                _ => None,
+            })
+            .sum();
+        assert_eq!(integer_locals, 3, "{flag}: proven local chain");
+    }
+    scratch.assert_entries(&["program.was", "program.wasm"]);
+}
+
+#[test]
 fn unspecialized_program_preserves_bytes_at_every_optimization_level() {
     let scratch = Scratch::new("optimization");
     let baseline = scratch.compile(MEMORY_SOURCE, &["--export", "main"]);

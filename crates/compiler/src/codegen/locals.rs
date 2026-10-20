@@ -74,6 +74,16 @@ impl LocalLayout {
         Ok(layout)
     }
 
+    pub fn specialize(&mut self, facts: &super::representation::Facts, first_local: u32) {
+        for (&id, local) in &self.bindings {
+            if facts.local_representation(id) == super::representation::Representation::I32 {
+                // Only ordinary declarations have proofs; parameters and synthetic
+                // bindings retain their ABI/storage types and their original slots.
+                self.types[(local.index.raw() - first_local) as usize] = ValType::I32;
+            }
+        }
+    }
+
     pub fn get(&self, id: VariableId) -> Option<Local> {
         self.bindings.get(&id).copied()
     }

@@ -168,7 +168,7 @@ fn decode(bytes: &[u8]) -> Decoded {
 }
 
 #[test]
-fn inferred_locals_keep_f64_numbers_i32_handles_and_independent_slot_layout() {
+fn inferred_locals_preserve_numeric_abi_handles_and_independent_slot_layout() {
     let source = r#"
         fn main(seed: number, gate: bool) -> number {
             let n = 10;
@@ -215,7 +215,11 @@ fn inferred_locals_keep_f64_numbers_i32_handles_and_independent_slot_layout() {
         assert_eq!(
             decoded.locals[0],
             [
-                ValType::F64,
+                if level == OptimizationLevel::None {
+                    ValType::F64
+                } else {
+                    ValType::I32
+                },
                 ValType::I32,
                 ValType::I32,
                 ValType::I32,
@@ -241,7 +245,6 @@ fn inferred_locals_keep_f64_numbers_i32_handles_and_independent_slot_layout() {
                 ops.read().unwrap(),
                 Operator::I32Const { value: 10 }
             ));
-            assert!(matches!(ops.read().unwrap(), Operator::F64ConvertI32S));
             assert!(matches!(
                 ops.read().unwrap(),
                 Operator::LocalSet { local_index: 2 }

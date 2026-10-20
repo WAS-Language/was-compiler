@@ -1,0 +1,1 @@
+fn main(x: number) -> number { let a = 1; a = 2.5; return a + 1; }

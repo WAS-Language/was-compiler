@@ -1,0 +1,17 @@
+{
+  "command": [
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\target\\debug\\was-compiler.exe",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-locals-40\\inspection\\negate_min.was",
+    "-O1",
+    "--host",
+    "mark=env.mark(number)->number",
+    "-o",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-locals-40\\inspection\\negate_min-Basic.wat"
+  ],
+  "utc_started": "2026-10-20T14:41:41.469702+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "negate_min-Basic-wat.txt",
+  "utc_finished": "2026-10-20T14:41:41.494660+00:00"
+}

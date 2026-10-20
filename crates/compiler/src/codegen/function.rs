@@ -238,12 +238,25 @@ pub(super) struct BodyEmitter<'a> {
 }
 
 impl<'a> BodyEmitter<'a> {
+    #[cfg(test)]
     fn new(function: &'a TypedFunction, module: &'a Layout<'a>) -> Result<Self, CodegenError> {
-        Self::for_owner(BodyOwner::Function(function), module)
+        Self::for_owner(
+            BodyOwner::Function(function),
+            module,
+            NumericPolicy::Baseline,
+        )
     }
 
-    fn for_owner(function: BodyOwner<'a>, module: &'a Layout<'a>) -> Result<Self, CodegenError> {
-        let context = Context::new(function, module)?;
+    fn for_owner(
+        function: BodyOwner<'a>,
+        module: &'a Layout<'a>,
+        policy: NumericPolicy,
+    ) -> Result<Self, CodegenError> {
+        let mut context = Context::new(function, module)?;
+        let numeric = Facts::for_owner(policy, function, context.storage.cells.keys().copied());
+        let first_local = context.first_temporary
+            - checked_u32(context.locals.types.len(), "function local count")?;
+        context.locals.specialize(&numeric, first_local);
         let mut locals: Vec<_> = context.locals.types.iter().map(|ty| (1, *ty)).collect();
 
         let mut temporary_groups: Vec<(u32, ValType)> = Vec::new();
@@ -272,7 +285,7 @@ impl<'a> BodyEmitter<'a> {
             next_label: 0,
             loops: Vec::new(),
             seen_loops: HashSet::new(),
-            numeric: Facts::default(),
+            numeric,
         })
     }
 
@@ -678,6 +691,10 @@ impl<'a> BodyEmitter<'a> {
         self.structured(|emitter| expression::emit(expr, emitter, span))
     }
 
+    pub fn local_representation(&self, id: VariableId) -> Representation {
+        self.numeric.local_representation(id)
+    }
+
     pub fn numeric_representation(&mut self, expr: &TypedExpr) -> Representation {
         self.numeric.representation(expr)
     }
@@ -703,8 +720,7 @@ pub(super) fn emit<'a>(
     module: &'a Layout<'a>,
     policy: NumericPolicy,
 ) -> Result<Function, CodegenError> {
-    let mut emitter = BodyEmitter::new(function, module)?;
-    emitter.numeric = Facts::new(policy);
+    let mut emitter = BodyEmitter::for_owner(BodyOwner::Function(function), module, policy)?;
 
     validate_parameters(&function.params, &mut emitter)?;
 

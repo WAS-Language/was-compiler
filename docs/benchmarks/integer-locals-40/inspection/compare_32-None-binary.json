@@ -1,0 +1,17 @@
+{
+  "command": [
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\target\\debug\\was-compiler.exe",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-locals-40\\inspection\\compare_32.was",
+    "-O0",
+    "--host",
+    "mark=env.mark(number)->number",
+    "-o",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-locals-40\\inspection\\compare_32-None.wasm"
+  ],
+  "utc_started": "2026-10-20T14:41:40.414216+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "compare_32-None-binary.txt",
+  "utc_finished": "2026-10-20T14:41:40.467869+00:00"
+}

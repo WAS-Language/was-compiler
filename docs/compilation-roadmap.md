@@ -24,32 +24,37 @@ release manifest. See [contracts, Rust migration and release evidence](typed-arr
 Earlier milestone/extension records below retain their historical scope.
 This work adds neither reclamation nor optimization transformations.
 
-## Proven integer specialization (#38 contract; experimental #39 subset)
+## Proven integer specialization (#38 contract; experimental #39/#40 subset)
 
 [The maintained contract](integer-specialization.md) separates #38's broader
 literal/read/add/sub/comparison/restricted-negation and never-reassigned local
-design from user-approved #39: only exact parsed signed-i32 literals and proven
-add/sub subtrees are implemented. All numeric locals remain f64, including
-never-reassigned and loop-local lets. Comparisons, unary operations, calls, loads
-and captured reads retain existing lowering/unknown facts. Independent eligible
-subtrees convert back to f64 at unspecialized consumers. Public AST, language types
-and ABI remain unchanged.
+design from user-approved #39/#40: exact parsed signed-i32 literals, proven add/sub
+subtrees and eligible never-reassigned ordinary numeric local storage/read facts
+are implemented. Ticket #40 authorizes the local extension. All ordinary/compound
+writes, including skipped/unreachable writes, exclude a binding. Parameters,
+iteration, normalized-call synthetic and captured/promoted bindings are excluded;
+calls/memory loads are unknown. Ordinary loop-body lets may qualify independently.
+Comparisons and negation remain f64, with no branch/contract/caller refinement.
+Eligible subtrees/reads widen to f64 at unspecialized consumers. Public AST, language
+types and ABI remain unchanged.
 
 `Basic`, `Standard`, and `Aggressive` share this subset and must be byte-identical
 to each other, with semantic/diagnostic parity across all levels and adapter byte
 parity within each level. `None` stays default and preserves baseline bytes; direct
 codegen APIs also retain baseline policy. This approved exception ahead of WP12
-does not authorize general WP13 or broader #38 implementation.
+does not authorize general WP13 or remaining #38 implementation.
 
 The [#38 baseline](benchmarks/integer-specialization/summary.md) is historical.
-[#39 matched measurements](benchmarks/integer-add-sub-39/README.md) show a size
-benefit, but noisy compilation/guest timings include material regressions pending
-explicit user decision. The subset remains experimental, not a release/default
-change. [Correctness gates passed](integer-specialization.md#correctness-validation-2026-10-17),
-including 1,261 workspace tests with zero failed/ignored and 25 rebuilt-browser
-groups. The linked validation section points to raw final test evidence; focused
-measurement checks retain their historical scope. Review against `09dcb5c` is complete; release acceptance remains pending explicit acceptance of the
-noisy material timing regressions.
+[New #40 matched measurements](benchmarks/integer-locals-40/README.md) show cumulative
+size reduction (13,414 → 9,701 bytes), but only one byte net savings over historical
+#39 (−64 `locals_32`, +64 `compare_32`, −1 `loop_local`). Mixed guest timing and
+compilation regression signals keep the subset experimental pending explicit
+acceptance, not a release/default change. Historical [#39 correctness gates](integer-specialization.md#correctness-validation-2026-10-17)
+(1,261 workspace tests, zero failed/ignored; 25 rebuilt-browser groups) and review
+against `09dcb5c` do not validate #40. Separate [final #40 correctness gates passed](integer-specialization.md#correctness-validation-2026-10-20):
+1,276 tests across 81 targets, zero failed/ignored, and 25 current-source browser
+groups. [#40 review is complete](integer-specialization.md#review-completion-40);
+material-regression and release acceptance remain pending.
 
 ## Pipeline and ownership
 
@@ -161,7 +166,7 @@ members; browser tests require explicit selection. See [ADR 0005](adr/0005-compi
 | `runtime/index.cjs`, `runtime/abi.cjs`, `runtime/run.cjs` | Instantiate raw binaries, offer explicit ABI conversions, and expose a raw-call Node runner. |
 | `crates/cli/tests/cli.rs`, `crates/compiler/tests/runtime.rs` | Exercise source-file/raw-binary/provider integration separately from backend tests. |
 | `crates/compiler/src/optimization.rs` | O0–O3 numeric policy selection and a borrowed typed-AST boundary without rewrites. |
-| `crates/compiler/src/codegen/representation.rs` | Private per-body `Facts` cache for exact-i32 literal/add-sub proofs; checked emission still validates all nodes. |
+| `crates/compiler/src/codegen/representation.rs` | Private per-body `Facts` cache for exact-i32 literal/add-sub and eligible ordinary-local/read proofs; checked emission still validates all nodes. |
 | `crates/compiler/src/host.rs` | Ordered host declarations, language-visible names, import names, signatures, and private external-type eligibility shared with backend checks. |
 | `crates/compiler/src/semantic.rs` | Resolve and type-check user, host, and built-in calls; produce the typed AST. |
 | `crates/compiler/src/typed_ast.rs` | Typed expressions, resolved function/variable/loop references, and owned import metadata. |
@@ -197,7 +202,7 @@ These are concrete modules with narrow responsibilities, not a generic plugin or
 pass framework. Add modules when a milestone requires them.
 
 `CompilerOptions` selects `OptimizationLevel::None`, `Basic`, `Standard`, or
-`Aggressive`; the default is `None`. Enabled presets share experimental #39
+`Aggressive`; the default is `None`. Enabled presets share experimental #39/#40
 representation selection, not AST transformations. Preserve semantics/diagnostics
 across levels, enabled-preset byte identity and adapter byte parity within each
 level. `Compiler::compile` and `compile_source` invoke the borrowed
@@ -391,7 +396,8 @@ symbol tables.
   Node.js runtime tests verify decimal rounding, NaN, positive/negative infinity,
   signed zero, overflow from finite operands, and import-index offsets.
 - `None` and direct codegen preserve baseline expression instructions. Enabled
-  presets may specialize #39 literal/add-sub subtrees without constant folding.
+  presets may specialize #39/#40 literal/add-sub/eligible-local subtrees without
+  constant folding.
   Malformed typed-AST operands and unsupported operators retain
   enclosing statement spans in their errors.
 - **Separate remainder checkpoint (M9): complete.** Wasm has no `f64.rem`;

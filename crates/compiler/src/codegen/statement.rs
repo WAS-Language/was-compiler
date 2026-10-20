@@ -42,7 +42,8 @@ pub(super) fn emit(
             let index = emitter.declaration(*id, *ty, span)?;
 
             expect_operand(function, *ty, value.ty, span)?;
-            let flow = emitter.emit_expr(value, span)?;
+            let representation = emitter.local_representation(*id);
+            let flow = emitter.emit_expr_as(value, span, representation)?;
             if flow.can_fall_through() {
                 emitter.local_set(index);
                 emitter.promote(*id, *ty, span)?;

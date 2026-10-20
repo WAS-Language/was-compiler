@@ -76,6 +76,54 @@ fn proven_subtrees_use_integer_operations_without_folding_or_changing_the_abi() 
 }
 
 #[test]
+fn never_reassigned_local_chains_use_i32_slots_and_one_return_conversion() {
+    let source = "fn main() -> number { let a = 10 + 20; let b = a - 3; return b + a; }";
+    let baseline = Compiler::new().compile_source(source).unwrap();
+    assert_eq!(
+        baseline,
+        codegen::compile(&Compiler::new().analyze(source).unwrap()).unwrap()
+    );
+    let expected = compiler(OptimizationLevel::Basic)
+        .compile_source(source)
+        .unwrap();
+    for level in ENABLED {
+        let bytes = compiler(level).compile_source(source).unwrap();
+        assert_eq!(bytes, expected);
+        assert_eq!(
+            instructions(&bytes),
+            [
+                "I32Const { value: 10 }",
+                "I32Const { value: 20 }",
+                "I32Add",
+                "LocalSet { local_index: 0 }",
+                "LocalGet { local_index: 0 }",
+                "I32Const { value: 3 }",
+                "I32Sub",
+                "LocalSet { local_index: 1 }",
+                "LocalGet { local_index: 1 }",
+                "LocalGet { local_index: 0 }",
+                "I32Add",
+                "F64ConvertI32S",
+                "Return",
+                "End",
+            ]
+        );
+        for payload in Parser::new(0).parse_all(&bytes) {
+            if let Payload::CodeSectionEntry(body) = payload.unwrap() {
+                assert_eq!(
+                    body.get_locals_reader()
+                        .unwrap()
+                        .into_iter()
+                        .map(Result::unwrap)
+                        .collect::<Vec<_>>(),
+                    [(1, ValType::I32), (1, ValType::I32)]
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn parsed_values_and_every_intermediate_bound_control_specialization() {
     // Counts are independent expected opcodes, not values computed by the proof.
     for (expr, integer_adds, integer_subs, float_adds, float_subs) in [
@@ -121,7 +169,7 @@ fn parsed_values_and_every_intermediate_bound_control_specialization() {
 }
 
 #[test]
-fn unknown_inputs_stay_floating_and_local_storage_and_consumers_remain_unchanged() {
+fn unknown_inputs_mutable_storage_and_unspecialized_consumers_remain_floating() {
     for source in [
         "fn main(x: number) -> number { return x; }",
         "fn main(x: number) -> number { return x * 1.5; }",
@@ -136,7 +184,7 @@ fn unknown_inputs_stay_floating_and_local_storage_and_consumers_remain_unchanged
 
     for (source, required) in [
         (
-            "fn main() -> number { let x = 1 + 2; return x + 3; }",
+            "fn main() -> number { let x = 1 + 2; x = 4; return x + 3; }",
             "F64Add",
         ),
         (
@@ -169,7 +217,7 @@ fn unknown_inputs_stay_floating_and_local_storage_and_consumers_remain_unchanged
             assert!(ops.contains(&required.into()), "{source}: {required}");
             for payload in Parser::new(0).parse_all(&bytes) {
                 if let Payload::CodeSectionEntry(body) = payload.unwrap() {
-                    // Ordinary numeric locals remain f64. Handle/scratch/capture
+                    // Mutable numeric locals remain f64. Handle/scratch/capture
                     // locals may still use their existing i32 types.
                     if source.contains("let x =") && !source.contains("let read") {
                         let locals: Vec<_> = body

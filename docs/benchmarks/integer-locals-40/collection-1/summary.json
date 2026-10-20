@@ -1,0 +1,2397 @@
+{
+  "notes": "Matched experimental #39 observations, not release validation. Locals remain f64; eligible exact-i32 literals/add-sub trees may specialize. Power, thermals, background activity and settled V8 tiering are not controlled. Guest timing includes JS/Wasm calls and effects bookkeeping. Compiler reports contain Divan aggregates (100 samples, one compilation per sample), not raw samples.",
+  "verify_records": 108,
+  "enabled_presets_identical": true,
+  "None_matches_historical_38": true,
+  "machines": [
+    {
+      "mode": "verify",
+      "utc": "2026-10-20T14:39:57.444Z",
+      "node": "v24.12.0",
+      "v8": "13.6.233.17-node.37",
+      "platform": "win32",
+      "arch": "x64",
+      "osRelease": "10.0.26300",
+      "cpu": "Intel(R) Core(TM) Ultra 5 125H",
+      "logicalCpus": 18,
+      "totalMemoryBytes": 16730726400,
+      "nodeFlags": []
+    },
+    {
+      "mode": "timing",
+      "utc": "2026-10-20T14:40:19.351Z",
+      "node": "v24.12.0",
+      "v8": "13.6.233.17-node.37",
+      "platform": "win32",
+      "arch": "x64",
+      "osRelease": "10.0.26300",
+      "cpu": "Intel(R) Core(TM) Ultra 5 125H",
+      "logicalCpus": 18,
+      "totalMemoryBytes": 16730726400,
+      "nodeFlags": []
+    },
+    {
+      "mode": "timing",
+      "utc": "2026-10-20T14:40:19.800Z",
+      "node": "v24.12.0",
+      "v8": "13.6.233.17-node.37",
+      "platform": "win32",
+      "arch": "x64",
+      "osRelease": "10.0.26300",
+      "cpu": "Intel(R) Core(TM) Ultra 5 125H",
+      "logicalCpus": 18,
+      "totalMemoryBytes": 16730726400,
+      "nodeFlags": []
+    },
+    {
+      "mode": "timing",
+      "utc": "2026-10-20T14:40:21.972Z",
+      "node": "v24.12.0",
+      "v8": "13.6.233.17-node.37",
+      "platform": "win32",
+      "arch": "x64",
+      "osRelease": "10.0.26300",
+      "cpu": "Intel(R) Core(TM) Ultra 5 125H",
+      "logicalCpus": 18,
+      "totalMemoryBytes": 16730726400,
+      "nodeFlags": []
+    },
+    {
+      "mode": "timing",
+      "utc": "2026-10-20T14:40:21.502Z",
+      "node": "v24.12.0",
+      "v8": "13.6.233.17-node.37",
+      "platform": "win32",
+      "arch": "x64",
+      "osRelease": "10.0.26300",
+      "cpu": "Intel(R) Core(TM) Ultra 5 125H",
+      "logicalCpus": 18,
+      "totalMemoryBytes": 16730726400,
+      "nodeFlags": []
+    }
+  ],
+  "workloads": [
+    {
+      "name": "literal_1",
+      "levels": {
+        "None": {
+          "sourceBytes": 86,
+          "moduleBytes": 100,
+          "sourceSha256": "1e4907943692fd5dc1b37d13c7cb44fc74b001843c884a26e84322b00a7af828",
+          "moduleSha256": "95d4855ba19fd5fa3dd4df743c66c28f760677eb1178e968774fe20af09b6e03",
+          "guest_medians_ns": [
+            54.6875,
+            82.03125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 13.99,
+                "max_us": 180.6,
+                "median_us": 24.39,
+                "mean_us": 25.13
+              },
+              {
+                "min_us": 8.499,
+                "max_us": 16.49,
+                "median_us": 8.899,
+                "mean_us": 9.16
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.599,
+                "max_us": 12.99,
+                "median_us": 6.799,
+                "mean_us": 6.931
+              },
+              {
+                "min_us": 3.199,
+                "max_us": 5.399,
+                "median_us": 3.399,
+                "mean_us": 3.393
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 86,
+          "moduleBytes": 75,
+          "sourceSha256": "1e4907943692fd5dc1b37d13c7cb44fc74b001843c884a26e84322b00a7af828",
+          "moduleSha256": "2230921937f8c34add2e04a3e4924b315bf282ac9cf518acac83c46e93b01b2f",
+          "guest_medians_ns": [
+            45.3125,
+            68.75
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 8.499,
+                "max_us": 92.39,
+                "median_us": 8.999,
+                "mean_us": 12.2
+              },
+              {
+                "min_us": 8.799,
+                "max_us": 17.39,
+                "median_us": 9.299,
+                "mean_us": 9.734
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 7.199,
+                "max_us": 155.0,
+                "median_us": 8.899,
+                "mean_us": 12.69
+              },
+              {
+                "min_us": 4.399,
+                "max_us": 27.89,
+                "median_us": 5.599,
+                "mean_us": 6.229
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -25
+    },
+    {
+      "name": "locals_1",
+      "levels": {
+        "None": {
+          "sourceBytes": 122,
+          "moduleBytes": 121,
+          "sourceSha256": "208264adedf68278fdc28274729574f4fb52a90b63ccbd6d30eb1d9a09694a48",
+          "moduleSha256": "6227f3aea449a2fcb3c22ba44389e09cb0b31b4fea6b189daf42a827bb3f53b2",
+          "guest_medians_ns": [
+            71.875,
+            110.9375
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 22.99,
+                "max_us": 183.3,
+                "median_us": 28.69,
+                "mean_us": 33.17
+              },
+              {
+                "min_us": 11.39,
+                "max_us": 17.49,
+                "median_us": 11.99,
+                "mean_us": 12.33
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 8.599,
+                "max_us": 15.99,
+                "median_us": 9.399,
+                "mean_us": 9.803
+              },
+              {
+                "min_us": 5.999,
+                "max_us": 7.999,
+                "median_us": 6.499,
+                "mean_us": 6.55
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 122,
+          "moduleBytes": 96,
+          "sourceSha256": "208264adedf68278fdc28274729574f4fb52a90b63ccbd6d30eb1d9a09694a48",
+          "moduleSha256": "e9d86f57b25751c111ff6d6f33ab1047b925e120e84cfc7f158979d049f4c252",
+          "guest_medians_ns": [
+            32.8125,
+            54.6875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 12.19,
+                "max_us": 58.99,
+                "median_us": 12.89,
+                "mean_us": 13.69
+              },
+              {
+                "min_us": 12.79,
+                "max_us": 67.69,
+                "median_us": 18.19,
+                "mean_us": 21.31
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 10.19,
+                "max_us": 74.99,
+                "median_us": 10.69,
+                "mean_us": 12.23
+              },
+              {
+                "min_us": 7.199,
+                "max_us": 24.99,
+                "median_us": 8.299,
+                "mean_us": 8.889
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -25
+    },
+    {
+      "name": "compare_1",
+      "levels": {
+        "None": {
+          "sourceBytes": 190,
+          "moduleBytes": 196,
+          "sourceSha256": "fd0ddea2e782aeb980e25dcbff5b4379e748fff9e5ff50e2e33c87840a883608",
+          "moduleSha256": "7c3ddf34cb3fca6bbb1bb827a5e3270a812acc649baaa16b05e702e391d6f065",
+          "guest_medians_ns": [
+            56.25,
+            45.3125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 26.89,
+                "max_us": 170.8,
+                "median_us": 29.59,
+                "mean_us": 33.83
+              },
+              {
+                "min_us": 16.69,
+                "max_us": 140.7,
+                "median_us": 17.29,
+                "mean_us": 19.99
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 11.29,
+                "max_us": 166.7,
+                "median_us": 11.69,
+                "mean_us": 15.99
+              },
+              {
+                "min_us": 6.099,
+                "max_us": 46.39,
+                "median_us": 10.79,
+                "mean_us": 9.913
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 190,
+          "moduleBytes": 140,
+          "sourceSha256": "fd0ddea2e782aeb980e25dcbff5b4379e748fff9e5ff50e2e33c87840a883608",
+          "moduleSha256": "d33de8ca649c183af7fdbd659d270a711edea76284545fa3c2a7f596c414af57",
+          "guest_medians_ns": [
+            35.15625,
+            56.25
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 17.89,
+                "max_us": 35.89,
+                "median_us": 18.49,
+                "mean_us": 19.05
+              },
+              {
+                "min_us": 20.49,
+                "max_us": 159.9,
+                "median_us": 28.34,
+                "mean_us": 33.55
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 16.49,
+                "max_us": 234.0,
+                "median_us": 20.14,
+                "mean_us": 28.97
+              },
+              {
+                "min_us": 8.699,
+                "max_us": 15.49,
+                "median_us": 10.29,
+                "mean_us": 10.43
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -56
+    },
+    {
+      "name": "negate_1",
+      "levels": {
+        "None": {
+          "sourceBytes": 112,
+          "moduleBytes": 116,
+          "sourceSha256": "a7caf71b5b245ed786cc7be90932993a9cc520889bd65ef9818237e67f259cc4",
+          "moduleSha256": "7d39f7080239c8acb9fe404c0b9adb41b95ea507a446fdea93310d16c68eea4a",
+          "guest_medians_ns": [
+            54.6875,
+            43.75
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 21.89,
+                "max_us": 154.9,
+                "median_us": 29.09,
+                "mean_us": 29.09
+              },
+              {
+                "min_us": 11.19,
+                "max_us": 33.79,
+                "median_us": 12.19,
+                "mean_us": 12.86
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 8.299,
+                "max_us": 16.69,
+                "median_us": 8.599,
+                "mean_us": 8.716
+              },
+              {
+                "min_us": 4.699,
+                "max_us": 49.69,
+                "median_us": 5.099,
+                "mean_us": 8.374
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 112,
+          "moduleBytes": 92,
+          "sourceSha256": "a7caf71b5b245ed786cc7be90932993a9cc520889bd65ef9818237e67f259cc4",
+          "moduleSha256": "867637ef49bdc675fda7c3c498cf078a8e1a1f97928ee221f66754ec88d7b08e",
+          "guest_medians_ns": [
+            32.8125,
+            53.125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 23.29,
+                "max_us": 130.6,
+                "median_us": 26.89,
+                "mean_us": 29.93
+              },
+              {
+                "min_us": 22.99,
+                "max_us": 47.19,
+                "median_us": 26.44,
+                "mean_us": 27.06
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 9.799,
+                "max_us": 152.8,
+                "median_us": 10.69,
+                "mean_us": 13.51
+              },
+              {
+                "min_us": 7.099,
+                "max_us": 23.69,
+                "median_us": 7.899,
+                "mean_us": 8.342
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -24
+    },
+    {
+      "name": "literal_32",
+      "levels": {
+        "None": {
+          "sourceBytes": 861,
+          "moduleBytes": 1156,
+          "sourceSha256": "786242ca5cbe0b752ede95ccd824b18201266feb14e82a9831e0106fe1abc114",
+          "moduleSha256": "4d012f3c178294028cca89c1827672286806a1aa4d3ae387c456c00512f3108e",
+          "guest_medians_ns": [
+            92.1875,
+            98.4375
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 144.0,
+                "max_us": 949.4,
+                "median_us": 234.4,
+                "mean_us": 273.4
+              },
+              {
+                "min_us": 74.99,
+                "max_us": 1087.0,
+                "median_us": 111.1,
+                "mean_us": 136.9
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 34.39,
+                "max_us": 200.7,
+                "median_us": 35.19,
+                "mean_us": 40.64
+              },
+              {
+                "min_us": 17.49,
+                "max_us": 43.99,
+                "median_us": 25.64,
+                "mean_us": 27.28
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 861,
+          "moduleBytes": 542,
+          "sourceSha256": "786242ca5cbe0b752ede95ccd824b18201266feb14e82a9831e0106fe1abc114",
+          "moduleSha256": "a2fc821e5b5131fec86817f6914b36ada61b140910bdccd87859e73aaf248970",
+          "guest_medians_ns": [
+            36.71875,
+            81.25
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 80.39,
+                "max_us": 332.1,
+                "median_us": 103.6,
+                "mean_us": 107.7
+              },
+              {
+                "min_us": 81.19,
+                "max_us": 298.5,
+                "median_us": 145.2,
+                "mean_us": 152.0
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 55.39,
+                "max_us": 134.1,
+                "median_us": 65.59,
+                "mean_us": 70.26
+              },
+              {
+                "min_us": 32.49,
+                "max_us": 223.8,
+                "median_us": 46.14,
+                "mean_us": 46.63
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -614
+    },
+    {
+      "name": "locals_32",
+      "levels": {
+        "None": {
+          "sourceBytes": 2013,
+          "moduleBytes": 1828,
+          "sourceSha256": "1297e702b9ade61550023c6201b23f135c695d3e82f2e5b049b3e0edf930b37d",
+          "moduleSha256": "cdfcecc1a1dc4a7060c75125c0ef92fb3dc925b83a97421fcb2421c0276ebba6",
+          "guest_medians_ns": [
+            84.375,
+            70.3125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 346.4,
+                "max_us": 1131.0,
+                "median_us": 494.6,
+                "mean_us": 571.3
+              },
+              {
+                "min_us": 204.7,
+                "max_us": 1525.0,
+                "median_us": 375.9,
+                "mean_us": 435.2
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 91.89,
+                "max_us": 260.6,
+                "median_us": 95.34,
+                "mean_us": 120.5
+              },
+              {
+                "min_us": 46.19,
+                "max_us": 263.5,
+                "median_us": 48.89,
+                "mean_us": 61.92
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 2013,
+          "moduleBytes": 1214,
+          "sourceSha256": "1297e702b9ade61550023c6201b23f135c695d3e82f2e5b049b3e0edf930b37d",
+          "moduleSha256": "c4e97cac21610ba6365510bbb2e33d0d5ec42e0973d007f25cf63de9b3cf335c",
+          "guest_medians_ns": [
+            56.25,
+            124.21875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 210.0,
+                "max_us": 3116.0,
+                "median_us": 445.7,
+                "mean_us": 482.7
+              },
+              {
+                "min_us": 241.4,
+                "max_us": 736.4,
+                "median_us": 472.8,
+                "mean_us": 442.9
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 143.8,
+                "max_us": 287.9,
+                "median_us": 151.1,
+                "mean_us": 163.9
+              },
+              {
+                "min_us": 84.59,
+                "max_us": 316.1,
+                "median_us": 127.5,
+                "mean_us": 137.8
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -614
+    },
+    {
+      "name": "compare_32",
+      "levels": {
+        "None": {
+          "sourceBytes": 4189,
+          "moduleBytes": 4164,
+          "sourceSha256": "7cd33a427f17d1c3b842ca5ea33cca6fc0169d21343d6228f738cb2ea2514088",
+          "moduleSha256": "534138e87c7870588ac5193c9d2e60c7066fd37b5b79de84b615b11e0824e71e",
+          "guest_medians_ns": [
+            184.375,
+            213.28125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 733.5,
+                "max_us": 1787.0,
+                "median_us": 949.2,
+                "mean_us": 1010.9999999999999
+              },
+              {
+                "min_us": 480.0,
+                "max_us": 1522.0,
+                "median_us": 659.6,
+                "mean_us": 770.8
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 169.4,
+                "max_us": 688.8,
+                "median_us": 183.2,
+                "mean_us": 232.5
+              },
+              {
+                "min_us": 88.29,
+                "max_us": 312.9,
+                "median_us": 159.1,
+                "mean_us": 144.3
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 4189,
+          "moduleBytes": 2622,
+          "sourceSha256": "7cd33a427f17d1c3b842ca5ea33cca6fc0169d21343d6228f738cb2ea2514088",
+          "moduleSha256": "4c6609344e454e2641a18eef7191ff5e99b317ae2e78d0e34266e3be7eda9949",
+          "guest_medians_ns": [
+            154.6875,
+            151.5625
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 525.6,
+                "max_us": 1583.0,
+                "median_us": 625.7,
+                "mean_us": 684.2
+              },
+              {
+                "min_us": 530.5,
+                "max_us": 1815.0,
+                "median_us": 783.2,
+                "mean_us": 812.5
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 249.5,
+                "max_us": 1426.0,
+                "median_us": 321.8,
+                "mean_us": 405.2
+              },
+              {
+                "min_us": 125.3,
+                "max_us": 501.7,
+                "median_us": 155.9,
+                "mean_us": 182.9
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -1542
+    },
+    {
+      "name": "negate_32",
+      "levels": {
+        "None": {
+          "sourceBytes": 1693,
+          "moduleBytes": 1668,
+          "sourceSha256": "6cd142cd1b5a94c4ff044ab1e60ec25fb0b309251361bd065bc8c26aadcfb9fe",
+          "moduleSha256": "a01608b6b906434380e940d6892e665217dc3b0783e3c393063fbc3873fb49f5",
+          "guest_medians_ns": [
+            135.9375,
+            64.0625
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 286.5,
+                "max_us": 1598.0,
+                "median_us": 439.6,
+                "mean_us": 466.3
+              },
+              {
+                "min_us": 149.2,
+                "max_us": 695.5,
+                "median_us": 235.2,
+                "mean_us": 271.0
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 82.89,
+                "max_us": 292.4,
+                "median_us": 90.54,
+                "mean_us": 108.1
+              },
+              {
+                "min_us": 82.19,
+                "max_us": 309.1,
+                "median_us": 150.2,
+                "mean_us": 144.6
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 1693,
+          "moduleBytes": 1086,
+          "sourceSha256": "6cd142cd1b5a94c4ff044ab1e60ec25fb0b309251361bd065bc8c26aadcfb9fe",
+          "moduleSha256": "657a001536b2d3f5dfb2726957123cbe6c189c7326ade3407def40d621647686",
+          "guest_medians_ns": [
+            62.5,
+            62.5
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 324.2,
+                "max_us": 2520.0,
+                "median_us": 429.5,
+                "mean_us": 521.4
+              },
+              {
+                "min_us": 180.3,
+                "max_us": 532.4,
+                "median_us": 242.3,
+                "mean_us": 285.3
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 128.3,
+                "max_us": 285.1,
+                "median_us": 152.2,
+                "mean_us": 164.6
+              },
+              {
+                "min_us": 72.39,
+                "max_us": 345.3,
+                "median_us": 129.3,
+                "mean_us": 124.5
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -582
+    },
+    {
+      "name": "loop_local",
+      "levels": {
+        "None": {
+          "sourceBytes": 121,
+          "moduleBytes": 1208,
+          "sourceSha256": "5f48abafe8f2da6f2c51669802a028ac9eabc334f56e4923447197c694b24c3f",
+          "moduleSha256": "6bbe520aeefe5d9428654a10beec937d5107c90f8ac5b32e7a21e606e51f5981",
+          "guest_medians_ns": [
+            253.125,
+            154.6875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 45.49,
+                "max_us": 276.2,
+                "median_us": 46.99,
+                "mean_us": 55.93
+              },
+              {
+                "min_us": 26.39,
+                "max_us": 294.2,
+                "median_us": 44.69,
+                "mean_us": 54.28
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 31.39,
+                "max_us": 229.1,
+                "median_us": 45.39,
+                "mean_us": 51.65
+              },
+              {
+                "min_us": 15.69,
+                "max_us": 27.79,
+                "median_us": 16.29,
+                "mean_us": 16.72
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 121,
+          "moduleBytes": 1178,
+          "sourceSha256": "5f48abafe8f2da6f2c51669802a028ac9eabc334f56e4923447197c694b24c3f",
+          "moduleSha256": "d556befc96c8108b9328bd0b1d7268c3eaa5933bbb6d11e3629c9ff4e74a6fac",
+          "guest_medians_ns": [
+            160.9375,
+            468.75
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 50.29,
+                "max_us": 463.5,
+                "median_us": 61.54,
+                "mean_us": 76.55
+              },
+              {
+                "min_us": 25.09,
+                "max_us": 379.0,
+                "median_us": 41.09,
+                "mean_us": 45.61
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 31.79,
+                "max_us": 199.5,
+                "median_us": 35.99,
+                "mean_us": 48.04
+              },
+              {
+                "min_us": 16.09,
+                "max_us": 118.0,
+                "median_us": 31.99,
+                "mean_us": 32.83
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -30
+    },
+    {
+      "name": "fraction",
+      "levels": {
+        "None": {
+          "sourceBytes": 51,
+          "moduleBytes": 70,
+          "sourceSha256": "bf07434ca629c6ca644c019df4aa228d927dba54cd1c76e4e34172f8319dc1dc",
+          "moduleSha256": "f44f0944e9f462642489c60165221f2953173dd25d13604f299609365a0a631d",
+          "guest_medians_ns": [
+            70.3125,
+            35.9375
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 8.799,
+                "max_us": 131.2,
+                "median_us": 9.499,
+                "mean_us": 13.3
+              },
+              {
+                "min_us": 5.499,
+                "max_us": 7.599,
+                "median_us": 5.799,
+                "mean_us": 5.823
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 5.099,
+                "max_us": 11.89,
+                "median_us": 5.599,
+                "mean_us": 5.776
+              },
+              {
+                "min_us": 2.499,
+                "max_us": 26.79,
+                "median_us": 5.399,
+                "mean_us": 5.341
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 51,
+          "moduleBytes": 70,
+          "sourceSha256": "bf07434ca629c6ca644c019df4aa228d927dba54cd1c76e4e34172f8319dc1dc",
+          "moduleSha256": "f44f0944e9f462642489c60165221f2953173dd25d13604f299609365a0a631d",
+          "guest_medians_ns": [
+            32.03125,
+            71.875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 5.599,
+                "max_us": 75.49,
+                "median_us": 17.49,
+                "mean_us": 18.19
+              },
+              {
+                "min_us": 5.499,
+                "max_us": 7.699,
+                "median_us": 5.799,
+                "mean_us": 5.833
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.799,
+                "max_us": 7.599,
+                "median_us": 5.099,
+                "mean_us": 5.227
+              },
+              {
+                "min_us": 2.499,
+                "max_us": 20.39,
+                "median_us": 5.799,
+                "mean_us": 5.231
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": 0
+    },
+    {
+      "name": "negative_zero",
+      "levels": {
+        "None": {
+          "sourceBytes": 43,
+          "moduleBytes": 61,
+          "sourceSha256": "c4a1d6ea6386aa074f17d138d126a5531dd1f649b126b5d805fb0f80f4aaa669",
+          "moduleSha256": "661fef4dc924f036a7aee1fcd718dbe42d43c26dfaf29f4b0748cf22fcd56478",
+          "guest_medians_ns": [
+            68.75,
+            100
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 9.699,
+                "max_us": 13.99,
+                "median_us": 10.14,
+                "mean_us": 10.22
+              },
+              {
+                "min_us": 4.899,
+                "max_us": 12.79,
+                "median_us": 5.399,
+                "mean_us": 5.888
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.599,
+                "max_us": 7.899,
+                "median_us": 5.299,
+                "mean_us": 5.268
+              },
+              {
+                "min_us": 2.199,
+                "max_us": 40.99,
+                "median_us": 3.049,
+                "mean_us": 4.149
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 43,
+          "moduleBytes": 55,
+          "sourceSha256": "c4a1d6ea6386aa074f17d138d126a5531dd1f649b126b5d805fb0f80f4aaa669",
+          "moduleSha256": "c0894233f443ad1dd5ffe4b5c0e2b842c1e60f21fabc4da664dbbb2dd3eafd60",
+          "guest_medians_ns": [
+            32.8125,
+            75
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 9.299,
+                "max_us": 35.29,
+                "median_us": 10.29,
+                "mean_us": 13.35
+              },
+              {
+                "min_us": 4.599,
+                "max_us": 10.49,
+                "median_us": 4.899,
+                "mean_us": 5.122
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.599,
+                "max_us": 13.29,
+                "median_us": 4.999,
+                "mean_us": 5.109
+              },
+              {
+                "min_us": 4.799,
+                "max_us": 7.799,
+                "median_us": 4.899,
+                "mean_us": 4.997
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -6
+    },
+    {
+      "name": "negate_zero",
+      "levels": {
+        "None": {
+          "sourceBytes": 54,
+          "moduleBytes": 67,
+          "sourceSha256": "70cfe8a79a4b8a6ef87f82fb865c1970d51f14eeb653766fa834b021b2e49941",
+          "moduleSha256": "add8abceea976ca66ea297e8cead050d41e3931b3e9ab5dcebb329136f98a7b0",
+          "guest_medians_ns": [
+            70.3125,
+            32.8125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 11.59,
+                "max_us": 22.39,
+                "median_us": 12.74,
+                "mean_us": 13.28
+              },
+              {
+                "min_us": 5.799,
+                "max_us": 16.39,
+                "median_us": 6.299,
+                "mean_us": 6.652
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 5.799,
+                "max_us": 15.09,
+                "median_us": 7.749,
+                "mean_us": 7.288
+              },
+              {
+                "min_us": 10.49,
+                "max_us": 34.19,
+                "median_us": 10.79,
+                "mean_us": 11.34
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 54,
+          "moduleBytes": 61,
+          "sourceSha256": "70cfe8a79a4b8a6ef87f82fb865c1970d51f14eeb653766fa834b021b2e49941",
+          "moduleSha256": "7da10746c0dbfacf24f8f2cfca3bca0ee8e22def13033756b7a1596ea1b0b4dd",
+          "guest_medians_ns": [
+            54.6875,
+            75
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 11.89,
+                "max_us": 142.1,
+                "median_us": 12.49,
+                "mean_us": 14.27
+              },
+              {
+                "min_us": 5.999,
+                "max_us": 13.19,
+                "median_us": 6.299,
+                "mean_us": 6.668
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.399,
+                "max_us": 17.19,
+                "median_us": 6.699,
+                "mean_us": 6.837
+              },
+              {
+                "min_us": 2.799,
+                "max_us": 35.19,
+                "median_us": 5.349,
+                "mean_us": 5.593
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -6
+    },
+    {
+      "name": "positive_zero",
+      "levels": {
+        "None": {
+          "sourceBytes": 46,
+          "moduleBytes": 70,
+          "sourceSha256": "0461dfeeba4fe3da20bdf68f81d4dcad6878f90523d5657999041e5ed5c74ca9",
+          "moduleSha256": "224a8ae00680b480f2c6cce5a1a15784703a5a13c188cb0adb9b8a6a00787999",
+          "guest_medians_ns": [
+            65.625,
+            32.03125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 10.29,
+                "max_us": 22.39,
+                "median_us": 11.19,
+                "mean_us": 11.46
+              },
+              {
+                "min_us": 5.399,
+                "max_us": 14.29,
+                "median_us": 5.799,
+                "mean_us": 6.084
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.899,
+                "max_us": 25.59,
+                "median_us": 5.199,
+                "mean_us": 5.45
+              },
+              {
+                "min_us": 2.399,
+                "max_us": 4.899,
+                "median_us": 3.099,
+                "mean_us": 3.061
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 46,
+          "moduleBytes": 57,
+          "sourceSha256": "0461dfeeba4fe3da20bdf68f81d4dcad6878f90523d5657999041e5ed5c74ca9",
+          "moduleSha256": "97b90e24b4fde5601501445fe16fe6f1c4025995a7afa065c402ca76ca248578",
+          "guest_medians_ns": [
+            54.6875,
+            53.125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 9.799,
+                "max_us": 55.79,
+                "median_us": 12.34,
+                "mean_us": 12.6
+              },
+              {
+                "min_us": 4.899,
+                "max_us": 21.79,
+                "median_us": 5.299,
+                "mean_us": 5.699
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.499,
+                "max_us": 11.19,
+                "median_us": 4.799,
+                "mean_us": 4.908
+              },
+              {
+                "min_us": 4.799,
+                "max_us": 7.899,
+                "median_us": 4.999,
+                "mean_us": 5.155
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -13
+    },
+    {
+      "name": "overflow",
+      "levels": {
+        "None": {
+          "sourceBytes": 61,
+          "moduleBytes": 80,
+          "sourceSha256": "f9de676f3e6c9c74a9f1f5b26be4c147a8565c61d3da7a83d8d67f37a1e5b41f",
+          "moduleSha256": "e63deb9876f721163b26132af4dc318caf7403cb65f0313d5d3d47bfa676f9d3",
+          "guest_medians_ns": [
+            67.1875,
+            32.03125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 11.99,
+                "max_us": 23.29,
+                "median_us": 12.59,
+                "mean_us": 12.94
+              },
+              {
+                "min_us": 6.199,
+                "max_us": 9.999,
+                "median_us": 6.799,
+                "mean_us": 6.976
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.699,
+                "max_us": 70.09,
+                "median_us": 4.899,
+                "mean_us": 6.266
+              },
+              {
+                "min_us": 2.499,
+                "max_us": 5.399,
+                "median_us": 3.299,
+                "mean_us": 3.358
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 61,
+          "moduleBytes": 66,
+          "sourceSha256": "f9de676f3e6c9c74a9f1f5b26be4c147a8565c61d3da7a83d8d67f37a1e5b41f",
+          "moduleSha256": "7595416085057cd9b83a0990e373b5eb5ce320e7b3582ededa8122d85a08130e",
+          "guest_medians_ns": [
+            67.96875,
+            68.75
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 11.79,
+                "max_us": 23.89,
+                "median_us": 12.39,
+                "mean_us": 12.66
+              },
+              {
+                "min_us": 5.999,
+                "max_us": 8.799,
+                "median_us": 6.199,
+                "mean_us": 6.36
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 5.599,
+                "max_us": 8.999,
+                "median_us": 5.799,
+                "mean_us": 5.989
+              },
+              {
+                "min_us": 5.599,
+                "max_us": 38.89,
+                "median_us": 6.299,
+                "mean_us": 6.726
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -14
+    },
+    {
+      "name": "underflow_i32",
+      "levels": {
+        "None": {
+          "sourceBytes": 62,
+          "moduleBytes": 81,
+          "sourceSha256": "1cb649f1a0d1bb5b7280d70ad57e7447ccb54df657748ec58129a3b40d265452",
+          "moduleSha256": "85b85dc922415b1af7c5aa5eb299dcdcbd41a00fd3a6370fab7f4db62756b3ca",
+          "guest_medians_ns": [
+            67.1875,
+            32.03125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 13.09,
+                "max_us": 50.39,
+                "median_us": 16.79,
+                "mean_us": 17.05
+              },
+              {
+                "min_us": 6.399,
+                "max_us": 10.09,
+                "median_us": 7.099,
+                "mean_us": 7.1
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 5.299,
+                "max_us": 9.899,
+                "median_us": 6.099,
+                "mean_us": 6.123
+              },
+              {
+                "min_us": 2.399,
+                "max_us": 10.69,
+                "median_us": 2.499,
+                "mean_us": 2.68
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 62,
+          "moduleBytes": 69,
+          "sourceSha256": "1cb649f1a0d1bb5b7280d70ad57e7447ccb54df657748ec58129a3b40d265452",
+          "moduleSha256": "49e1d47725c7cf2c33c8ebd31f799b4d03977d61bdde4efb699f79d68154375d",
+          "guest_medians_ns": [
+            32.03125,
+            71.09375
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 13.89,
+                "max_us": 88.09,
+                "median_us": 18.04,
+                "mean_us": 21.56
+              },
+              {
+                "min_us": 6.099,
+                "max_us": 39.69,
+                "median_us": 6.399,
+                "mean_us": 7.841
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.299,
+                "max_us": 10.89,
+                "median_us": 6.699,
+                "mean_us": 6.778
+              },
+              {
+                "min_us": 5.799,
+                "max_us": 31.99,
+                "median_us": 6.199,
+                "mean_us": 6.614
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -12
+    },
+    {
+      "name": "negate_min",
+      "levels": {
+        "None": {
+          "sourceBytes": 64,
+          "moduleBytes": 68,
+          "sourceSha256": "0b37109cae2424d03298a71d373f0f65d64c8380e544b39fd8503bc781e3a3a4",
+          "moduleSha256": "06ac94519893972834b38e6801cf1585c9e7c3df07633dda5960861bccbf7473",
+          "guest_medians_ns": [
+            68.75,
+            32.8125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 13.09,
+                "max_us": 46.69,
+                "median_us": 19.54,
+                "mean_us": 19.19
+              },
+              {
+                "min_us": 5.999,
+                "max_us": 14.19,
+                "median_us": 6.599,
+                "mean_us": 6.824
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.699,
+                "max_us": 17.99,
+                "median_us": 7.399,
+                "mean_us": 7.61
+              },
+              {
+                "min_us": 4.399,
+                "max_us": 153.3,
+                "median_us": 5.099,
+                "mean_us": 8.676
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 64,
+          "moduleBytes": 68,
+          "sourceSha256": "0b37109cae2424d03298a71d373f0f65d64c8380e544b39fd8503bc781e3a3a4",
+          "moduleSha256": "06ac94519893972834b38e6801cf1585c9e7c3df07633dda5960861bccbf7473",
+          "guest_medians_ns": [
+            32.8125,
+            71.875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 13.69,
+                "max_us": 35.39,
+                "median_us": 16.69,
+                "mean_us": 16.05
+              },
+              {
+                "min_us": 6.299,
+                "max_us": 48.49,
+                "median_us": 6.599,
+                "mean_us": 7.465
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.699,
+                "max_us": 77.59,
+                "median_us": 9.799,
+                "mean_us": 10.81
+              },
+              {
+                "min_us": 4.499,
+                "max_us": 132.0,
+                "median_us": 5.949,
+                "mean_us": 8.314
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": 0
+    },
+    {
+      "name": "unknown",
+      "levels": {
+        "None": {
+          "sourceBytes": 46,
+          "moduleBytes": 63,
+          "sourceSha256": "3c26e0ddea1824c288952d7b4299cced2fcf2abcf69ac5b2eed99243c6b3bbbd",
+          "moduleSha256": "7769a4f0de51c5e4891a84741801f8ce61bb8801703a1cbbe639140f8c6e7e97",
+          "guest_medians_ns": [
+            68.75,
+            32.8125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 11.29,
+                "max_us": 23.49,
+                "median_us": 13.09,
+                "mean_us": 13.14
+              },
+              {
+                "min_us": 5.299,
+                "max_us": 12.09,
+                "median_us": 5.699,
+                "mean_us": 5.825
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 5.499,
+                "max_us": 269.9,
+                "median_us": 8.999,
+                "mean_us": 11.69
+              },
+              {
+                "min_us": 2.299,
+                "max_us": 3.399,
+                "median_us": 2.499,
+                "mean_us": 2.52
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 46,
+          "moduleBytes": 57,
+          "sourceSha256": "3c26e0ddea1824c288952d7b4299cced2fcf2abcf69ac5b2eed99243c6b3bbbd",
+          "moduleSha256": "5307f7288e4a6b98b4ae239abd5629184e323cc8e6b339023b0b9a0e3b1d0632",
+          "guest_medians_ns": [
+            31.25,
+            65.625
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 12.19,
+                "max_us": 166.6,
+                "median_us": 18.14,
+                "mean_us": 20.94
+              },
+              {
+                "min_us": 5.099,
+                "max_us": 7.999,
+                "median_us": 5.299,
+                "mean_us": 5.364
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.899,
+                "max_us": 7.399,
+                "median_us": 5.499,
+                "mean_us": 5.436
+              },
+              {
+                "min_us": 5.099,
+                "max_us": 8.599,
+                "median_us": 5.399,
+                "mean_us": 5.475
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -6
+    },
+    {
+      "name": "mutable",
+      "levels": {
+        "None": {
+          "sourceBytes": 66,
+          "moduleBytes": 87,
+          "sourceSha256": "0f67f39788bbe4476e02e25272c9ad2e92934d160a23c2de1ccb6c8dd4283c56",
+          "moduleSha256": "aecd6f575e92ff95fcef5df218fb4c1bed83cad7f314974300fccaaf6f09dc90",
+          "guest_medians_ns": [
+            70.3125,
+            32.03125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 14.79,
+                "max_us": 29.19,
+                "median_us": 15.69,
+                "mean_us": 16.23
+              },
+              {
+                "min_us": 7.899,
+                "max_us": 132.7,
+                "median_us": 15.29,
+                "mean_us": 17.55
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.799,
+                "max_us": 34.79,
+                "median_us": 7.099,
+                "mean_us": 7.418
+              },
+              {
+                "min_us": 3.299,
+                "max_us": 5.899,
+                "median_us": 3.499,
+                "mean_us": 3.657
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 66,
+          "moduleBytes": 75,
+          "sourceSha256": "0f67f39788bbe4476e02e25272c9ad2e92934d160a23c2de1ccb6c8dd4283c56",
+          "moduleSha256": "a88426da69a5669e05befe41040d9d843e63c85fcc01ba4b44f13774081c4863",
+          "guest_medians_ns": [
+            31.25,
+            67.1875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 15.49,
+                "max_us": 172.8,
+                "median_us": 16.29,
+                "mean_us": 19.31
+              },
+              {
+                "min_us": 10.99,
+                "max_us": 48.09,
+                "median_us": 13.94,
+                "mean_us": 15.38
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.199,
+                "max_us": 9.399,
+                "median_us": 6.599,
+                "mean_us": 6.587
+              },
+              {
+                "min_us": 3.399,
+                "max_us": 42.59,
+                "median_us": 6.349,
+                "mean_us": 6.935
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -12
+    },
+    {
+      "name": "capture",
+      "levels": {
+        "None": {
+          "sourceBytes": 88,
+          "moduleBytes": 764,
+          "sourceSha256": "d9ade799a4bcaad6f3d2a4d31cdf83e7f415c61f6281b05227d2bf9d2ca3378e",
+          "moduleSha256": "38b8730c9253291798bf4799e39c2cab3c203ef38d29503ff6caecd4759dc8a7",
+          "guest_medians_ns": [
+            79.6875,
+            46.09375
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 32.69,
+                "max_us": 475.4,
+                "median_us": 83.14,
+                "mean_us": 93.28
+              },
+              {
+                "min_us": 21.59,
+                "max_us": 96.09,
+                "median_us": 22.69,
+                "mean_us": 25.21
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 23.49,
+                "max_us": 42.09,
+                "median_us": 24.59,
+                "mean_us": 25.12
+              },
+              {
+                "min_us": 13.79,
+                "max_us": 27.39,
+                "median_us": 15.29,
+                "mean_us": 15.61
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 88,
+          "moduleBytes": 748,
+          "sourceSha256": "d9ade799a4bcaad6f3d2a4d31cdf83e7f415c61f6281b05227d2bf9d2ca3378e",
+          "moduleSha256": "b3a03f5a90aa0dc9479f543ab6656fd666c98fbb2f4ceaf0df647a9f31b42c7e",
+          "guest_medians_ns": [
+            46.09375,
+            85.9375
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 19.19,
+                "max_us": 173.7,
+                "median_us": 20.64,
+                "mean_us": 30.88
+              },
+              {
+                "min_us": 24.59,
+                "max_us": 191.0,
+                "median_us": 28.69,
+                "mean_us": 31.25
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 23.69,
+                "max_us": 360.3,
+                "median_us": 27.09,
+                "mean_us": 36.2
+              },
+              {
+                "min_us": 11.79,
+                "max_us": 107.5,
+                "median_us": 12.39,
+                "mean_us": 14.47
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -16
+    },
+    {
+      "name": "multiply",
+      "levels": {
+        "None": {
+          "sourceBytes": 46,
+          "moduleBytes": 70,
+          "sourceSha256": "127a8c57c614b2390fb42ee1168132aac445386e8e5c2a7ae44df8db0330649f",
+          "moduleSha256": "2bc3412461d81fa49fd2cc449180120dd54a2e86f50d198e11a1cefb5d5c0d23",
+          "guest_medians_ns": [
+            67.1875,
+            32.8125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 10.79,
+                "max_us": 24.19,
+                "median_us": 11.34,
+                "mean_us": 11.57
+              },
+              {
+                "min_us": 10.19,
+                "max_us": 26.59,
+                "median_us": 11.89,
+                "mean_us": 12.18
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 5.399,
+                "max_us": 14.29,
+                "median_us": 5.799,
+                "mean_us": 6.253
+              },
+              {
+                "min_us": 2.599,
+                "max_us": 3.999,
+                "median_us": 2.799,
+                "mean_us": 2.837
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 46,
+          "moduleBytes": 58,
+          "sourceSha256": "127a8c57c614b2390fb42ee1168132aac445386e8e5c2a7ae44df8db0330649f",
+          "moduleSha256": "e1492a01aa68d608c63ef830f35a6555994391d0fa22a93150410a02d4fbaa20",
+          "guest_medians_ns": [
+            45.3125,
+            53.125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 10.29,
+                "max_us": 21.69,
+                "median_us": 10.89,
+                "mean_us": 11.13
+              },
+              {
+                "min_us": 7.199,
+                "max_us": 56.79,
+                "median_us": 11.74,
+                "mean_us": 13.81
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.499,
+                "max_us": 23.49,
+                "median_us": 4.699,
+                "mean_us": 4.965
+              },
+              {
+                "min_us": 4.899,
+                "max_us": 36.79,
+                "median_us": 4.999,
+                "mean_us": 5.84
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -12
+    },
+    {
+      "name": "divide",
+      "levels": {
+        "None": {
+          "sourceBytes": 46,
+          "moduleBytes": 70,
+          "sourceSha256": "a19d5b67330a4c0884016832aaa64410751ea5767bfec263d3a83b88f16c1166",
+          "moduleSha256": "894679ede9c5251b1900207c77c8c739d7fd44a50de27a755383987d78336060",
+          "guest_medians_ns": [
+            67.1875,
+            32.03125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 8.799,
+                "max_us": 138.1,
+                "median_us": 9.699,
+                "mean_us": 14.83
+              },
+              {
+                "min_us": 5.399,
+                "max_us": 13.39,
+                "median_us": 5.699,
+                "mean_us": 5.937
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.099,
+                "max_us": 54.99,
+                "median_us": 6.699,
+                "mean_us": 7.814
+              },
+              {
+                "min_us": 5.599,
+                "max_us": 21.99,
+                "median_us": 5.799,
+                "mean_us": 6.321
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 46,
+          "moduleBytes": 58,
+          "sourceSha256": "a19d5b67330a4c0884016832aaa64410751ea5767bfec263d3a83b88f16c1166",
+          "moduleSha256": "9dcdf98da1f41e167153d6dc178e0acac3502fed8165d1c6e19a74526b49ab27",
+          "guest_medians_ns": [
+            65.625,
+            67.1875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 5.199,
+                "max_us": 16.19,
+                "median_us": 6.649,
+                "mean_us": 6.724
+              },
+              {
+                "min_us": 5.299,
+                "max_us": 48.59,
+                "median_us": 5.599,
+                "mean_us": 6.207
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.599,
+                "max_us": 8.099,
+                "median_us": 4.899,
+                "mean_us": 4.901
+              },
+              {
+                "min_us": 2.399,
+                "max_us": 12.69,
+                "median_us": 4.049,
+                "mean_us": 4.217
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -12
+    },
+    {
+      "name": "remainder",
+      "levels": {
+        "None": {
+          "sourceBytes": 47,
+          "moduleBytes": 236,
+          "sourceSha256": "cab3b38fa1a93d43ce232e2329de5cb7a863b0c0f73f80077bdea6efaa61be27",
+          "moduleSha256": "574aa747d3a3603e6742f8d66e814603a5c681cdb255a457a3b3794b796a6b19",
+          "guest_medians_ns": [
+            70.3125,
+            46.875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 17.89,
+                "max_us": 223.8,
+                "median_us": 24.14,
+                "mean_us": 28.66
+              },
+              {
+                "min_us": 7.199,
+                "max_us": 99.79,
+                "median_us": 7.799,
+                "mean_us": 12.8
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 7.599,
+                "max_us": 19.39,
+                "median_us": 7.899,
+                "mean_us": 8.055
+              },
+              {
+                "min_us": 3.899,
+                "max_us": 9.099,
+                "median_us": 4.099,
+                "mean_us": 4.397
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 47,
+          "moduleBytes": 224,
+          "sourceSha256": "cab3b38fa1a93d43ce232e2329de5cb7a863b0c0f73f80077bdea6efaa61be27",
+          "moduleSha256": "fde89f43f265823ea150cbe20b3980fb6b7de0dd967f10449b182c89e9b71bdf",
+          "guest_medians_ns": [
+            84.375,
+            70.3125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 12.79,
+                "max_us": 33.29,
+                "median_us": 13.44,
+                "mean_us": 13.82
+              },
+              {
+                "min_us": 6.599,
+                "max_us": 11.69,
+                "median_us": 6.899,
+                "mean_us": 6.953
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 7.299,
+                "max_us": 23.39,
+                "median_us": 7.599,
+                "mean_us": 7.781
+              },
+              {
+                "min_us": 7.799,
+                "max_us": 27.49,
+                "median_us": 8.299,
+                "mean_us": 8.638
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -12
+    },
+    {
+      "name": "nan",
+      "levels": {
+        "None": {
+          "sourceBytes": 46,
+          "moduleBytes": 70,
+          "sourceSha256": "386ba7229ec2efc0c7e0052eed6ac52771dfded1d70c2a5d545dc1cd40d39f79",
+          "moduleSha256": "20748c5766f2395bbfb11c388412f65a52363da62a66c3b6da1d8159e00ed856",
+          "guest_medians_ns": [
+            67.1875,
+            53.125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 10.79,
+                "max_us": 14.79,
+                "median_us": 11.29,
+                "mean_us": 11.42
+              },
+              {
+                "min_us": 5.599,
+                "max_us": 14.39,
+                "median_us": 7.799,
+                "mean_us": 7.728
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.999,
+                "max_us": 7.999,
+                "median_us": 5.299,
+                "mean_us": 5.388
+              },
+              {
+                "min_us": 2.699,
+                "max_us": 4.999,
+                "median_us": 2.899,
+                "mean_us": 2.978
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 46,
+          "moduleBytes": 58,
+          "sourceSha256": "386ba7229ec2efc0c7e0052eed6ac52771dfded1d70c2a5d545dc1cd40d39f79",
+          "moduleSha256": "3364f4811c90001b472d049c9f677eac0902deb344179220db1792f793301218",
+          "guest_medians_ns": [
+            67.1875,
+            31.25
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 10.39,
+                "max_us": 198.2,
+                "median_us": 11.29,
+                "mean_us": 17.56
+              },
+              {
+                "min_us": 5.399,
+                "max_us": 38.29,
+                "median_us": 9.349,
+                "mean_us": 10.33
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.599,
+                "max_us": 6.399,
+                "median_us": 4.799,
+                "mean_us": 4.864
+              },
+              {
+                "min_us": 3.099,
+                "max_us": 6.699,
+                "median_us": 4.099,
+                "mean_us": 4.237
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -12
+    },
+    {
+      "name": "infinity",
+      "levels": {
+        "None": {
+          "sourceBytes": 46,
+          "moduleBytes": 70,
+          "sourceSha256": "da3ed447d0325746a8c027e2e7bd3863cbb4acefe7ec95cfd467184be53c0afe",
+          "moduleSha256": "5f0010eec6a2d727426ae124ca6dc24d4782a34e815d0826df0f809715e57a4a",
+          "guest_medians_ns": [
+            71.875,
+            53.125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 8.799,
+                "max_us": 138.7,
+                "median_us": 9.399,
+                "mean_us": 14.09
+              },
+              {
+                "min_us": 5.499,
+                "max_us": 7.599,
+                "median_us": 5.799,
+                "mean_us": 5.865
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.899,
+                "max_us": 7.599,
+                "median_us": 5.099,
+                "mean_us": 5.223
+              },
+              {
+                "min_us": 2.399,
+                "max_us": 4.899,
+                "median_us": 2.599,
+                "mean_us": 2.777
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 46,
+          "moduleBytes": 58,
+          "sourceSha256": "da3ed447d0325746a8c027e2e7bd3863cbb4acefe7ec95cfd467184be53c0afe",
+          "moduleSha256": "bc2a58030263f62b33170dd8f90adb377ea9058bcea6ba27b27976f5cd6abe8c",
+          "guest_medians_ns": [
+            67.1875,
+            32.03125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 5.199,
+                "max_us": 12.09,
+                "median_us": 5.399,
+                "mean_us": 5.535
+              },
+              {
+                "min_us": 5.199,
+                "max_us": 31.39,
+                "median_us": 5.599,
+                "mean_us": 5.898
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 4.599,
+                "max_us": 6.199,
+                "median_us": 4.799,
+                "mean_us": 4.829
+              },
+              {
+                "min_us": 2.299,
+                "max_us": 11.19,
+                "median_us": 2.499,
+                "mean_us": 2.883
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -12
+    },
+    {
+      "name": "subnormal",
+      "levels": {
+        "None": {
+          "sourceBytes": 367,
+          "moduleBytes": 60,
+          "sourceSha256": "46c5af5aa716c0b4dc5f1bce9ca7bcbac83307f86dcab3d699cf4fa0ab1425ec",
+          "moduleSha256": "62b89ca128870326af0dba5391a458b3836efa5c7157a32d81d8c6a6a90a8372",
+          "guest_medians_ns": [
+            67.1875,
+            53.125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 12.09,
+                "max_us": 31.49,
+                "median_us": 13.49,
+                "mean_us": 13.87
+              },
+              {
+                "min_us": 5.599,
+                "max_us": 74.99,
+                "median_us": 7.449,
+                "mean_us": 14.32
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 5.099,
+                "max_us": 12.19,
+                "median_us": 5.299,
+                "mean_us": 5.423
+              },
+              {
+                "min_us": 2.399,
+                "max_us": 9.999,
+                "median_us": 3.099,
+                "mean_us": 3.317
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 367,
+          "moduleBytes": 60,
+          "sourceSha256": "46c5af5aa716c0b4dc5f1bce9ca7bcbac83307f86dcab3d699cf4fa0ab1425ec",
+          "moduleSha256": "62b89ca128870326af0dba5391a458b3836efa5c7157a32d81d8c6a6a90a8372",
+          "guest_medians_ns": [
+            70.3125,
+            35.15625
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 11.99,
+                "max_us": 19.59,
+                "median_us": 12.29,
+                "mean_us": 12.47
+              },
+              {
+                "min_us": 6.099,
+                "max_us": 68.19,
+                "median_us": 6.399,
+                "mean_us": 7.428
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 5.699,
+                "max_us": 9.099,
+                "median_us": 6.099,
+                "mean_us": 6.084
+              },
+              {
+                "min_us": 6.199,
+                "max_us": 10.29,
+                "median_us": 6.699,
+                "mean_us": 6.832
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": 0
+    },
+    {
+      "name": "effects",
+      "levels": {
+        "None": {
+          "sourceBytes": 66,
+          "moduleBytes": 94,
+          "sourceSha256": "83e3a27ce9f43a06b2f6d3dba7f63273ac74b9f31262095fc20a5460d9e491f4",
+          "moduleSha256": "5749d8cd715df5ea5f1965f9a1c8c7443f3615129e2185c41a34e7a11dca4f90",
+          "guest_medians_ns": [
+            160.15625,
+            188.28125
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 13.09,
+                "max_us": 80.69,
+                "median_us": 13.69,
+                "mean_us": 17.57
+              },
+              {
+                "min_us": 7.899,
+                "max_us": 13.09,
+                "median_us": 8.299,
+                "mean_us": 8.368
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.999,
+                "max_us": 16.09,
+                "median_us": 7.299,
+                "mean_us": 7.476
+              },
+              {
+                "min_us": 5.899,
+                "max_us": 9.899,
+                "median_us": 6.099,
+                "mean_us": 6.321
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 66,
+          "moduleBytes": 68,
+          "sourceSha256": "83e3a27ce9f43a06b2f6d3dba7f63273ac74b9f31262095fc20a5460d9e491f4",
+          "moduleSha256": "a77236d5ef91f00731f60fe691b56c3092dc74263bcb91b84097a7ad1bc511be",
+          "guest_medians_ns": [
+            87.5,
+            204.6875
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 8.399,
+                "max_us": 87.19,
+                "median_us": 9.099,
+                "mean_us": 10.2
+              },
+              {
+                "min_us": 8.499,
+                "max_us": 16.79,
+                "median_us": 8.949,
+                "mean_us": 9.155
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 6.399,
+                "max_us": 23.09,
+                "median_us": 6.999,
+                "mean_us": 7.313
+              },
+              {
+                "min_us": 3.399,
+                "max_us": 188.1,
+                "median_us": 7.099,
+                "mean_us": 9.26
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -26
+    },
+    {
+      "name": "trap_order",
+      "levels": {
+        "None": {
+          "sourceBytes": 80,
+          "moduleBytes": 776,
+          "sourceSha256": "11c29c715f492c6c91990cc423a15ac93f69a92b5f7699f929b2b69acea35981",
+          "moduleSha256": "0416b14d9f6f1d16d1126d72ef1fe30ac16ba0bdb5d8d02cc4003496030236fd",
+          "guest_medians_ns": [
+            null,
+            null
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 34.59,
+                "max_us": 160.7,
+                "median_us": 36.29,
+                "mean_us": 41.7
+              },
+              {
+                "min_us": 17.49,
+                "max_us": 31.19,
+                "median_us": 18.39,
+                "mean_us": 18.8
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 21.29,
+                "max_us": 126.9,
+                "median_us": 29.04,
+                "mean_us": 31.28
+              },
+              {
+                "min_us": 10.49,
+                "max_us": 20.29,
+                "median_us": 11.69,
+                "mean_us": 13.17
+              }
+            ]
+          }
+        },
+        "Basic": {
+          "sourceBytes": 80,
+          "moduleBytes": 746,
+          "sourceSha256": "11c29c715f492c6c91990cc423a15ac93f69a92b5f7699f929b2b69acea35981",
+          "moduleSha256": "4483a59a8b1fc04c3c4bf18a6ee61c10358ff22dbcf58ca929779767b53983ed",
+          "guest_medians_ns": [
+            null,
+            null
+          ],
+          "compiler": {
+            "source_compile": [
+              {
+                "min_us": 35.69,
+                "max_us": 183.2,
+                "median_us": 38.64,
+                "mean_us": 50.13
+              },
+              {
+                "min_us": 17.79,
+                "max_us": 36.39,
+                "median_us": 18.49,
+                "mean_us": 19.36
+              }
+            ],
+            "typed_compile": [
+              {
+                "min_us": 23.69,
+                "max_us": 154.8,
+                "median_us": 30.99,
+                "mean_us": 34.06
+              },
+              {
+                "min_us": 21.29,
+                "max_us": 40.79,
+                "median_us": 22.44,
+                "mean_us": 22.88
+              }
+            ]
+          }
+        }
+      },
+      "module_delta_bytes": -30
+    }
+  ]
+}

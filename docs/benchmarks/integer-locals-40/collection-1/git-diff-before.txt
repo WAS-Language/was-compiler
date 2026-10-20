@@ -1,0 +1,544 @@
+warning: in the working copy of 'crates/compiler/src/codegen/representation.rs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'crates/compiler/tests/integer_specialization.rs', LF will be replaced by CRLF the next time Git touches it
+diff --git a/crates/browser/tests/integer_specialization_adapters.rs b/crates/browser/tests/integer_specialization_adapters.rs
+index 1e0356f..e38928b 100644
+--- a/crates/browser/tests/integer_specialization_adapters.rs
++++ b/crates/browser/tests/integer_specialization_adapters.rs
+@@ -8,7 +8,58 @@ use wasmparser::Validator;
+ #[test]
+ #[ignore = "requires Node.js and freshly rebuilt browser bindings in pkg"]
+ fn rebuilt_browser_integer_specialization_bytes_and_wat_match_library_at_every_level() {
+-    let source = "fn main() -> number { return (10 + 20) - 3; }";
++    for (name, source, expected_result) in [
++        (
++            "literal",
++            "fn main() -> number { return (10 + 20) - 3; }",
++            27.0,
++        ),
++        (
++            "chain",
++            "fn main() -> number { let a = 10; let b = a + 20; let c = b - 3; return c; }",
++            27.0,
++        ),
++        (
++            "writes",
++            "fn main() -> number { let a = 10; a = 2.5; let b = 20; b += a; b -= 1; b *= 2; b /= 4; b %= 3; return a + b; }",
++            4.25,
++        ),
++        (
++            "skipped_write",
++            "fn main() -> number { let a = 10; false && { a = 2.5; true }; if false { a += 0.5; } let b = a + 20; return b; }",
++            30.0,
++        ),
++        (
++            "unreachable_write",
++            "fn main() -> number { let a = 10; let b = a + 20; return b; a = 2.5; a += 0.5; }",
++            30.0,
++        ),
++        (
++            "captures",
++            "fn main() -> number { let a = 10; let read = () => { let b = 20; let c = b + 3; return a + c; }; let before = read(); a += 0.5; return before + read(); }",
++            66.5,
++        ),
++        (
++            "readonly_capture",
++            "fn main() -> number { let a = 10; let read = () => a; let b = 20; return read() + b; }",
++            30.0,
++        ),
++        (
++            "loop_scope",
++            "fn main() -> number { let a = 10; let total = 0; for i in 0..3 { let a = 20; let b = a + 3; if i == 1 { continue; } total += b; } return total + a; }",
++            56.0,
++        ),
++        (
++            "calls",
++            "fn identity(x: number) -> number { return x; } fn main() -> number { let a = 10; let b = a + 20; let c = identity(b); return c + a; }",
++            40.0,
++        ),
++    ] {
++        assert_rebuilt_browser_parity(name, source, expected_result);
++    }
++}
++
++fn assert_rebuilt_browser_parity(name: &str, source: &str, expected_result: f64) {
+     let mut compiler = Compiler::new();
+     let baseline = compiler.compile_source(source).unwrap();
+     let mut native = Vec::new();
+@@ -27,7 +78,7 @@ fn rebuilt_browser_integer_specialization_bytes_and_wat_match_library_at_every_l
+         } else {
+             assert_ne!(
+                 bytes, baseline,
+-                "{level:?} must specialize literal addition/subtraction"
++                "{name}: {level:?} must specialize eligible literals or locals"
+             );
+         }
+         native_wat.push(wasmprinter::print_bytes(&bytes).unwrap());
+@@ -64,7 +115,7 @@ fn rebuilt_browser_integer_specialization_bytes_and_wat_match_library_at_every_l
+                     assert.equal(compiler.compileWat({source:?}), nativeWat[level]);
+                     assert.ok(WebAssembly.validate(bytes));
+                     const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes));
+-                    assert.equal(instance.exports.main(), 27);
++                    assert.equal(instance.exports.main(), {expected_result:?});
+                     if (level > 0) {{
+                         assert.notDeepEqual(Array.from(bytes), native[0]);
+                         assert.deepEqual(Array.from(bytes), native[1]);
+@@ -86,7 +137,7 @@ fn rebuilt_browser_integer_specialization_bytes_and_wat_match_library_at_every_l
+     );
+     assert!(
+         output.status.success(),
+-        "{}\n{}",
++        "{name}: {}\n{}",
+         String::from_utf8_lossy(&output.stdout),
+         String::from_utf8_lossy(&output.stderr)
+     );
+diff --git a/crates/cli/tests/cli.rs b/crates/cli/tests/cli.rs
+index 2ab5842..baf3e92 100644
+--- a/crates/cli/tests/cli.rs
++++ b/crates/cli/tests/cli.rs
+@@ -1832,6 +1832,111 @@ fn integer_specialization_cli_bytes_and_wat_match_library_at_every_level() {
+     scratch.assert_entries(&["program.was", "program.wasm"]);
+ }
+ 
++#[test]
++fn integer_specialization_local_cli_bytes_and_wat_match_library_at_every_level() {
++    let cases = [
++        (
++            "chain",
++            "fn main() -> number { let a = 10; let b = a + 20; let c = b - 3; return c; }",
++        ),
++        (
++            "writes",
++            "fn main() -> number { let a = 10; a = 2.5; let b = 20; b += a; b -= 1; b *= 2; b /= 4; b %= 3; return a + b; }",
++        ),
++        (
++            "skipped_write",
++            "fn main() -> number { let a = 10; false && { a = 2.5; true }; if false { a += 0.5; } let b = a + 20; return b; }",
++        ),
++        (
++            "unreachable_write",
++            "fn main() -> number { let a = 10; let b = a + 20; return b; a = 2.5; a += 0.5; }",
++        ),
++        (
++            "captures",
++            "fn main() -> number { let a = 10; let read = () => { let b = 20; let c = b + 3; return a + c; }; let before = read(); a += 0.5; return before + read(); }",
++        ),
++        (
++            "readonly_capture",
++            "fn main() -> number { let a = 10; let read = () => a; let b = 20; return read() + b; }",
++        ),
++        (
++            "loop_scope",
++            "fn main() -> number { let a = 10; let total = 0; for i in 0..3 { let a = 20; let b = a + 3; if i == 1 { continue; } total += b; } return total + a; }",
++        ),
++        (
++            "calls",
++            "fn identity(x: number) -> number { return x; } fn main() -> number { let a = 10; let b = a + 20; let c = identity(b); return c + a; }",
++        ),
++    ];
++
++    for (name, source) in cases {
++        let scratch = Scratch::new(name);
++        let mut compiler = Compiler::new();
++        let baseline = compiler.compile_source(source).unwrap();
++        assert_eq!(scratch.compile(source, &[]), baseline, "{name}: default");
++        let mut enabled = None;
++
++        for (flag, level) in [
++            ("-O0", was_compiler::OptimizationLevel::None),
++            ("-O1", was_compiler::OptimizationLevel::Basic),
++            ("-O2", was_compiler::OptimizationLevel::Standard),
++            ("-O3", was_compiler::OptimizationLevel::Aggressive),
++        ] {
++            compiler.set_optimization_level(level);
++            let expected = compiler.compile_source(source).unwrap();
++            decode(&expected);
++            if level != was_compiler::OptimizationLevel::None {
++                if let Some(previous) = &enabled {
++                    assert_eq!(&expected, previous, "{name}: enabled preset parity");
++                } else {
++                    enabled = Some(expected.clone());
++                }
++            }
++            assert_eq!(scratch.compile(source, &[flag]), expected, "{name}: {flag}");
++            let wat = success(scratch.cli(&["program.was", flag, "--emit", "wat"], None));
++            assert_eq!(
++                assert_plain_wat(&wat),
++                wasmprinter::print_bytes(&expected).unwrap(),
++                "{name}: {flag} WAT"
++            );
++        }
++        assert_eq!(scratch.compile(source, &["-O0"]), baseline, "{name}: reset");
++        scratch.assert_entries(&["program.was", "program.wasm"]);
++    }
++}
++
++#[test]
++fn integer_specialization_cli_uses_i32_for_proven_local_chain() {
++    let scratch = Scratch::new("integer_local_storage");
++    let source = "fn main() -> number { let a = 10; let b = a + 20; let c = b - 3; return c; }";
++
++    for flag in ["-O1", "-O2", "-O3"] {
++        let bytes = scratch.compile(source, &[flag]);
++        let integer_locals: u32 = Parser::new(0)
++            .parse_all(&bytes)
++            .filter_map(|payload| match payload.unwrap() {
++                Payload::CodeSectionEntry(body) => Some(
++                    body.get_locals_reader()
++                        .unwrap()
++                        .into_iter()
++                        .map(|local| {
++                            let (count, ty) = local.unwrap();
++                            if ty == wasmparser::ValType::I32 {
++                                count
++                            } else {
++                                0
++                            }
++                        })
++                        .sum::<u32>(),
++                ),
++                _ => None,
++            })
++            .sum();
++        assert_eq!(integer_locals, 3, "{flag}: proven local chain");
++    }
++    scratch.assert_entries(&["program.was", "program.wasm"]);
++}
++
+ #[test]
+ fn unspecialized_program_preserves_bytes_at_every_optimization_level() {
+     let scratch = Scratch::new("optimization");
+diff --git a/crates/compiler/src/codegen/closures.rs b/crates/compiler/src/codegen/closures.rs
+index ac62669..c73dd16 100644
+--- a/crates/compiler/src/codegen/closures.rs
++++ b/crates/compiler/src/codegen/closures.rs
+@@ -507,8 +507,7 @@ pub(in crate::codegen) fn emit_closure<'a>(
+     module: &'a Layout<'a>,
+     policy: super::NumericPolicy,
+ ) -> Result<Function, CodegenError> {
+-    let mut emitter = BodyEmitter::for_owner(BodyOwner::Closure(closure), module)?;
+-    emitter.numeric = super::Facts::new(policy);
++    let mut emitter = BodyEmitter::for_owner(BodyOwner::Closure(closure), module, policy)?;
+     emitter.context.lexical_prefix = module.callables[closure.id.0]
+         .creator
+         .get()
+diff --git a/crates/compiler/src/codegen/function.rs b/crates/compiler/src/codegen/function.rs
+index 33a3ee5..f450feb 100644
+--- a/crates/compiler/src/codegen/function.rs
++++ b/crates/compiler/src/codegen/function.rs
+@@ -238,12 +238,25 @@ pub(super) struct BodyEmitter<'a> {
+ }
+ 
+ impl<'a> BodyEmitter<'a> {
++    #[cfg(test)]
+     fn new(function: &'a TypedFunction, module: &'a Layout<'a>) -> Result<Self, CodegenError> {
+-        Self::for_owner(BodyOwner::Function(function), module)
+-    }
+-
+-    fn for_owner(function: BodyOwner<'a>, module: &'a Layout<'a>) -> Result<Self, CodegenError> {
+-        let context = Context::new(function, module)?;
++        Self::for_owner(
++            BodyOwner::Function(function),
++            module,
++            NumericPolicy::Baseline,
++        )
++    }
++
++    fn for_owner(
++        function: BodyOwner<'a>,
++        module: &'a Layout<'a>,
++        policy: NumericPolicy,
++    ) -> Result<Self, CodegenError> {
++        let mut context = Context::new(function, module)?;
++        let numeric = Facts::for_owner(policy, function, context.storage.cells.keys().copied());
++        let first_local = context.first_temporary
++            - checked_u32(context.locals.types.len(), "function local count")?;
++        context.locals.specialize(&numeric, first_local);
+         let mut locals: Vec<_> = context.locals.types.iter().map(|ty| (1, *ty)).collect();
+ 
+         let mut temporary_groups: Vec<(u32, ValType)> = Vec::new();
+@@ -272,7 +285,7 @@ impl<'a> BodyEmitter<'a> {
+             next_label: 0,
+             loops: Vec::new(),
+             seen_loops: HashSet::new(),
+-            numeric: Facts::default(),
++            numeric,
+         })
+     }
+ 
+@@ -678,6 +691,10 @@ impl<'a> BodyEmitter<'a> {
+         self.structured(|emitter| expression::emit(expr, emitter, span))
+     }
+ 
++    pub fn local_representation(&self, id: VariableId) -> Representation {
++        self.numeric.local_representation(id)
++    }
++
+     pub fn numeric_representation(&mut self, expr: &TypedExpr) -> Representation {
+         self.numeric.representation(expr)
+     }
+@@ -703,8 +720,7 @@ pub(super) fn emit<'a>(
+     module: &'a Layout<'a>,
+     policy: NumericPolicy,
+ ) -> Result<Function, CodegenError> {
+-    let mut emitter = BodyEmitter::new(function, module)?;
+-    emitter.numeric = Facts::new(policy);
++    let mut emitter = BodyEmitter::for_owner(BodyOwner::Function(function), module, policy)?;
+ 
+     validate_parameters(&function.params, &mut emitter)?;
+ 
+diff --git a/crates/compiler/src/codegen/locals.rs b/crates/compiler/src/codegen/locals.rs
+index ea46ebd..0eb3417 100644
+--- a/crates/compiler/src/codegen/locals.rs
++++ b/crates/compiler/src/codegen/locals.rs
+@@ -74,6 +74,16 @@ impl LocalLayout {
+         Ok(layout)
+     }
+ 
++    pub fn specialize(&mut self, facts: &super::representation::Facts, first_local: u32) {
++        for (&id, local) in &self.bindings {
++            if facts.local_representation(id) == super::representation::Representation::I32 {
++                // Only ordinary declarations have proofs; parameters and synthetic
++                // bindings retain their ABI/storage types and their original slots.
++                self.types[(local.index.raw() - first_local) as usize] = ValType::I32;
++            }
++        }
++    }
++
+     pub fn get(&self, id: VariableId) -> Option<Local> {
+         self.bindings.get(&id).copied()
+     }
+diff --git a/crates/compiler/src/codegen/representation.rs b/crates/compiler/src/codegen/representation.rs
+index 8e10c0f..2a0bba8 100644
+--- a/crates/compiler/src/codegen/representation.rs
++++ b/crates/compiler/src/codegen/representation.rs
+@@ -1,11 +1,16 @@
+-use std::collections::HashMap;
++use std::{
++    collections::{HashMap, HashSet},
++    ops::ControlFlow,
++};
+ 
+ use crate::{
+     ast::{BinaryOp, Type},
+     number_literal,
+-    typed_ast::{TypedExpr, TypedExprKind},
++    typed_ast::{TypedExpr, TypedExprKind, TypedStatement, TypedStatementKind, VariableId},
+ };
+ 
++use super::{closures::BodyOwner, walker::Visitor};
++
+ #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+ pub(crate) enum NumericPolicy {
+     #[default]
+@@ -34,13 +39,43 @@ pub(super) struct Facts {
+     // Keys identify borrowed, immutable nodes for this one body emission only.
+     // The map is lookup-only: addresses never determine emitted order or bytes.
+     integers: HashMap<*const TypedExpr, Option<IntegerBounds>>,
++    locals: HashMap<VariableId, IntegerBounds>,
+ }
+ 
+ impl Facts {
+-    pub fn new(policy: NumericPolicy) -> Self {
+-        Self {
++    pub fn for_owner(
++        policy: NumericPolicy,
++        owner: BodyOwner<'_>,
++        promoted: impl Iterator<Item = VariableId>,
++    ) -> Self {
++        let mut facts = Self {
+             policy,
+             ..Self::default()
++        };
++        if policy == NumericPolicy::Baseline {
++            return facts;
++        }
++
++        // Scan every write, including unreachable and skipped children, before
++        // considering initializers. Helper bodies have separate binding owners.
++        let mut writes = Writes::default();
++        let _ = owner.walk(&mut writes);
++        writes.blocked.extend(promoted);
++        writes
++            .blocked
++            .extend(owner.params().iter().map(|param| param.id));
++        let _ = owner.walk(&mut Declarations {
++            facts: &mut facts,
++            blocked: &writes.blocked,
++        });
++        facts
++    }
++
++    pub fn local_representation(&self, id: VariableId) -> Representation {
++        if self.locals.contains_key(&id) {
++            Representation::I32
++        } else {
++            Representation::F64
+         }
+     }
+ 
+@@ -80,6 +115,7 @@ impl Facts {
+                         }
+                     })
+                 }
++                TypedExprKind::Identifier { id, .. } => self.locals.get(id).copied(),
+                 TypedExprKind::Binary {
+                     left,
+                     op: op @ (BinaryOp::Add | BinaryOp::Subtract),
+@@ -120,3 +156,57 @@ impl Facts {
+         })
+     }
+ }
++
++#[derive(Default)]
++struct Writes {
++    blocked: HashSet<VariableId>,
++}
++
++impl Visitor<'_> for Writes {
++    type Break = std::convert::Infallible;
++
++    fn visit_closure_bodies(&self) -> bool {
++        false
++    }
++
++    fn enter_statement(&mut self, statement: &TypedStatement) -> ControlFlow<Self::Break> {
++        if let TypedStatementKind::Assignment { target, .. }
++        | TypedStatementKind::CompoundAssignment { target, .. } = &statement.kind
++            && let TypedExprKind::Identifier { id, .. } = target.kind
++        {
++            self.blocked.insert(id);
++        }
++        ControlFlow::Continue(())
++    }
++}
++
++struct Declarations<'a> {
++    facts: &'a mut Facts,
++    blocked: &'a HashSet<VariableId>,
++}
++
++impl Visitor<'_> for Declarations<'_> {
++    type Break = std::convert::Infallible;
++
++    fn visit_closure_bodies(&self) -> bool {
++        false
++    }
++
++    fn enter_statement(&mut self, statement: &TypedStatement) -> ControlFlow<Self::Break> {
++        // Declaration preorder suffices for the supported pure expression shapes:
++        // their reads can only refer to earlier initialized bindings. Scope and
++        // initialization validity remain the checked emitter's responsibility.
++        if let TypedStatementKind::Let {
++            id,
++            ty: Type::Number,
++            value,
++            ..
++        } = &statement.kind
++            && !self.blocked.contains(id)
++            && let Some(bounds) = self.facts.integer(value)
++        {
++            self.facts.locals.insert(*id, bounds);
++        }
++        ControlFlow::Continue(())
++    }
++}
+diff --git a/crates/compiler/src/codegen/statement.rs b/crates/compiler/src/codegen/statement.rs
+index ffb5377..bb33dda 100644
+--- a/crates/compiler/src/codegen/statement.rs
++++ b/crates/compiler/src/codegen/statement.rs
+@@ -42,7 +42,8 @@ pub(super) fn emit(
+             let index = emitter.declaration(*id, *ty, span)?;
+ 
+             expect_operand(function, *ty, value.ty, span)?;
+-            let flow = emitter.emit_expr(value, span)?;
++            let representation = emitter.local_representation(*id);
++            let flow = emitter.emit_expr_as(value, span, representation)?;
+             if flow.can_fall_through() {
+                 emitter.local_set(index);
+                 emitter.promote(*id, *ty, span)?;
+diff --git a/crates/compiler/tests/integer_specialization.rs b/crates/compiler/tests/integer_specialization.rs
+index 68b9745..557e57d 100644
+--- a/crates/compiler/tests/integer_specialization.rs
++++ b/crates/compiler/tests/integer_specialization.rs
+@@ -75,6 +75,54 @@ fn proven_subtrees_use_integer_operations_without_folding_or_changing_the_abi()
+     }
+ }
+ 
++#[test]
++fn never_reassigned_local_chains_use_i32_slots_and_one_return_conversion() {
++    let source = "fn main() -> number { let a = 10 + 20; let b = a - 3; return b + a; }";
++    let baseline = Compiler::new().compile_source(source).unwrap();
++    assert_eq!(
++        baseline,
++        codegen::compile(&Compiler::new().analyze(source).unwrap()).unwrap()
++    );
++    let expected = compiler(OptimizationLevel::Basic)
++        .compile_source(source)
++        .unwrap();
++    for level in ENABLED {
++        let bytes = compiler(level).compile_source(source).unwrap();
++        assert_eq!(bytes, expected);
++        assert_eq!(
++            instructions(&bytes),
++            [
++                "I32Const { value: 10 }",
++                "I32Const { value: 20 }",
++                "I32Add",
++                "LocalSet { local_index: 0 }",
++                "LocalGet { local_index: 0 }",
++                "I32Const { value: 3 }",
++                "I32Sub",
++                "LocalSet { local_index: 1 }",
++                "LocalGet { local_index: 1 }",
++                "LocalGet { local_index: 0 }",
++                "I32Add",
++                "F64ConvertI32S",
++                "Return",
++                "End",
++            ]
++        );
++        for payload in Parser::new(0).parse_all(&bytes) {
++            if let Payload::CodeSectionEntry(body) = payload.unwrap() {
++                assert_eq!(
++                    body.get_locals_reader()
++                        .unwrap()
++                        .into_iter()
++                        .map(Result::unwrap)
++                        .collect::<Vec<_>>(),
++                    [(1, ValType::I32), (1, ValType::I32)]
++                );
++            }
++        }
++    }
++}
++
+ #[test]
+ fn parsed_values_and_every_intermediate_bound_control_specialization() {
+     // Counts are independent expected opcodes, not values computed by the proof.
+@@ -121,7 +169,7 @@ fn parsed_values_and_every_intermediate_bound_control_specialization() {
+ }
+ 
+ #[test]
+-fn unknown_inputs_stay_floating_and_local_storage_and_consumers_remain_unchanged() {
++fn unknown_inputs_mutable_storage_and_unspecialized_consumers_remain_floating() {
+     for source in [
+         "fn main(x: number) -> number { return x; }",
+         "fn main(x: number) -> number { return x * 1.5; }",
+@@ -136,7 +184,7 @@ fn unknown_inputs_stay_floating_and_local_storage_and_consumers_remain_unchanged
+ 
+     for (source, required) in [
+         (
+-            "fn main() -> number { let x = 1 + 2; return x + 3; }",
++            "fn main() -> number { let x = 1 + 2; x = 4; return x + 3; }",
+             "F64Add",
+         ),
+         (
+@@ -169,7 +217,7 @@ fn unknown_inputs_stay_floating_and_local_storage_and_consumers_remain_unchanged
+             assert!(ops.contains(&required.into()), "{source}: {required}");
+             for payload in Parser::new(0).parse_all(&bytes) {
+                 if let Payload::CodeSectionEntry(body) = payload.unwrap() {
+-                    // Ordinary numeric locals remain f64. Handle/scratch/capture
++                    // Mutable numeric locals remain f64. Handle/scratch/capture
+                     // locals may still use their existing i32 types.
+                     if source.contains("let x =") && !source.contains("let read") {
+                         let locals: Vec<_> = body

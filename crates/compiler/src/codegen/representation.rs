@@ -1,10 +1,15 @@
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    ops::ControlFlow,
+};
 
 use crate::{
     ast::{BinaryOp, Type},
     number_literal,
-    typed_ast::{TypedExpr, TypedExprKind},
+    typed_ast::{TypedExpr, TypedExprKind, TypedStatement, TypedStatementKind, VariableId},
 };
+
+use super::{closures::BodyOwner, walker::Visitor};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NumericPolicy {
@@ -34,13 +39,43 @@ pub(super) struct Facts {
     // Keys identify borrowed, immutable nodes for this one body emission only.
     // The map is lookup-only: addresses never determine emitted order or bytes.
     integers: HashMap<*const TypedExpr, Option<IntegerBounds>>,
+    locals: HashMap<VariableId, IntegerBounds>,
 }
 
 impl Facts {
-    pub fn new(policy: NumericPolicy) -> Self {
-        Self {
+    pub fn for_owner(
+        policy: NumericPolicy,
+        owner: BodyOwner<'_>,
+        promoted: impl Iterator<Item = VariableId>,
+    ) -> Self {
+        let mut facts = Self {
             policy,
             ..Self::default()
+        };
+        if policy == NumericPolicy::Baseline {
+            return facts;
+        }
+
+        // Scan every write, including unreachable and skipped children, before
+        // considering initializers. Helper bodies have separate binding owners.
+        let mut writes = Writes::default();
+        let _ = owner.walk(&mut writes);
+        writes.blocked.extend(promoted);
+        writes
+            .blocked
+            .extend(owner.params().iter().map(|param| param.id));
+        let _ = owner.walk(&mut Declarations {
+            facts: &mut facts,
+            blocked: &writes.blocked,
+        });
+        facts
+    }
+
+    pub fn local_representation(&self, id: VariableId) -> Representation {
+        if self.locals.contains_key(&id) {
+            Representation::I32
+        } else {
+            Representation::F64
         }
     }
 
@@ -80,6 +115,7 @@ impl Facts {
                         }
                     })
                 }
+                TypedExprKind::Identifier { id, .. } => self.locals.get(id).copied(),
                 TypedExprKind::Binary {
                     left,
                     op: op @ (BinaryOp::Add | BinaryOp::Subtract),
@@ -118,5 +154,59 @@ impl Facts {
             min: i32::try_from(min).ok()?,
             max: i32::try_from(max).ok()?,
         })
+    }
+}
+
+#[derive(Default)]
+struct Writes {
+    blocked: HashSet<VariableId>,
+}
+
+impl Visitor<'_> for Writes {
+    type Break = std::convert::Infallible;
+
+    fn visit_closure_bodies(&self) -> bool {
+        false
+    }
+
+    fn enter_statement(&mut self, statement: &TypedStatement) -> ControlFlow<Self::Break> {
+        if let TypedStatementKind::Assignment { target, .. }
+        | TypedStatementKind::CompoundAssignment { target, .. } = &statement.kind
+            && let TypedExprKind::Identifier { id, .. } = target.kind
+        {
+            self.blocked.insert(id);
+        }
+        ControlFlow::Continue(())
+    }
+}
+
+struct Declarations<'a> {
+    facts: &'a mut Facts,
+    blocked: &'a HashSet<VariableId>,
+}
+
+impl Visitor<'_> for Declarations<'_> {
+    type Break = std::convert::Infallible;
+
+    fn visit_closure_bodies(&self) -> bool {
+        false
+    }
+
+    fn enter_statement(&mut self, statement: &TypedStatement) -> ControlFlow<Self::Break> {
+        // Declaration preorder suffices for the supported pure expression shapes:
+        // their reads can only refer to earlier initialized bindings. Scope and
+        // initialization validity remain the checked emitter's responsibility.
+        if let TypedStatementKind::Let {
+            id,
+            ty: Type::Number,
+            value,
+            ..
+        } = &statement.kind
+            && !self.blocked.contains(id)
+            && let Some(bounds) = self.facts.integer(value)
+        {
+            self.facts.locals.insert(*id, bounds);
+        }
+        ControlFlow::Continue(())
     }
 }

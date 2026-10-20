@@ -473,6 +473,9 @@ diagnostics and adapter parity gates remain separate mandatory evidence.
 
 ## Issue #39: matched literal/add-sub subset — 2026-10-17
 
+**Historical #39 only:** the measurements and correctness gates below predate #40
+local storage/read propagation and do not validate it. See the new #40 record below.
+
 This new working-tree comparison measures exact-i32 literal and proven add/sub
 expression specialization in `Basic` versus `None`. Local storage remains `f64`;
 this is not evidence of the broader local/comparison/negation pass. The #38 section
@@ -559,3 +562,45 @@ including ignored cases (zero failed/ignored in the [raw log](integer-specializa
 25 current-source browser groups, native/browser Clippy and the core Wasm build.
 This documentation task did not rerun those gates or timings. Review against `09dcb5c` is complete; explicit acceptance of material regressions
 and the release decision remain pending. `None` remains the default.
+
+## Issue #40: matched cumulative integer-local subset — 2026-10-20
+
+User authorization via ticket #40 extends the experimental #39 literal/add-sub
+implementation to eligible never-reassigned ordinary numeric local i32 storage and
+read-fact propagation. See [the eligibility contract](integer-specialization.md#implemented-subset-39-literalsadd-sub-40-ordinary-locals)
+and the **new [measurement record](benchmarks/integer-locals-40/README.md)** for exact
+inputs, environment, commands, raw evidence and independent WAT inspection. Preserve
+both historical #38/#39 evidence and new #40 evidence unchanged.
+
+The matched current `None` versus current `Basic` collection uses the unchanged
+27-case corpus and existing timing seams, with two sequential repetitions per level
+and 108 independent-oracle checks across all four presets. It measures cumulative
+#39 + #40 behavior, not isolated incremental #40 timing. All 27 `None` module/source
+identities match historical #38; enabled presets match each other. The new record
+explicitly documents its destination-only launcher adaptation and inherited stale
+#39 headings/“Locals remain f64” narrative in raw recorder output; use its README
+and independent WAT inspection to interpret actual storage.
+
+**Size:** 24/27 modules shrink versus current `None`, three are unchanged, none grow;
+the synthetic sum is **13,414 → 9,701 bytes (−27.68%)**, not production traffic.
+Historical #39 Basic totaled 9,702 bytes, so the incremental total is only **one byte
+smaller**: `locals_32` −64 bytes, `compare_32` +64 bytes, `loop_local` −1 byte.
+Additional widening conversions can offset local-storage savings; this historical
+byte comparison is not a matched incremental timing experiment.
+
+**Trade-offs:** guest timing is mixed/inconclusive, with regressions as well as
+improvements and reversals between repetitions. Compilation-cost regression signals
+include `locals_32` typed medians increasing 58.49% / 160.79% versus matched `None`.
+There is no stable general guest-speed conclusion. Report these costs separately
+from cumulative size savings; instruction/storage changes alone are not a benefit.
+
+The recorded oracle checks, focused harness validation and CLI artifact/WAT inspection
+are not final workspace, diagnostic or current-source rebuilt-browser gates. Separate
+[final #40 correctness gates passed](integer-specialization.md#correctness-validation-2026-10-20),
+including 1,276 tests across 81 targets (zero failed/ignored) and 25 current-source
+browser groups; [#40 review is complete](integer-specialization.md#review-completion-40).
+The integration owner verified the exact measurement manifest: no production inputs
+changed after the measured hashes. Historical raw measurement evidence keeps its
+original scope. The implementation remains experimental pending explicit acceptance
+of material regressions and a separate release decision, with no default or public
+type/ABI change.

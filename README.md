@@ -423,8 +423,8 @@ locals in declaration order. Reads use `local.get`; initialization and assignmen
 use `local.set`. Scalar expression statements end in `drop` to keep the stack
 balanced. Boolean literals use `i32.const 0` or `i32.const 1`.
 
-Numeric literals become `f64.const`; arithmetic uses `f64.add`, `f64.sub`,
-`f64.mul`, `f64.div`, and `f64.neg`. Integers and decimals use the same `f64`
+At the default `None` level, numeric literals become `f64.const`; arithmetic uses
+`f64.add`, `f64.sub`, `f64.mul`, `f64.div`, and `f64.neg`. Integers and decimals use the same `f64`
 representation. Invalid and overflowing literals return explicit errors;
 arithmetic follows IEEE-754 behavior, including infinity, NaN, and signed zero.
 
@@ -625,7 +625,7 @@ collection yet**. Scalar-only modules do not include the memory runtime.
 All user functions are exported by default. `ExportOptions` or CLI `--export` /
 `--no-exports` select the public user-function surface without removing bodies or
 imports. Required memory ABI exports remain. M0–M9 are implemented; those milestones
-added no optimization passes. See the experimental #39 subset below.
+added no optimization passes. See the experimental #39/#40 subset below.
 
 ```rust
 use was_compiler::{Compiler, Type};
@@ -879,20 +879,29 @@ helper kind or optimization pass; all optimization levels retain parity.
 
 The compiler supports configuring `OptimizationLevel::None` (the default),
 `Basic`, `Standard`, or `Aggressive`, corresponding to the intended O0–O3 presets.
-`Basic`, `Standard`, and `Aggressive` share **experimental #39 integer
-specialization**: exact parsed signed-i32 literals and proven add/sub subtrees use
-private i32 lowering, converting back to f64 at unspecialized consumers. All numeric
-locals remain f64, including never-reassigned lets; comparisons, unary operations,
-calls, loads and captured reads retain existing lowering/unknown facts. Public AST,
-language types and ABI are unchanged. Enabled bytes may differ from `None`; semantics
-and diagnostics must match across levels, with adapter byte parity within each level.
+`Basic`, `Standard`, and `Aggressive` share **experimental #39/#40 integer
+specialization**: exact parsed signed-i32 literals, proven add/sub subtrees and
+eligible never-reassigned ordinary numeric locals use private i32 lowering/storage.
+#40 propagates initializer facts through eligible local reads, converting back to
+f64 at unspecialized consumers. Every ordinary/compound write, even skipped or
+unreachable, excludes its binding. Parameters, iteration and normalized-call synthetic
+bindings, captured/promoted bindings, calls and memory loads supply no local proofs.
+Ordinary loop-body lets may qualify; comparisons and negation remain f64. No
+branch/contract/caller refinement is added. Public AST, language types and ABI are
+unchanged. `None`/default bytes are preserved; enabled presets must match each other's
+bytes, with semantic/diagnostic parity across levels and adapter byte parity within
+each level.
 
 [Contracts and status](docs/integer-specialization.md) distinguish this subset from
-#38's broader future design. [Measurements](docs/benchmarks/integer-add-sub-39/README.md)
-show smaller modules but noisy timing results with material regression signals
-pending explicit user acceptance. [Correctness gates passed](docs/integer-specialization.md#correctness-validation-2026-10-17)
-with 1,261 workspace tests and 25 browser groups; this is not release acceptance or
-a default change. Review against `09dcb5c` is complete.
+remaining #38 work. User authorization via ticket #40 covers implementation, not
+release acceptance. [New #40 measurements](docs/benchmarks/integer-locals-40/README.md)
+show cumulative size reduction (13,414 → 9,701 bytes), but only one byte net savings
+versus historical #39, with mixed guest timings and compilation regression signals.
+Final [#40 correctness gates passed](docs/integer-specialization.md#correctness-validation-2026-10-20):
+1,276 tests across 81 targets, zero failed/ignored, and 25 current-source browser
+groups. [#40 review is complete](docs/integer-specialization.md#review-completion-40);
+historical #39 gates/review retain their original scope. Explicit acceptance of
+material regressions and release acceptance remain pending. There is no default change.
 
 ```rust
 use was_compiler::{Compiler, CompilerOptions, OptimizationLevel};

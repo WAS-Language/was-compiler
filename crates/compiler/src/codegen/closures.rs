@@ -507,8 +507,7 @@ pub(in crate::codegen) fn emit_closure<'a>(
     module: &'a Layout<'a>,
     policy: super::NumericPolicy,
 ) -> Result<Function, CodegenError> {
-    let mut emitter = BodyEmitter::for_owner(BodyOwner::Closure(closure), module)?;
-    emitter.numeric = super::Facts::new(policy);
+    let mut emitter = BodyEmitter::for_owner(BodyOwner::Closure(closure), module, policy)?;
     emitter.context.lexical_prefix = module.callables[closure.id.0]
         .creator
         .get()

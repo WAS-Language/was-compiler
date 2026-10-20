@@ -1,0 +1,8 @@
+{
+  "utc": "2026-10-20T14:41:40.235908+00:00",
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "script_sha256": "4477983ca5b05a6af87dc88a4c00cdc3b5473d9b62b4d7749a01c6c9949b32f3",
+  "cli_path": "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\target\\debug\\was-compiler.exe",
+  "cli_sha256": "8e1f61141a75057e0fa2ad896c7561adc0f7734e1ddf4bfb9b3804242dcd59ef",
+  "scope": "main index 1 only, local declarations exclude parameters; static instruction occurrences"
+}

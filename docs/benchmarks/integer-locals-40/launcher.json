@@ -1,0 +1,21 @@
+{
+  "utc_started": "2026-10-20T14:39:53.188381+00:00",
+  "recorder": "docs/benchmarks/integer-add-sub-39/record_matched.py",
+  "recorder_sha256": "d20dbc781d22247b7a5f57890880db834e3649cf013d9e402acc57b4d63c5dd6",
+  "launcher_sha256": "6f0a38b6ff5503ee14ecc9a280052e14062d52d75582c2f96135340ab5afcf32",
+  "baseline_head_expected": "dc619db46e9dac3694adb7cc5855203a18233426",
+  "output": "docs/benchmarks/integer-locals-40/collection-1",
+  "adaptation": "Redirect only the #39 output-location assertion; original recorder file unchanged",
+  "original_argv": [
+    "docs/benchmarks/integer-locals-40/collect.py"
+  ],
+  "redirects": [
+    {
+      "original_condition": false,
+      "original_message": "Output must be a NEW child of docs/benchmarks/integer-add-sub-39",
+      "allowed_destination": "docs/benchmarks/integer-locals-40/collection-1"
+    }
+  ],
+  "completed": true,
+  "utc_finished": "2026-10-20T14:40:22.292603+00:00"
+}
