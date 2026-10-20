@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "--version"
+  ],
+  "utc_started": "2026-10-20T17:05:40.349386+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "node.txt",
+  "utc_finished": "2026-10-20T17:05:40.406118+00:00"
+}

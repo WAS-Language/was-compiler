@@ -1,0 +1,84 @@
+{
+  "utc": "2026-10-20T17:32:34.187310+00:00",
+  "command": [
+    "docs/benchmarks/integer-comparisons-negation-41/package_evidence.py"
+  ],
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "operation": "Lossless deterministic gzip packaging, not raw-output rewriting or a timing rerun",
+  "original_decompressed_path": "collection-1/git-diff-before.txt",
+  "packaged_path": "collection-1/git-diff-before.txt.gz",
+  "original_raw": {
+    "bytes": 22313,
+    "sha256": "36ccf381f71f2f89ade82faccbe8df12fed022149e0d191e7e883c6d81ac0961"
+  },
+  "gzip": {
+    "bytes": 4972,
+    "sha256": "f2c443c02cd38ca0fb5c41353a1aac5b97aea02f067147fc628d74403a99f991",
+    "mtime": 0,
+    "embedded_filename": "",
+    "compression_level": 9
+  },
+  "decompressed_identity": {
+    "bytes": 22313,
+    "sha256": "36ccf381f71f2f89ade82faccbe8df12fed022149e0d191e7e883c6d81ac0961"
+  },
+  "stored_gzip_verified_before_plain_removal": true,
+  "deterministic_recompression_byte_identical": true,
+  "space_only_raw_context_lines_preserved": 8,
+  "original_metadata_audits_manifests_unchanged": true,
+  "historical_manifest_comparisons": [
+    {
+      "manifest": "artifact-hashes.json",
+      "manifest_sha256": "a8912672340d64a58e73fe9c2b1457770c17a961cf77fbb1b5c971622ee1e3f0",
+      "retained_artifact_hash_changes": [
+        {
+          "path": "README.md",
+          "historical": {
+            "bytes": 18395,
+            "sha256": "ff8793468885360ae469dc55bb9f331cfc46ef63f5ec2be2b38cb8263513b559"
+          },
+          "current": {
+            "bytes": 25718,
+            "sha256": "8136668877dd6c34cd74b8bc5743582f8eebe1caa7faac87de60275d9cd70f12"
+          }
+        }
+      ],
+      "separately_repackaged_original": "collection-1/git-diff-before.txt"
+    },
+    {
+      "manifest": "final-integration-artifact-hashes.json",
+      "manifest_sha256": "50715eed1ea5f2e716a004cd422530b170913bf4a453ac3fe3d1f3b9b13b5640",
+      "retained_artifact_hash_changes": [
+        {
+          "path": "README.md",
+          "historical": {
+            "bytes": 22906,
+            "sha256": "55a000dc142cb9d998f588ebc28c6c0377040a0d2f6312d4fff905f1b4dc2063"
+          },
+          "current": {
+            "bytes": 25718,
+            "sha256": "8136668877dd6c34cd74b8bc5743582f8eebe1caa7faac87de60275d9cd70f12"
+          }
+        }
+      ],
+      "separately_repackaged_original": "collection-1/git-diff-before.txt"
+    }
+  ],
+  "historical_paths_and_digests_apply_to": "Original decompressed bytes; old manifests are historical snapshots",
+  "readme_links_checked": true,
+  "unstaged_diff_check": {
+    "command": [
+      "git",
+      "--no-pager",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "index_modified": false,
+  "staged_check_caution": "Cached diff still contains old staged text until integrator stages packaging changes",
+  "owner_reported_latest_validation_not_rerun": "1,287 tests across 81 targets passed; review no hard findings, one low duplication suggestion deferred",
+  "timings_unchanged": true
+}

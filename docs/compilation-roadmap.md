@@ -24,19 +24,23 @@ release manifest. See [contracts, Rust migration and release evidence](typed-arr
 Earlier milestone/extension records below retain their historical scope.
 This work adds neither reclamation nor optimization transformations.
 
-## Proven integer specialization (#38 contract; experimental #39/#40 subset)
+## Proven integer specialization (#38 contract; experimental #39/#40/#41 subset)
 
 [The maintained contract](integer-specialization.md) separates #38's broader
 literal/read/add/sub/comparison/restricted-negation and never-reassigned local
-design from user-approved #39/#40: exact parsed signed-i32 literals, proven add/sub
+design from user-approved #39/#40/#41: exact parsed signed-i32 literals, proven add/sub
 subtrees and eligible never-reassigned ordinary numeric local storage/read facts
 are implemented. Ticket #40 authorizes the local extension. All ordinary/compound
 writes, including skipped/unreachable writes, exclude a binding. Parameters,
 iteration, normalized-call synthetic and captured/promoted bindings are excluded;
 calls/memory loads are unknown. Ordinary loop-body lets may qualify independently.
-Comparisons and negation remain f64, with no branch/contract/caller refinement.
-Eligible subtrees/reads widen to f64 at unspecialized consumers. Public AST, language
-types and ABI remain unchanged.
+User-authorized #41 reuses existing facts for all six numeric comparisons
+(`==`, `!=`, `<`, `<=`, `>`, `>=`) when both operands are proven signed-i32 integers,
+with signed ordering, and unary negation when operand bounds exclude zero and
+`i32::MIN`. Multiplication/division/remainder and unknown f64 fallbacks are unchanged;
+there is no branch/contract/caller refinement. Eligible subtrees/reads widen to f64
+at unspecialized consumers. Public AST, source language, ABI and captures remain
+unchanged.
 
 `Basic`, `Standard`, and `Aggressive` share this subset and must be byte-identical
 to each other, with semantic/diagnostic parity across all levels and adapter byte
@@ -45,7 +49,7 @@ codegen APIs also retain baseline policy. This approved exception ahead of WP12
 does not authorize general WP13 or remaining #38 implementation.
 
 The [#38 baseline](benchmarks/integer-specialization/summary.md) is historical.
-[New #40 matched measurements](benchmarks/integer-locals-40/README.md) show cumulative
+Historical [#40 matched measurements](benchmarks/integer-locals-40/README.md) show cumulative
 size reduction (13,414 → 9,701 bytes), but only one byte net savings over historical
 #39 (−64 `locals_32`, +64 `compare_32`, −1 `loop_local`). Mixed guest timing and
 compilation regression signals keep the subset experimental pending explicit
@@ -54,7 +58,20 @@ acceptance, not a release/default change. Historical [#39 correctness gates](int
 against `09dcb5c` do not validate #40. Separate [final #40 correctness gates passed](integer-specialization.md#correctness-validation-2026-10-20):
 1,276 tests across 81 targets, zero failed/ignored, and 25 current-source browser
 groups. [#40 review is complete](integer-specialization.md#review-completion-40);
-material-regression and release acceptance remain pending.
+these historical gates/review do not validate #41.
+
+[#41 matched measurements](benchmarks/integer-comparisons-negation-41/README.md)
+show cumulative current `None` → `Basic` size across 27 cases of 13,414 → 9,538 bytes
+(−28.90%). Historical #40 `Basic` → current `Basic` is 9,701 → 9,538 bytes
+(−163 bytes, −1.68%): `compare_32` saves 192 bytes, but `negate_32` grows 32 bytes.
+An independent expression-only supplement demonstrates specialization without
+local storage. Mixed guest timings and compilation regressions keep this
+experimental; cumulative results do not establish isolated #41 timing benefit.
+Separate [#41 correctness gates passed](integer-specialization.md#41-measurements-and-correctness-validation-2026-10-20):
+1,287 tests across 81 targets, zero failed/ignored, and 25 rebuilt-browser groups.
+[Two-axis #41 review is complete](integer-specialization.md#review-completion-41),
+with zero hard standards/spec findings and one deferred test-data suggestion. Material-regression
+and release acceptance remain pending; there is no release/default change.
 
 ## Pipeline and ownership
 
@@ -202,7 +219,7 @@ These are concrete modules with narrow responsibilities, not a generic plugin or
 pass framework. Add modules when a milestone requires them.
 
 `CompilerOptions` selects `OptimizationLevel::None`, `Basic`, `Standard`, or
-`Aggressive`; the default is `None`. Enabled presets share experimental #39/#40
+`Aggressive`; the default is `None`. Enabled presets share experimental #39/#40/#41
 representation selection, not AST transformations. Preserve semantics/diagnostics
 across levels, enabled-preset byte identity and adapter byte parity within each
 level. `Compiler::compile` and `compile_source` invoke the borrowed
@@ -396,8 +413,8 @@ symbol tables.
   Node.js runtime tests verify decimal rounding, NaN, positive/negative infinity,
   signed zero, overflow from finite operands, and import-index offsets.
 - `None` and direct codegen preserve baseline expression instructions. Enabled
-  presets may specialize #39/#40 literal/add-sub/eligible-local subtrees without
-  constant folding.
+  presets may specialize #39/#40 literal/add-sub/eligible-local subtrees and #41
+  proven numeric comparisons/safe negation without constant folding.
   Malformed typed-AST operands and unsupported operators retain
   enclosing statement spans in their errors.
 - **Separate remainder checkpoint (M9): complete.** Wasm has no `f64.rem`;

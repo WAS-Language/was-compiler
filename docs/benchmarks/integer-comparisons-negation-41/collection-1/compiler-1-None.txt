@@ -1,0 +1,90 @@
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `bench` profile [optimized] target(s) in 23.83s
+     Running benches\integer_specialization.rs (target\release\deps\integer_specialization-558520acf28ddf8a.exe)
+level=None; workload,source_bytes,module_bytes
+literal_1,86,100
+locals_1,122,121
+compare_1,190,196
+negate_1,112,116
+literal_32,861,1156
+locals_32,2013,1828
+compare_32,4189,4164
+negate_32,1693,1668
+loop_local,121,1208
+fraction,51,70
+negative_zero,43,61
+negate_zero,54,67
+positive_zero,46,70
+overflow,61,80
+underflow_i32,62,81
+negate_min,64,68
+unknown,46,63
+mutable,66,87
+capture,88,764
+multiply,46,70
+divide,46,70
+remainder,47,236
+nan,46,70
+infinity,46,70
+subnormal,367,60
+effects,66,94
+trap_order,80,776
+Timer precision: 100 ns
+integer_specialization  fastest       │ slowest       │ median        │ mean          │ samples │ iters
+├─ source_compile                     │               │               │               │         │
+│  ├─ capture           49.69 µs      │ 213.5 µs      │ 62.69 µs      │ 65.39 µs      │ 100     │ 100
+│  ├─ compare_1         30.29 µs      │ 57.59 µs      │ 32.09 µs      │ 32.95 µs      │ 100     │ 100
+│  ├─ compare_32        815.7 µs      │ 1.78 ms       │ 940.1 µs      │ 997 µs        │ 100     │ 100
+│  ├─ divide            10.69 µs      │ 31.79 µs      │ 11.49 µs      │ 12.03 µs      │ 100     │ 100
+│  ├─ effects           15.09 µs      │ 25.69 µs      │ 15.79 µs      │ 16.07 µs      │ 100     │ 100
+│  ├─ fraction          10.99 µs      │ 17.49 µs      │ 11.69 µs      │ 11.81 µs      │ 100     │ 100
+│  ├─ infinity          10.89 µs      │ 21.89 µs      │ 11.54 µs      │ 11.71 µs      │ 100     │ 100
+│  ├─ literal_1         15.69 µs      │ 64.79 µs      │ 16.49 µs      │ 17.52 µs      │ 100     │ 100
+│  ├─ literal_32        121.7 µs      │ 188.7 µs      │ 126.9 µs      │ 132.4 µs      │ 100     │ 100
+│  ├─ locals_1          21.49 µs      │ 31.79 µs      │ 22.19 µs      │ 22.37 µs      │ 100     │ 100
+│  ├─ locals_32         315.8 µs      │ 646.4 µs      │ 368.2 µs      │ 391.4 µs      │ 100     │ 100
+│  ├─ loop_local        40.39 µs      │ 66.39 µs      │ 41.49 µs      │ 42.24 µs      │ 100     │ 100
+│  ├─ multiply          10.49 µs      │ 19.49 µs      │ 11.19 µs      │ 11.29 µs      │ 100     │ 100
+│  ├─ mutable           14.29 µs      │ 18.49 µs      │ 15.19 µs      │ 15.24 µs      │ 100     │ 100
+│  ├─ nan               10.49 µs      │ 26.49 µs      │ 11.19 µs      │ 12 µs         │ 100     │ 100
+│  ├─ negate_1          19.59 µs      │ 41.99 µs      │ 20.99 µs      │ 22.01 µs      │ 100     │ 100
+│  ├─ negate_32         280.1 µs      │ 522.3 µs      │ 347.2 µs      │ 349.6 µs      │ 100     │ 100
+│  ├─ negate_min        11.59 µs      │ 83.79 µs      │ 12.49 µs      │ 13.27 µs      │ 100     │ 100
+│  ├─ negate_zero       12.09 µs      │ 25.99 µs      │ 13.24 µs      │ 13.58 µs      │ 100     │ 100
+│  ├─ negative_zero     8.899 µs      │ 13.49 µs      │ 9.449 µs      │ 9.473 µs      │ 100     │ 100
+│  ├─ overflow          11.49 µs      │ 45.09 µs      │ 12.29 µs      │ 12.82 µs      │ 100     │ 100
+│  ├─ positive_zero     10.69 µs      │ 82.29 µs      │ 11.59 µs      │ 12.39 µs      │ 100     │ 100
+│  ├─ remainder         13.39 µs      │ 23.49 µs      │ 13.99 µs      │ 14.28 µs      │ 100     │ 100
+│  ├─ subnormal         10.99 µs      │ 61.29 µs      │ 11.79 µs      │ 12.44 µs      │ 100     │ 100
+│  ├─ trap_order        34.69 µs      │ 60.89 µs      │ 36.49 µs      │ 37.69 µs      │ 100     │ 100
+│  ├─ underflow_i32     12.19 µs      │ 26.09 µs      │ 12.79 µs      │ 13 µs         │ 100     │ 100
+│  ╰─ unknown           9.799 µs      │ 18.49 µs      │ 10.39 µs      │ 10.49 µs      │ 100     │ 100
+╰─ typed_compile                      │               │               │               │         │
+   ├─ capture           21.99 µs      │ 88.29 µs      │ 22.69 µs      │ 23.69 µs      │ 100     │ 100
+   ├─ compare_1         10.99 µs      │ 16.19 µs      │ 11.59 µs      │ 11.71 µs      │ 100     │ 100
+   ├─ compare_32        150.6 µs      │ 371.1 µs      │ 159.3 µs      │ 176.8 µs      │ 100     │ 100
+   ├─ divide            4.899 µs      │ 9.299 µs      │ 5.299 µs      │ 5.392 µs      │ 100     │ 100
+   ├─ effects           5.499 µs      │ 17.59 µs      │ 5.799 µs      │ 5.988 µs      │ 100     │ 100
+   ├─ fraction          4.999 µs      │ 7.299 µs      │ 5.299 µs      │ 5.368 µs      │ 100     │ 100
+   ├─ infinity          5.099 µs      │ 6.899 µs      │ 5.299 µs      │ 5.368 µs      │ 100     │ 100
+   ├─ literal_1         6.399 µs      │ 15.29 µs      │ 6.799 µs      │ 6.897 µs      │ 100     │ 100
+   ├─ literal_32        30.89 µs      │ 159.7 µs      │ 32.79 µs      │ 35.82 µs      │ 100     │ 100
+   ├─ locals_1          8.599 µs      │ 15.99 µs      │ 9.099 µs      │ 9.255 µs      │ 100     │ 100
+   ├─ locals_32         86.49 µs      │ 155.9 µs      │ 89.19 µs      │ 91.53 µs      │ 100     │ 100
+   ├─ loop_local        27.29 µs      │ 155.1 µs      │ 28.39 µs      │ 33.53 µs      │ 100     │ 100
+   ├─ multiply          5.199 µs      │ 8.099 µs      │ 5.499 µs      │ 5.57 µs       │ 100     │ 100
+   ├─ mutable           6.699 µs      │ 98.39 µs      │ 7.199 µs      │ 10.23 µs      │ 100     │ 100
+   ├─ nan               8.399 µs      │ 12.49 µs      │ 8.699 µs      │ 8.763 µs      │ 100     │ 100
+   ├─ negate_1          8.299 µs      │ 32.29 µs      │ 8.599 µs      │ 8.977 µs      │ 100     │ 100
+   ├─ negate_32         76.99 µs      │ 171.3 µs      │ 79.29 µs      │ 81.76 µs      │ 100     │ 100
+   ├─ negate_min        5.099 µs      │ 8.999 µs      │ 5.299 µs      │ 5.381 µs      │ 100     │ 100
+   ├─ negate_zero       5.799 µs      │ 8.899 µs      │ 6.099 µs      │ 6.154 µs      │ 100     │ 100
+   ├─ negative_zero     4.099 µs      │ 6.699 µs      │ 4.299 µs      │ 4.397 µs      │ 100     │ 100
+   ├─ overflow          4.799 µs      │ 12.99 µs      │ 4.999 µs      │ 5.124 µs      │ 100     │ 100
+   ├─ positive_zero     5.099 µs      │ 56.59 µs      │ 5.499 µs      │ 6.069 µs      │ 100     │ 100
+   ├─ remainder         7.499 µs      │ 37.19 µs      │ 8.199 µs      │ 8.821 µs      │ 100     │ 100
+   ├─ subnormal         4.999 µs      │ 7.599 µs      │ 5.699 µs      │ 5.697 µs      │ 100     │ 100
+   ├─ trap_order        21.89 µs      │ 101.7 µs      │ 23.04 µs      │ 26.75 µs      │ 100     │ 100
+   ├─ underflow_i32     4.999 µs      │ 8.699 µs      │ 5.199 µs      │ 5.367 µs      │ 100     │ 100
+   ╰─ unknown           4.599 µs      │ 11.89 µs      │ 4.999 µs      │ 5.911 µs      │ 100     │ 100
+

@@ -625,7 +625,7 @@ collection yet**. Scalar-only modules do not include the memory runtime.
 All user functions are exported by default. `ExportOptions` or CLI `--export` /
 `--no-exports` select the public user-function surface without removing bodies or
 imports. Required memory ABI exports remain. M0–M9 are implemented; those milestones
-added no optimization passes. See the experimental #39/#40 subset below.
+added no optimization passes. See the experimental #39/#40/#41 subset below.
 
 ```rust
 use was_compiler::{Compiler, Type};
@@ -879,29 +879,45 @@ helper kind or optimization pass; all optimization levels retain parity.
 
 The compiler supports configuring `OptimizationLevel::None` (the default),
 `Basic`, `Standard`, or `Aggressive`, corresponding to the intended O0–O3 presets.
-`Basic`, `Standard`, and `Aggressive` share **experimental #39/#40 integer
+`Basic`, `Standard`, and `Aggressive` share **experimental #39/#40/#41 integer
 specialization**: exact parsed signed-i32 literals, proven add/sub subtrees and
 eligible never-reassigned ordinary numeric locals use private i32 lowering/storage.
 #40 propagates initializer facts through eligible local reads, converting back to
 f64 at unspecialized consumers. Every ordinary/compound write, even skipped or
 unreachable, excludes its binding. Parameters, iteration and normalized-call synthetic
 bindings, captured/promoted bindings, calls and memory loads supply no local proofs.
-Ordinary loop-body lets may qualify; comparisons and negation remain f64. No
-branch/contract/caller refinement is added. Public AST, language types and ABI are
-unchanged. `None`/default bytes are preserved; enabled presets must match each other's
+Ordinary loop-body lets may qualify. User-authorized #41 reuses the existing facts
+for all six numeric comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`) when both operands
+are proven signed-i32 integers, using signed ordering, and for safe unary negation
+when operand bounds exclude both zero and `i32::MIN`. Multiplication, division,
+remainder and unknown f64 fallbacks remain unchanged. No branch/contract/caller
+refinement is added. Public AST, source language, ABI and captures are unchanged.
+`None`/default bytes are preserved; enabled presets must match each other's
 bytes, with semantic/diagnostic parity across levels and adapter byte parity within
 each level.
 
 [Contracts and status](docs/integer-specialization.md) distinguish this subset from
-remaining #38 work. User authorization via ticket #40 covers implementation, not
-release acceptance. [New #40 measurements](docs/benchmarks/integer-locals-40/README.md)
-show cumulative size reduction (13,414 → 9,701 bytes), but only one byte net savings
-versus historical #39, with mixed guest timings and compilation regression signals.
-Final [#40 correctness gates passed](docs/integer-specialization.md#correctness-validation-2026-10-20):
+remaining #38 work. Authorization through #41 covers implementation, not release
+acceptance. [#41 measurements](docs/benchmarks/integer-comparisons-negation-41/README.md)
+show cumulative current `None` → `Basic` size across 27 cases of 13,414 → 9,538 bytes
+(−28.90%). Against historical #40 `Basic` (9,701 bytes), the net reduction is
+163 bytes (−1.68%): `compare_32` saves 192 bytes, but `negate_32` grows 32 bytes.
+An independent expression-only supplement demonstrates comparison/negation
+specialization without local storage. Mixed guest timings and compilation
+regressions keep the subset experimental; these cumulative measurements are not
+isolated #41 timing benefit or regression acceptance.
+
+Historical [#40 measurements](docs/benchmarks/integer-locals-40/README.md) and
+[#39 evidence](docs/integer-specialization.md#correctness-validation-2026-10-17)
+retain their original scope. Final [#40 correctness gates passed](docs/integer-specialization.md#correctness-validation-2026-10-20):
 1,276 tests across 81 targets, zero failed/ignored, and 25 current-source browser
 groups. [#40 review is complete](docs/integer-specialization.md#review-completion-40);
-historical #39 gates/review retain their original scope. Explicit acceptance of
-material regressions and release acceptance remain pending. There is no default change.
+neither validates #41. Separate [#41 correctness gates passed](docs/integer-specialization.md#41-measurements-and-correctness-validation-2026-10-20):
+1,287 workspace tests across 81 targets, zero failed/ignored, and 25 rebuilt-browser
+groups. [Two-axis #41 review is complete](docs/integer-specialization.md#review-completion-41)
+with zero hard standards/spec findings and one deferred low-priority test-data suggestion.
+Material-regression and release acceptance remain pending; there is no release or
+default change.
 
 ```rust
 use was_compiler::{Compiler, CompilerOptions, OptimizationLevel};

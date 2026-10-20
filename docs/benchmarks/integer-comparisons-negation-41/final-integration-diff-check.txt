@@ -1,0 +1,3 @@
+warning: in the working copy of 'crates/compiler/src/codegen/representation.rs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'crates/compiler/tests/block_values.rs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'crates/compiler/tests/integer_specialization.rs', LF will be replaced by CRLF the next time Git touches it

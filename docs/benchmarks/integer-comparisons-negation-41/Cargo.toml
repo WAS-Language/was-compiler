@@ -1,0 +1,23 @@
+# Evidence-only standalone harness; not a production workspace member.
+[package]
+name = "integer-comparisons-negation-41-evidence"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+was-compiler = { path = "../../../crates/compiler" }
+wasmparser = { version = "0.261.0", default-features = false, features = ["std", "validate", "features"] }
+wasmprinter = "0.261.0"
+divan = "0.1.21"
+
+[[bench]]
+name = "expressions"
+path = "expressions.rs"
+harness = false
+
+[[bin]]
+name = "emit-expressions"
+path = "emit.rs"

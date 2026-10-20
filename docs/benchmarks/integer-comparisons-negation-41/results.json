@@ -1,0 +1,757 @@
+{
+  "Unchanged historical corpus": {
+    "module_sums": {
+      "None": 13414,
+      "Basic": 9538
+    },
+    "module_percent_change": -28.89518413597734,
+    "directions": {
+      "source_compile": {
+        "higher_both": [
+          "locals_1",
+          "negate_1",
+          "literal_32",
+          "locals_32",
+          "compare_32",
+          "negate_32",
+          "loop_local",
+          "underflow_i32",
+          "effects"
+        ],
+        "lower_both": [
+          "negative_zero",
+          "positive_zero",
+          "capture",
+          "remainder",
+          "infinity"
+        ],
+        "mixed_or_equal": [
+          "literal_1",
+          "compare_1",
+          "fraction",
+          "negate_zero",
+          "overflow",
+          "negate_min",
+          "unknown",
+          "mutable",
+          "multiply",
+          "divide",
+          "nan",
+          "subnormal",
+          "trap_order"
+        ]
+      },
+      "typed_compile": {
+        "higher_both": [
+          "literal_1",
+          "locals_1",
+          "compare_1",
+          "negate_1",
+          "literal_32",
+          "locals_32",
+          "compare_32",
+          "negate_32",
+          "underflow_i32",
+          "negate_min",
+          "divide",
+          "effects"
+        ],
+        "lower_both": [],
+        "mixed_or_equal": [
+          "loop_local",
+          "fraction",
+          "negative_zero",
+          "negate_zero",
+          "positive_zero",
+          "overflow",
+          "unknown",
+          "mutable",
+          "capture",
+          "multiply",
+          "remainder",
+          "nan",
+          "infinity",
+          "subnormal",
+          "trap_order"
+        ]
+      },
+      "guest": {
+        "higher_both": [
+          "compare_1",
+          "negate_1",
+          "literal_32",
+          "locals_32",
+          "negate_32",
+          "capture",
+          "multiply",
+          "divide",
+          "remainder",
+          "nan",
+          "infinity",
+          "subnormal",
+          "effects"
+        ],
+        "lower_both": [
+          "compare_32"
+        ],
+        "mixed_or_equal": [
+          "literal_1",
+          "locals_1",
+          "loop_local",
+          "fraction",
+          "negative_zero",
+          "negate_zero",
+          "positive_zero",
+          "overflow",
+          "underflow_i32",
+          "negate_min",
+          "unknown",
+          "mutable"
+        ]
+      }
+    },
+    "per_case": [
+      {
+        "name": "literal_1",
+        "percent_change": {
+          "source_compile": [
+            -3.63856882959368,
+            21.85526954832442
+          ],
+          "typed_compile": [
+            3.67701132519489,
+            90.17763845350053
+          ],
+          "guest": [
+            100.0,
+            -3.125
+          ]
+        }
+      },
+      {
+        "name": "locals_1",
+        "percent_change": {
+          "source_compile": [
+            6.083821541234791,
+            62.87537537537538
+          ],
+          "typed_compile": [
+            8.792174964281774,
+            35.775627785628885
+          ],
+          "guest": [
+            42.85714285714286,
+            -19.64285714285714
+          ]
+        }
+      },
+      {
+        "name": "compare_1",
+        "percent_change": {
+          "source_compile": [
+            9.816142100342784,
+            -0.2976781107362547
+          ],
+          "typed_compile": [
+            16.393442622950815,
+            117.18098415346118
+          ],
+          "guest": [
+            47.91666666666667,
+            20.168067226890752
+          ]
+        }
+      },
+      {
+        "name": "negate_1",
+        "percent_change": {
+          "source_compile": [
+            5.240590757503583,
+            7.297433316557611
+          ],
+          "typed_compile": [
+            8.14048145133155,
+            106.8053799287274
+          ],
+          "guest": [
+            58.62068965517242,
+            2.083333333333326
+          ]
+        }
+      },
+      {
+        "name": "literal_32",
+        "percent_change": {
+          "source_compile": [
+            32.387706855791954,
+            47.2544080604534
+          ],
+          "typed_compile": [
+            136.32204940530647,
+            192.6565874730022
+          ],
+          "guest": [
+            90.90909090909092,
+            43.5483870967742
+          ]
+        }
+      },
+      {
+        "name": "locals_32",
+        "percent_change": {
+          "source_compile": [
+            17.40901683867464,
+            71.71557562076751
+          ],
+          "typed_compile": [
+            52.48346227155511,
+            101.78394449950443
+          ],
+          "guest": [
+            8.974358974358964,
+            30.813953488372103
+          ]
+        }
+      },
+      {
+        "name": "compare_32",
+        "percent_change": {
+          "source_compile": [
+            8.711839166046165,
+            17.624521072796927
+          ],
+          "typed_compile": [
+            51.41242937853106,
+            151.99784017278617
+          ],
+          "guest": [
+            -28.695652173913043,
+            -9.31506849315068
+          ]
+        }
+      },
+      {
+        "name": "negate_32",
+        "percent_change": {
+          "source_compile": [
+            14.544930875576046,
+            85.65069389892643
+          ],
+          "typed_compile": [
+            72.78345314667673,
+            97.15357458075904
+          ],
+          "guest": [
+            42.23602484472049,
+            57.089552238805965
+          ]
+        }
+      },
+      {
+        "name": "loop_local",
+        "percent_change": {
+          "source_compile": [
+            7.953723788864786,
+            152.77291301809692
+          ],
+          "typed_compile": [
+            -2.1134202183867634,
+            185.59022193631395
+          ],
+          "guest": [
+            70.87912087912088,
+            -33.27787021630616
+          ]
+        }
+      },
+      {
+        "name": "fraction",
+        "percent_change": {
+          "source_compile": [
+            -13.686911890504705,
+            32.731376975169326
+          ],
+          "typed_compile": [
+            -0.943574259294222,
+            18.003600720144043
+          ],
+          "guest": [
+            11.494252873563227,
+            -6.8627450980392135
+          ]
+        }
+      },
+      {
+        "name": "negative_zero",
+        "percent_change": {
+          "source_compile": [
+            -12.170600063498782,
+            -0.9014423076923239
+          ],
+          "typed_compile": [
+            -8.141428239125393,
+            72.56324769562659
+          ],
+          "guest": [
+            23.529411764705888,
+            -32.85714285714286
+          ]
+        }
+      },
+      {
+        "name": "negate_zero",
+        "percent_change": {
+          "source_compile": [
+            -18.504531722054384,
+            4.81000481000482
+          ],
+          "typed_compile": [
+            -8.19806525659944,
+            18.96878772202104
+          ],
+          "guest": [
+            16.666666666666675,
+            -36.91275167785235
+          ]
+        }
+      },
+      {
+        "name": "positive_zero",
+        "percent_change": {
+          "source_compile": [
+            -18.041415012942185,
+            -27.027027027027028
+          ],
+          "typed_compile": [
+            -21.82214948172394,
+            5.556584552694943
+          ],
+          "guest": [
+            10.465116279069765,
+            -35.71428571428571
+          ]
+        }
+      },
+      {
+        "name": "overflow",
+        "percent_change": {
+          "source_compile": [
+            -6.509357200976396,
+            8.337675872850436
+          ],
+          "typed_compile": [
+            0.0,
+            37.72591682751361
+          ],
+          "guest": [
+            11.363636363636353,
+            -30.827067669172937
+          ]
+        }
+      },
+      {
+        "name": "underflow_i32",
+        "percent_change": {
+          "source_compile": [
+            44.17513682564505,
+            77.24505327245052
+          ],
+          "typed_compile": [
+            1.9234468166955176,
+            99.85711734238257
+          ],
+          "guest": [
+            52.38095238095237,
+            -7.857142857142863
+          ]
+        }
+      },
+      {
+        "name": "negate_min",
+        "percent_change": {
+          "source_compile": [
+            -8.807045636509203,
+            58.252427184466015
+          ],
+          "typed_compile": [
+            9.435742592942065,
+            30.362564743704247
+          ],
+          "guest": [
+            74.68354430379746,
+            -20.408163265306122
+          ]
+        }
+      },
+      {
+        "name": "unknown",
+        "percent_change": {
+          "source_compile": [
+            -4.725697786333027,
+            85.40925266903913
+          ],
+          "typed_compile": [
+            -12.002400480096009,
+            18.003600720144043
+          ],
+          "guest": [
+            58.13953488372092,
+            -15.267175572519086
+          ]
+        }
+      },
+      {
+        "name": "mutable",
+        "percent_change": {
+          "source_compile": [
+            -5.266622778143503,
+            47.69736842105266
+          ],
+          "typed_compile": [
+            -16.668981803028203,
+            192.85825910298482
+          ],
+          "guest": [
+            70.0,
+            -10.95890410958904
+          ]
+        }
+      },
+      {
+        "name": "capture",
+        "percent_change": {
+          "source_compile": [
+            -19.301323975115636,
+            -30.88662790697675
+          ],
+          "typed_compile": [
+            -4.847950639048049,
+            23.652578518805754
+          ],
+          "guest": [
+            64.51612903225808,
+            25.625000000000007
+          ]
+        }
+      },
+      {
+        "name": "multiply",
+        "percent_change": {
+          "source_compile": [
+            -11.537086684539776,
+            54.10903173311639
+          ],
+          "typed_compile": [
+            -23.64066193853428,
+            181.85637127425485
+          ],
+          "guest": [
+            28.409090909090917,
+            40.625
+          ]
+        }
+      },
+      {
+        "name": "divide",
+        "percent_change": {
+          "source_compile": [
+            -14.717145343777204,
+            16.55379984951093
+          ],
+          "typed_compile": [
+            30.194376297414593,
+            17.650519709747
+          ],
+          "guest": [
+            62.7906976744186,
+            59.375
+          ]
+        }
+      },
+      {
+        "name": "remainder",
+        "percent_change": {
+          "source_compile": [
+            -12.866333095067905,
+            -17.919362867098066
+          ],
+          "typed_compile": [
+            -15.855592145383579,
+            163.8678916153041
+          ],
+          "guest": [
+            30.88235294117647,
+            29.496402877697836
+          ]
+        }
+      },
+      {
+        "name": "nan",
+        "percent_change": {
+          "source_compile": [
+            -12.430741733690798,
+            0.526592943654558
+          ],
+          "typed_compile": [
+            -50.580526497298536,
+            15.689350853108452
+          ],
+          "guest": [
+            44.31818181818181,
+            60.86956521739131
+          ]
+        }
+      },
+      {
+        "name": "infinity",
+        "percent_change": {
+          "source_compile": [
+            -15.086655112651648,
+            -12.888551933282788
+          ],
+          "typed_compile": [
+            -18.87148518588413,
+            20.412329046744237
+          ],
+          "guest": [
+            55.00000000000001,
+            61.224489795918366
+          ]
+        }
+      },
+      {
+        "name": "subnormal",
+        "percent_change": {
+          "source_compile": [
+            -5.089058524173029,
+            78.63383637807783
+          ],
+          "typed_compile": [
+            -10.528162835585187,
+            18.70222800455359
+          ],
+          "guest": [
+            56.09756097560976,
+            26.0
+          ]
+        }
+      },
+      {
+        "name": "effects",
+        "percent_change": {
+          "source_compile": [
+            0.633312222925908,
+            28.935752820009796
+          ],
+          "typed_compile": [
+            8.622176237282297,
+            37.50625104184033
+          ],
+          "guest": [
+            33.95522388059702,
+            26.96245733788396
+          ]
+        }
+      },
+      {
+        "name": "trap_order",
+        "percent_change": {
+          "source_compile": [
+            -11.23595505617978,
+            29.47452654041076
+          ],
+          "typed_compile": [
+            -11.501736111111105,
+            7.787539936102239
+          ]
+        }
+      }
+    ]
+  },
+  "Expression-only supplement (balanced trees)": {
+    "module_sums": {
+      "None": 12073,
+      "Basic": 6106
+    },
+    "module_percent_change": -49.42433529363042,
+    "directions": {
+      "source_compile": {
+        "higher_both": [
+          "expr_compare_1",
+          "expr_compare_32",
+          "expr_negate_32"
+        ],
+        "lower_both": [],
+        "mixed_or_equal": [
+          "expr_negate_1",
+          "expr_zero",
+          "expr_min"
+        ]
+      },
+      "typed_compile": {
+        "higher_both": [
+          "expr_compare_1",
+          "expr_compare_32",
+          "expr_negate_32",
+          "expr_min"
+        ],
+        "lower_both": [],
+        "mixed_or_equal": [
+          "expr_negate_1",
+          "expr_zero"
+        ]
+      },
+      "guest": {
+        "higher_both": [],
+        "lower_both": [],
+        "mixed_or_equal": [
+          "expr_compare_1",
+          "expr_negate_1",
+          "expr_compare_32",
+          "expr_negate_32",
+          "expr_zero",
+          "expr_min"
+        ]
+      }
+    },
+    "per_case": [
+      {
+        "name": "expr_compare_1",
+        "percent_change": {
+          "source_compile": [
+            80.78791149487317,
+            12.062615101289143
+          ],
+          "typed_compile": [
+            69.12442396313365,
+            58.110156644770086
+          ],
+          "guest": [
+            48.76033057851239,
+            -27.669902912621357
+          ]
+        }
+      },
+      {
+        "name": "expr_negate_1",
+        "percent_change": {
+          "source_compile": [
+            7.524454477050413,
+            -20.052886734244158
+          ],
+          "typed_compile": [
+            12.729587197672299,
+            -52.29863692688972
+          ],
+          "guest": [
+            -8.904109589041099,
+            41.836734693877546
+          ]
+        }
+      },
+      {
+        "name": "expr_compare_32",
+        "percent_change": {
+          "source_compile": [
+            18.68460388639759,
+            12.460961898813249
+          ],
+          "typed_compile": [
+            150.17946877243355,
+            66.74769081186194
+          ],
+          "guest": [
+            -14.613618974751342,
+            0.2143622722400762
+          ]
+        }
+      },
+      {
+        "name": "expr_negate_32",
+        "percent_change": {
+          "source_compile": [
+            45.83333333333335,
+            1.1627906976744207
+          ],
+          "typed_compile": [
+            101.64933667981356,
+            42.06161137440758
+          ],
+          "guest": [
+            -40.29126213592234,
+            86.76470588235294
+          ]
+        }
+      },
+      {
+        "name": "expr_zero",
+        "percent_change": {
+          "source_compile": [
+            10.26518391787854,
+            -2.5173064820641966
+          ],
+          "typed_compile": [
+            9.805844283192776,
+            -7.340394233598113
+          ],
+          "guest": [
+            -3.9682539682539653,
+            108.91089108910892
+          ]
+        }
+      },
+      {
+        "name": "expr_min",
+        "percent_change": {
+          "source_compile": [
+            13.544018058690742,
+            -2.2234574763757564
+          ],
+          "typed_compile": [
+            16.366612111292977,
+            12.430080795525168
+          ],
+          "guest": [
+            -4.477611940298509,
+            92.15686274509804
+          ]
+        }
+      }
+    ]
+  },
+  "incremental_size_vs_40": {
+    "delta_bytes": -163,
+    "changed_sizes": [
+      {
+        "name": "compare_1",
+        "old_bytes": 140,
+        "new_bytes": 134,
+        "delta_bytes": -6
+      },
+      {
+        "name": "negate_1",
+        "old_bytes": 92,
+        "new_bytes": 93,
+        "delta_bytes": 1
+      },
+      {
+        "name": "compare_32",
+        "old_bytes": 2622,
+        "new_bytes": 2430,
+        "delta_bytes": -192
+      },
+      {
+        "name": "negate_32",
+        "old_bytes": 1086,
+        "new_bytes": 1118,
+        "delta_bytes": 32
+      },
+      {
+        "name": "remainder",
+        "old_bytes": 224,
+        "new_bytes": 226,
+        "delta_bytes": 2
+      }
+    ]
+  }
+}

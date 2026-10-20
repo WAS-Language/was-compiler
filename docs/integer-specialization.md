@@ -1,4 +1,4 @@
-# Proven integer specialization: #38 contracts and experimental #39/#40 subset
+# Proven integer specialization: #38 contracts and experimental #39/#40/#41 subset
 
 ## Status and authorization
 
@@ -7,7 +7,9 @@ and the broader proof contract below. User-approved issue #39 implemented exact
 parsed signed-i32 literals and proven addition/subtraction subtrees. User authorization
 via ticket #40 extends that implementation to eligible never-reassigned ordinary
 numeric local storage and read-fact propagation in `Basic`, `Standard`, and
-`Aggressive`. This subset remains **experimental**: cumulative measurements show a
+`Aggressive`. User authorization via ticket #41 adds proven numeric comparisons
+and safe unary negation independently of ordinary-local storage, composing with
+existing proofs when locals are eligible. This subset remains **experimental**: cumulative measurements show a
 module-size benefit, but mixed timing results include material regression signals
 pending explicit user acceptance. Historical [#39 correctness gates](#correctness-validation-2026-10-17)
 and review against `09dcb5c` retain their #39-only scope. Final [#40 correctness
@@ -16,14 +18,16 @@ Neither correctness validation, implementation authorization nor measurements
 establish release acceptance. `None` remains the default and
 byte-compatibility baseline.
 
-The approved #39/#40 subset is a narrow scheduling exception ahead of deferred WP12,
-not general WP13 authorization. Comparison and unary-negation specialization, and
-the remaining #38 scope, remain future work.
+The approved #39/#40/#41 subset is a narrow scheduling exception ahead of deferred
+WP12, not general WP13 authorization. #41 preserves the existing proof interface,
+checked lowering and public boundaries; it adds no broader optimization authority.
 The [extension plan](was_language_extensions_plan.md#issue-38--proven-integer-specialization-baseline-exception)
 reconciles this exception with the ordered work packages. The broader optimizer
 candidates and WP13 entry gates remain unchanged.
 
-## Implemented subset (#39 literals/add-sub; #40 ordinary locals)
+<a id="implemented-subset-39-literalsadd-sub-40-ordinary-locals"></a>
+
+## Implemented subset (#39 literals/add-sub; #40 ordinary locals; #41 comparisons/negation)
 
 - Literal eligibility uses the parsed binary64 value: exact signed-i32 integer,
   excluding negative zero. Decimal spelling alone neither qualifies nor excludes it.
@@ -43,10 +47,18 @@ candidates and WP13 entry gates remain unchanged.
   loads supply unknown facts. Each user/helper body has separate binding ownership
   and write discovery; helper-local eligible lets may specialize without changing
   captured cells. Slot order and indices are preserved, including sparse IDs.
-- Numeric comparisons and unary negation still use `f64`, widening proven reads at those
-  consumers; so do multiplication, division and remainder. A source `-1` uses unary
-  negation and is not itself a proven literal subtree, though its literal operand
-  may specialize.
+- #41 uses signed `i32.lt_s/le_s/gt_s/ge_s` and `i32.eq/ne` only when both
+  numeric operands have integer proofs. Operand representation is separate from the
+  boolean result: no numeric widening is applied to the comparison result. Boolean,
+  string and array comparison paths are unchanged.
+- #41 proves unary negation only when operand bounds exclude zero and `i32::MIN`.
+  Emit `i32.const 0`, the checked integer operand, then `i32.sub`, without folding.
+  Propagate the negated bounds through supported expressions and eligible locals.
+  `-0`, `-(1 - 1)` and negated signed-i32 minimum retain `f64.neg`; eligible children
+  still specialize and widen at that fallback boundary. Source `-1` now qualifies,
+  while `-2147483648` retains f64 because its positive literal is outside signed i32.
+- Multiplication, division and remainder remain f64. Unknown inputs, NaN, infinities,
+  fractional/out-of-range values and unsupported expressions supply no proof.
 - `Compiler::compile` / `compile_source` select a private numeric policy from the
   preset. The typed-AST optimization boundary still borrows without rewriting.
   Direct `codegen::compile` and `codegen::compile_with_exports` retain baseline policy.
@@ -64,11 +76,10 @@ captured cells and range records keep their existing representation. There is no
 branch/caller/contract refinement, constant folding, algebraic rewrite, or
 preliminary baseline compilation.
 
-## Broader first-pass representation contract (#38; remaining future scope)
+## First-pass representation contract (#38; implemented by #39/#40/#41)
 
-The table below is the broader design envelope, **not** a list of fully implemented
-features. #39/#40 cover literals, eligible ordinary locals/reads and proven add/sub;
-comparison and negation specialization still need later work.
+The table below is the bounded #38 design envelope implemented across #39/#40/#41.
+It authorizes neither general WP13 nor extra arithmetic or refinement.
 
 The language retains one `number` type with IEEE-754 binary64 semantics. Signed
 `i32` is a private representation only where static proof establishes identical
@@ -108,7 +119,7 @@ Constant folding and algebraic rewriting are outside this pass.
 
 - **Baseline:** `None` stays default and preserves baseline bytes, as do direct
   codegen entry points. #38's recorded cross-preset byte identity is historical.
-- **Enabled subset:** `Basic`, `Standard`, and `Aggressive` use the same #39/#40 policy
+- **Enabled subset:** `Basic`, `Standard`, and `Aggressive` use the same #39/#40/#41 policy
   and produce identical bytes to each other. They may differ from `None`. Programs
   with no eligible subtree retain existing bytes; unsupported parents alone do not
   establish this condition because their children can specialize independently.
@@ -298,6 +309,79 @@ and adapter-harness fixes do not turn the historical raw measurements into a new
 collection or broaden their scope. Final correctness evidence is separate from
 benchmark evidence and does not accept material timing regressions or authorize
 release/default changes; `None` remains default.
+
+## #41 measurements and correctness validation (2026-10-20)
+
+User-authorized #41 implements all six numeric comparisons with proven integer
+operands and unary negation whose operand bounds exclude zero and signed-i32
+minimum. Expression-only tests and a separate measurement supplement exercise
+these operations without ordinary-local storage; integrated cases also compose
+with #40 local proofs. This does not authorize other arithmetic or refinement.
+
+The [matched measurement record](benchmarks/integer-comparisons-negation-41/README.md)
+records two sequential repetitions per level, current `None` versus current `Basic`,
+using the unchanged 27-case historical corpus plus an expression-only supplement.
+The main corpus totals **13,414 → 9,538 bytes (−28.90%)**, cumulatively #39+#40+#41.
+Historical #40 Basic totals 9,701 bytes, so the incremental size delta is **−163 bytes
+(−1.68%)**: `compare_32` saves 192 bytes while `negate_32` grows 32 bytes. This is not
+a matched incremental timing experiment. Expression-only modules use zero declared
+Wasm locals and total 12,073 → 6,106 bytes. Main 108 and supplement 24 independent
+oracle/validator/decoded checks passed; all 27 `None` source/module identities match
+historical #38. Production hashes match the final integration tree. The failed flat
+supplement attempt and successful balanced retry are both preserved.
+
+**Trade-offs:** guest timing is mixed, not a stable speed benefit. `negate_32`
+guest medians regress 42.24% / 57.09%, with typed compilation +72.78% / +97.15%.
+`compare_32` guest medians improve 28.70% / 9.32%, but typed compilation rises
+51.41% / 152.00%. Concurrent builds/tests, thermals, background load and JIT variation
+were not controlled. Explicit regression/release acceptance remains pending;
+`None` stays default and all enabled presets remain experimental.
+
+Final correctness gates ran offline on current sources:
+
+```sh
+cargo check --offline --all-targets
+cargo test --offline -p was-compiler --test integer_specialization --test integer_locals -- --include-ignored
+cargo clippy --offline --all-targets -- -D warnings
+cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown
+wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline
+node tests/browser.cjs pkg
+cargo test --offline --workspace -- --include-ignored
+cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings
+```
+
+All commands passed after updating the existing enabled-preset fixed-byte oracle
+for the intentional #41 `-1` encoding (`i32.const 0`, operand, `i32.sub`, widening),
+without changing its independent `None`/direct-codegen byte oracle. The
+[initial failed run](integer-specialization-validation-41-2026-10-20-initial.txt)
+and [final full workspace log](integer-specialization-validation-41-2026-10-20.txt)
+are preserved separately. Focused tests observed red before green for comparisons
+and negation, then passed decoded instructions, negative controls, forged/skipped
+errors and bounded independent runtime expectations. Browser smoke checks passed
+25 groups with freshly rebuilt bindings. The full workspace passed **1,287 tests
+across 81 targets, zero failed and zero ignored**.
+
+## Review completion (#41)
+
+Two independent read-only standards/spec reviews covered the uncommitted tree
+against initial commit `839899af3a966a9eb9cc109380e028e0a9edaef8`, including new
+measurement evidence and both workspace validation logs.
+
+### Standards
+
+Zero documented-standard violations. One low-priority heuristic suggestion:
+CLI/browser comparison-negation suites duplicate eight scenario source strings;
+a shared test-only data module could reduce maintenance drift. This is deliberately
+deferred to preserve the current package-owned harnesses without expanding #41 into
+a shared test-data refactor. It is not a hard violation or release blocker.
+
+### Spec
+
+Zero actionable findings: no missing/partial requirements, scope creep or incorrect
+implementation identified. Review independently checked the final 1,287-test log,
+timed/final production hashes, expression-only independence and explicit unaccepted
+measurement regressions. Review completion does not authorize release, a default
+change or acceptance of material regressions.
 
 ## Review completion (#40)
 

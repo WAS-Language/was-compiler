@@ -9,17 +9,21 @@ Use [current validation](validation.md) for package selection and rebuild comman
 [the roadmap](compilation-roadmap.md#structure) lists current source locations.
 
 **Status:** WP1–WP9 implemented; WP5, WP6 (#13), WP7 (#16), and WP8 release gates passed (exact evidence in §5). WP9 frontend/backend are integrated and [release gates passed](#wp9-release-validation). WP10 named-only pipelines, including positional/named/default binding and final-Void discard support (#27), are implemented with [release gates passed](#wp10-release-validation). WP11's local callable (#29), immediate-creator shared parameter/let capture (#30), captured numeric compound (#31), and nested capture/live callable-context forwarding (#32) subsets are implemented in the frontend/backend; [#32 validation passed](local-callable-interface.md#issue-32-validation-2026-10-14); [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14); [#30 subset validation passed](local-callable-interface.md#issue-30-validation-2026-10-14). #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive live callable contexts compose with captured compounds and invocation-local lifetime behavior (#34). WP11 is implemented; full native/browser [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35. Earlier subset evidence retains its historical scope. WP12 remains deferred and unauthorized; WP13 requires separate authorization.
-**Narrow scheduling exception (#38/#39/#40):** [Proven integer specialization](integer-specialization.md)
+**Narrow scheduling exception (#38/#39/#40/#41):** [Proven integer specialization](integer-specialization.md)
 may precede WP12 within its agreed scope. #38 established the broader contract and
 baseline; user-approved #39 implements experimental exact-i32 literal/add-sub
 subtrees, extended by user authorization via ticket #40 to eligible never-reassigned
-ordinary numeric local storage/read facts. Enabled presets share the subset;
-`None` remains default/baseline. Historical [#39 correctness gates](integer-specialization.md#correctness-validation-2026-10-17)
+ordinary numeric local storage/read facts. User-authorized #41 reuses existing facts
+for six proven-integer numeric comparisons and safe unary negation excluding zero
+and `i32::MIN`. Enabled presets share the subset; `None` remains default/baseline.
+Historical [#39 correctness gates](integer-specialization.md#correctness-validation-2026-10-17)
 and review against `09dcb5c` retain their #39-only scope. Final [#40 correctness
 gates passed](integer-specialization.md#correctness-validation-2026-10-20) and
-[#40 review is complete](integer-specialization.md#review-completion-40). Release and
-material-regression acceptance remain pending; [new measurements](benchmarks/integer-locals-40/README.md)
-show cumulative size benefit with mixed timing/material regression signals.
+[#40 review is complete](integer-specialization.md#review-completion-40); neither
+validates #41. [#41 measurements](benchmarks/integer-comparisons-negation-41/README.md)
+show cumulative size benefit with mixed guest timings and compilation regressions.
+Separate [#41 correctness gates passed](integer-specialization.md#41-measurements-and-correctness-validation-2026-10-20);
+[two-axis review is complete](integer-specialization.md#review-completion-41). The subset remains experimental, with no regression/release acceptance or release/default change.
 General WP13 and remaining #38 implementation remain separately gated.
 
 **Baseline:** Extension specification v0.3.
@@ -78,10 +82,11 @@ Evidence: `src/lexer.rs`, `src/parser.rs`, `src/semantic.rs`, `src/codegen/numer
 - Keep `number = f64`, canonical boolean boundaries, string/array descriptors,
   shared mutable arrays, allocation lifetime, mandatory memory exports, and the
   default export-all policy. `--export` and browser `setExports` already exist.
-- The [#38/#39/#40 exception](#issue-38--proven-integer-specialization-baseline-exception)
+- The [#38/#39/#40/#41 exception](#issue-38--proven-integer-specialization-baseline-exception)
   replaces the blanket through-WP12 scheduling restriction only for its narrow scope.
-  `Basic`, `Standard`, and `Aggressive` share experimental #39/#40 literal/add-sub
-  and eligible ordinary-local/read specialization and must match each other's bytes.
+  `Basic`, `Standard`, and `Aggressive` share experimental #39/#40/#41 literal/add-sub,
+  eligible ordinary-local/read, proven-comparison and safe-negation specialization
+  and must match each other's bytes.
   Require semantic/diagnostic parity across levels and adapter byte parity within
   each level; `None` remains
   default and the byte baseline, as do direct codegen APIs. No new implicit imports,
@@ -135,8 +140,8 @@ These paths exist today; ownership denotes responsibility, not mandatory edits f
 | `browser/src/lib.rs`, `tests/browser.rs`, `tests/browser.cjs` | Browser registration/configuration/diagnostics and emitted-module execution |
 | `src/diagnostic.rs`, `tests/diagnostics.rs` | Exhaustive span extraction/delegation and shared native/browser rendering |
 | `tests/support/process.rs`, `tests/runtime.rs`, `runtime/abi.cjs` | Bounded subprocesses, lifetime/view refresh, unchanged explicit marshaling |
-| `src/optimization.rs` | Borrowed AST boundary and preset-to-numeric policy selection for experimental #39/#40; general WP13 remains separately gated |
-| `src/codegen/representation.rs` | Private per-body `Facts` cache for #39/#40 exact-i32 literal/add-sub and eligible ordinary-local/read proofs; checked emission validates all nodes |
+| `src/optimization.rs` | Borrowed AST boundary and preset-to-numeric policy selection for experimental #39/#40/#41; general WP13 remains separately gated |
+| `src/codegen/representation.rs` | Private per-body `Facts` cache for #39/#40/#41 exact-i32 literal/add-sub, eligible ordinary-local/read, comparison and safe-negation proofs; checked emission validates all nodes |
 | `README.md`, `docs/`, `AGENTS.md` | Supported-versus-proposed status, contracts, restrictions and validation workflow |
 
 **Implemented WP5 module:** `src/codegen/range.rs` owns range discovery,
@@ -1188,11 +1193,14 @@ WP13 optimization are outside its release contract.
 **Status:** #38 established contracts and baseline measurements before production
 changes. User-approved #39 implements the experimental literal/add-sub subset;
 user authorization via ticket #40 extends it to eligible ordinary locals/reads below.
+User-authorized #41 adds proven-integer comparisons and safe unary negation by
+reusing existing facts; separate #41 correctness gates and two-axis review completed
+(evidence below).
 This numeric scheduling exception may precede deferred WP12; it authorizes
 neither WP12 nor general WP13. [The maintained contract](integer-specialization.md)
 is authoritative for the distinction between broader design and implemented subset.
 
-**Broader #38 design envelope (partly implemented by #39/#40):** Proven signed-i32 literal/read/add/sub/comparison/restricted-negation
+**Broader #38 design envelope (experimental #39/#40/#41 scope):** Proven signed-i32 literal/read/add/sub/comparison/restricted-negation
 expressions and never-reassigned uncaptured ordinary locals, including loop-local
 bindings. Conservative bounds and negative-zero facts determine eligibility;
 negation excludes zero and i32 minimum. Unknown/unsupported values stay f64;
@@ -1208,25 +1216,29 @@ consult its [summary](benchmarks/integer-specialization/summary.md) for recorded
 Commands and isolation are in [benchmarks](benchmarks.md#issue-38-integer-specialization-baseline-and-comparison).
 Historical compiler/M0/M4 measurement boundaries remain unchanged.
 
-**Implemented #39/#40 subset:** Exact parsed signed-i32 literals, proven add/sub
+**Experimental #39/#40/#41 subset:** Exact parsed signed-i32 literals, proven add/sub
 subtrees and eligible never-reassigned ordinary numeric locals/reads. #40 propagates
 initializer bounds through eligible read/add-sub/local chains, with i32 slot storage
 and exact widening to f64 at unspecialized consumers. Any ordinary/compound write
 in the owning body excludes its binding, including skipped/unreachable writes.
 Ordinary loop-body lets may qualify; parameters, iteration bindings, normalized-call
 synthetic bindings and captured/promoted bindings do not. Calls, memory loads and
-excluded reads are unknown. Comparisons and negation remain f64; there is no
-branch/contract/caller refinement. Public AST, language types, signatures and ABI
-remain unchanged. Compiler orchestration selects policy; private per-body `Facts`
+excluded reads are unknown. #41 reuses existing facts for all six numeric
+comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`) when both operands are proven
+signed-i32 integers, with signed ordering, and unary negation when operand bounds
+exclude both zero and `i32::MIN`. Multiplication/division/remainder and unknown f64
+fallbacks remain unchanged; there is no branch/contract/caller refinement. Public
+AST, source language, signatures, ABI and captures remain unchanged. Compiler
+orchestration selects policy; private per-body `Facts`
 guide checked emission, which still validates all nodes without another IR,
 duplicate validator or preliminary baseline compilation.
 
-**Historical #39 correctness gates passed (2026-10-17; not #40 validation):** [Exact commands and raw final test evidence](integer-specialization.md#correctness-validation-2026-10-17)
+**Historical #39 correctness gates passed (2026-10-17; not #40/#41 validation):** [Exact commands and raw final test evidence](integer-specialization.md#correctness-validation-2026-10-17)
 record 1,261 workspace tests with zero failed/ignored, 25 current-source rebuilt-browser
 groups, workspace checking, native/browser Clippy and portable core build success.
-These correctness results do not validate #40 or establish release acceptance.
+These correctness results do not validate #40/#41 or establish release acceptance.
 `None` remains default and preserves baseline bytes; `Basic`, `Standard`, and
-`Aggressive` share the same #39/#40 policy and must produce identical bytes. Require semantic/diagnostic parity
+`Aggressive` share the same #39/#40/#41 policy and must produce identical bytes. Require semantic/diagnostic parity
 across levels and library/CLI/current-source browser byte parity within each level.
 Matched baseline-versus-enabled measurements must demonstrate size or guest-time
 benefit, report compilation trade-offs and obtain explicit user acceptance of
@@ -1234,7 +1246,7 @@ material regressions. [#39 matched evidence](benchmarks/integer-add-sub-39/READM
 shows size benefit, but noisy timing results include material regression signals.
 Explicit user acceptance of the noisy material timing regressions remains pending.
 Review against `09dcb5c` is complete.
-The [new #40 measurement record](benchmarks/integer-locals-40/README.md) shows
+The historical [#40 measurement record](benchmarks/integer-locals-40/README.md) shows
 cumulative matched `None` → `Basic` size of 13,414 → 9,701 bytes, not isolated #40
 timing benefit. Historical #39 Basic totaled 9,702 bytes: `locals_32` saves 64 bytes,
 `compare_32` grows 64 bytes and `loop_local` saves one byte. Mixed guest timing and
@@ -1246,8 +1258,21 @@ the initial `dc619db46e9dac3694adb7cc5855203a18233426` uncommitted tree with zer
 standards/spec findings and one deliberately deferred low-priority duplicate
 adapter-scenario suggestion. The exact measurement manifest was verified with no
 changed production inputs; raw measurement evidence retains its historical scope.
-Comparison/negation and remaining #38 work need later authorization. Correctness
-and review completion do not establish regression/release acceptance or a default change.
+Those #40 correctness/review results do not validate #41.
+
+**#41 measurements and integrated correctness gates:** The [measurement record](benchmarks/integer-comparisons-negation-41/README.md)
+shows cumulative current `None` → `Basic` size across 27 cases of 13,414 → 9,538 bytes
+(−28.90%). Against historical #40 `Basic`, 9,701 → 9,538 bytes saves 163 bytes
+(−1.68%): `compare_32` saves 192 bytes, but `negate_32` grows 32 bytes. An independent
+expression-only supplement demonstrates comparison/negation specialization without
+local storage. These are cumulative measurements, not isolated incremental #41
+timing benefit. Mixed guest timings and compilation regressions keep the subset
+experimental. Separate [#41 correctness gates passed](integer-specialization.md#41-measurements-and-correctness-validation-2026-10-20):
+1,287 tests across 81 targets, zero failed/ignored, and 25 rebuilt-browser groups.
+[Two-axis review is complete](integer-specialization.md#review-completion-41) with zero
+hard standards/spec findings and one deliberately deferred test-data suggestion.
+Material-regression and release acceptance remain pending. There is no release or
+default change. Remaining #38 work and general WP13 need separate authorization.
 
 ### WP12 — Placeholder sugar and closure pipeline stages (spec §§11–12)
 
@@ -1270,9 +1295,10 @@ once-only effects. No claim of general `map`/`filter` or pipeline fusion support
 
 **Status:** General WP13 is not authorized; WP11's release does not authorize it.
 The [#38 exception](#issue-38--proven-integer-specialization-baseline-exception)
-permits only its narrow numeric scheduling scope ahead of WP12. #39/#40 are the
-approved experimental literal/add-sub/eligible-local implementation, not the full
-#38 design or a waiver of the gates below for other transformations.
+permits only its narrow numeric scheduling scope ahead of WP12. #39/#40/#41 are the
+approved experimental literal/add-sub/eligible-local/proven-comparison/safe-negation
+scope, with #41 correctness gates passed and two-axis review complete, not a waiver
+of the gates below for other transformations.
 
 **Entry:** WP1–WP12 correctness exits and explicit agreement on optimizer contracts.
 First measure compile time, binary size, instantiation/call/steady-state time and
@@ -1285,7 +1311,7 @@ allocation/trap order and checks of invalid public trees. No algebraic f64 rewri
 Invalid constant ranges may lower to traps at their original positions, not static
 errors. General collection fusion requires a separately specified intrinsic API.
 **Exit:** independent differential results/effects/traps plus benchmarks justify the
-change. #39/#40 permit enabled bytes to differ from `None` while requiring
+change. #39/#40/#41 permit enabled bytes to differ from `None` while requiring
 `Basic`/`Standard`/`Aggressive` byte identity, semantic/diagnostic equivalence across
 levels and adapter byte parity within each level. Other approved passes may change
 optimized bytes only under a documented parity contract; retain the unoptimized

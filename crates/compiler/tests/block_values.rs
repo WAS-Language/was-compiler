@@ -639,11 +639,12 @@ fn legacy_statement_if_followed_by_unary_minus_keeps_independent_mvp_bytes() {
         97, 105, 110, 0, 0, 10, 30, 1, 28, 0, 65, 1, 4, 64, 11, 68, 0, 0, 0, 0, 0, 0, 240, 63, 154,
         26, 68, 0, 0, 0, 0, 0, 0, 0, 64, 15, 11,
     ];
-    // Enabled presets retain f64 negation, converting each exact i32 literal first.
+    // #41: i32.const 0 / i32.const 1 / i32.sub, then widen before drop;
+    // the return literal still widens at the unchanged f64 function boundary.
     const ENABLED: &[u8] = &[
         0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 124, 2, 1, 0, 3, 2, 1, 0, 7, 8, 1, 4, 109,
-        97, 105, 110, 0, 0, 10, 18, 1, 16, 0, 65, 1, 4, 64, 11, 65, 1, 183, 154, 26, 65, 2, 183,
-        15, 11,
+        97, 105, 110, 0, 0, 10, 20, 1, 18, 0, 65, 1, 4, 64, 11, 65, 0, 65, 1, 107, 183, 26, 65, 2,
+        183, 15, 11,
     ];
     validate(LEGACY);
     validate(ENABLED);

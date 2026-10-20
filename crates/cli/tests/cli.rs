@@ -1906,6 +1906,128 @@ fn integer_specialization_local_cli_bytes_and_wat_match_library_at_every_level()
 }
 
 #[test]
+fn integer_specialization_comparisons_and_negation_cli_match_library_at_every_level() {
+    for (name, source) in [
+        (
+            "expression_comparisons",
+            "fn main() -> number { return if -7 < -3 && -3 <= -3 && 7 > -3 && 7 >= 7 && -7 == -7 && -7 != 7 { 1 } else { 0 }; }",
+        ),
+        (
+            "local_composition",
+            "fn main() -> number { let a = 10; let b = -(a + 20); let c = -b; return if b < a && b <= -30 && c > a && c >= 30 && c == 30 && b != c { c + 3 } else { 0 }; }",
+        ),
+        (
+            "signed_endpoints",
+            "fn main() -> number { return if (0 - 2147483647 - 1) < 2147483647 && -(0 - 2147483647 - 1) == 2147483648 && -2147483647 < 0 { 1 } else { 0 }; }",
+        ),
+        ("negated_zero", "fn main() -> number { return -(4 - 4); }"),
+        (
+            "double_negated_zero",
+            "fn main() -> number { return -(-0); }",
+        ),
+        (
+            "negated_minimum",
+            "fn main() -> number { let minimum = 0 - 2147483647 - 1; return -minimum; }",
+        ),
+        (
+            "negated_maximum",
+            "fn main() -> number { return -(-2147483647); }",
+        ),
+        (
+            "mixed_unknown",
+            "fn identity(x: number) -> number { return x; } fn main() -> number { let a = 10; let b = a + 20; return if identity(-0) == 0 && identity(b) > a && a <= identity(b) && identity(0 / 0) != b && !(identity(0 / 0) < b) { -identity(b) } else { 0 }; }",
+        ),
+    ] {
+        let scratch = Scratch::new(name);
+        let mut compiler = Compiler::new();
+        let baseline = compiler.compile_source(source).unwrap();
+        assert_eq!(scratch.compile(source, &[]), baseline, "{name}: default");
+        let mut enabled = None;
+
+        for (flag, level) in [
+            ("-O0", was_compiler::OptimizationLevel::None),
+            ("-O1", was_compiler::OptimizationLevel::Basic),
+            ("-O2", was_compiler::OptimizationLevel::Standard),
+            ("-O3", was_compiler::OptimizationLevel::Aggressive),
+        ] {
+            compiler.set_optimization_level(level);
+            let expected = compiler.compile_source(source).unwrap();
+            decode(&expected);
+            if level != was_compiler::OptimizationLevel::None {
+                if let Some(previous) = &enabled {
+                    assert_eq!(&expected, previous, "{name}: enabled preset parity");
+                } else {
+                    enabled = Some(expected.clone());
+                }
+            }
+            assert_eq!(scratch.compile(source, &[flag]), expected, "{name}: {flag}");
+            let wat = success(scratch.cli(&["program.was", flag, "--emit", "wat"], None));
+            assert_eq!(
+                assert_plain_wat(&wat),
+                wasmprinter::print_bytes(&expected).unwrap(),
+                "{name}: {flag} WAT"
+            );
+        }
+        assert_eq!(scratch.compile(source, &["-O0"]), baseline, "{name}: reset");
+        scratch.assert_entries(&["program.was", "program.wasm"]);
+    }
+}
+
+#[test]
+fn integer_specialization_comparisons_and_negation_cli_diagnostics_match_library() {
+    let scratch = Scratch::new("integer_comparison_negation_errors");
+    let sentinel = b"existing artifact";
+    for (source, message) in [
+        (
+            "fn main() -> bool {\n    return false && (1 < true);\n}",
+            "Operator '<' cannot be applied to Number and Bool",
+        ),
+        (
+            "fn main() -> number {\n    return 1;\n    -true;\n}",
+            "Type mismatch: expected Number, found Bool",
+        ),
+    ] {
+        scratch.write("program.was", source);
+        let mut compiler = Compiler::new();
+        let baseline = compiler.compile_source(source).unwrap_err();
+        assert!(baseline.span().is_some());
+        let baseline_diagnostic =
+            was_compiler::diagnostic::render("program.was", source, &baseline);
+        assert!(
+            baseline_diagnostic.contains(message),
+            "{baseline_diagnostic}"
+        );
+
+        for (flag, level) in [
+            ("-O0", was_compiler::OptimizationLevel::None),
+            ("-O1", was_compiler::OptimizationLevel::Basic),
+            ("-O2", was_compiler::OptimizationLevel::Standard),
+            ("-O3", was_compiler::OptimizationLevel::Aggressive),
+        ] {
+            compiler.set_optimization_level(level);
+            let error = compiler.compile_source(source).unwrap_err();
+            assert_eq!(error.span(), baseline.span());
+            let expected = was_compiler::diagnostic::render("program.was", source, &error);
+            assert_eq!(expected, baseline_diagnostic);
+            for (emit, destination) in [("wasm", "program.wasm"), ("wat", "program.wat")] {
+                scratch.write(destination, sentinel);
+                let stderr = failure(
+                    scratch.cli(
+                        &["program.was", flag, "--emit", emit, "-o", destination],
+                        None,
+                    ),
+                    1,
+                    &["semantic error:", message],
+                );
+                assert_eq!(stderr, format!("{expected}\n"), "{flag}: {emit}");
+                assert_eq!(fs::read(scratch.0.join(destination)).unwrap(), sentinel);
+            }
+        }
+    }
+    scratch.assert_entries(&["program.was", "program.wasm", "program.wat"]);
+}
+
+#[test]
 fn integer_specialization_cli_uses_i32_for_proven_local_chain() {
     let scratch = Scratch::new("integer_local_storage");
     let source = "fn main() -> number { let a = 10; let b = a + 20; let c = b - 3; return c; }";

@@ -1,0 +1,58 @@
+warning: unused import: `measurement_level`
+ --> expression_corpus.rs:3:32
+  |
+3 | pub use historical::{compiler, measurement_level, Case};
+  |                                ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `measurement_level` is never used
+  --> ..\..\..\tests\support\integer_corpus.rs:16:8
+   |
+16 | pub fn measurement_level() -> OptimizationLevel {
+   |        ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `cases` is never used
+  --> ..\..\..\tests\support\integer_corpus.rs:35:8
+   |
+35 | pub fn cases() -> Vec<Case> {
+   |        ^^^^^
+
+warning: function `cases` is never used
+  --> ..\..\..\tests\support\integer_corpus.rs:35:8
+   |
+35 | pub fn cases() -> Vec<Case> {
+   |        ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `integer-comparisons-negation-41-evidence` (bin "emit-expressions") generated 3 warnings (run `cargo fix --bin "emit-expressions" -p integer-comparisons-negation-41-evidence` to apply 1 suggestion)
+warning: `integer-comparisons-negation-41-evidence` (bench "expressions") generated 1 warning
+    Finished `bench` profile [optimized] target(s) in 0.18s
+     Running expressions.rs (target\integer-expressions-41\release\deps\expressions-29e49f1e8b8652f0.exe)
+level=Basic; workload,source_bytes,module_bytes
+expr_compare_1,312,214
+expr_negate_1,58,64
+expr_compare_32,8868,5236
+expr_negate_32,740,469
+expr_zero,49,58
+expr_min,64,65
+Timer precision: 100 ns
+expressions            fastest       │ slowest       │ median        │ mean          │ samples │ iters
+├─ source_compile                    │               │               │               │         │
+│  ├─ expr_compare_1   65.69 µs      │ 309.6 µs      │ 100.5 µs      │ 99.14 µs      │ 100     │ 100
+│  ├─ expr_compare_32  2.14 ms       │ 4.649 ms      │ 2.382 ms      │ 2.546 ms      │ 100     │ 100
+│  ├─ expr_min         14.09 µs      │ 106.9 µs      │ 15.09 µs      │ 17.81 µs      │ 100     │ 100
+│  ├─ expr_negate_1    13.49 µs      │ 31.69 µs      │ 14.29 µs      │ 14.6 µs       │ 100     │ 100
+│  ├─ expr_negate_32   167 µs        │ 588.6 µs      │ 206.5 µs      │ 217.7 µs      │ 100     │ 100
+│  ╰─ expr_zero        12.19 µs      │ 93.99 µs      │ 12.89 µs      │ 13.86 µs      │ 100     │ 100
+╰─ typed_compile                     │               │               │               │         │
+   ├─ expr_compare_1   24.39 µs      │ 62.29 µs      │ 25.69 µs      │ 26.47 µs      │ 100     │ 100
+   ├─ expr_compare_32  574.1 µs      │ 2.511 ms      │ 697 µs        │ 753.1 µs      │ 100     │ 100
+   ├─ expr_min         5.999 µs      │ 73.99 µs      │ 6.399 µs      │ 7.248 µs      │ 100     │ 100
+   ├─ expr_negate_1    5.799 µs      │ 20.09 µs      │ 6.199 µs      │ 6.393 µs      │ 100     │ 100
+   ├─ expr_negate_32   53.49 µs      │ 103.6 µs      │ 56.24 µs      │ 57.93 µs      │ 100     │ 100
+   ╰─ expr_zero        5.299 µs      │ 7.899 µs      │ 5.599 µs      │ 5.631 µs      │ 100     │ 100
+

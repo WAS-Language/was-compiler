@@ -1,0 +1,51 @@
+   Compiling integer-comparisons-negation-41-evidence v0.0.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\docs\benchmarks\integer-comparisons-negation-41)
+warning: unused import: `measurement_level`
+ --> expression_corpus.rs:3:32
+  |
+3 | pub use historical::{compiler, measurement_level, Case};
+  |                                ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `measurement_level` is never used
+  --> ..\..\..\tests\support\integer_corpus.rs:16:8
+   |
+16 | pub fn measurement_level() -> OptimizationLevel {
+   |        ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `cases` is never used
+  --> ..\..\..\tests\support\integer_corpus.rs:35:8
+   |
+35 | pub fn cases() -> Vec<Case> {
+   |        ^^^^^
+
+warning: `integer-comparisons-negation-41-evidence` (bin "emit-expressions") generated 3 warnings (run `cargo fix --bin "emit-expressions" -p integer-comparisons-negation-41-evidence` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.91s
+     Running `target\integer-expressions-41\debug\emit-expressions.exe 'C:\Users\luanr\Documents\Jobs\rust\was-compiler\docs\benchmarks\integer-comparisons-negation-41\expressions-2\artifacts'`
+expr_compare_1-None: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=12, i32.sub=0
+expr_compare_1-Basic: locals=0, integer_comparisons=[1, 1, 1, 1, 1, 1], f64.neg=0, i32.sub=12
+expr_compare_1-Standard: locals=0, integer_comparisons=[1, 1, 1, 1, 1, 1], f64.neg=0, i32.sub=12
+expr_compare_1-Aggressive: locals=0, integer_comparisons=[1, 1, 1, 1, 1, 1], f64.neg=0, i32.sub=12
+expr_negate_1-None: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=0
+expr_negate_1-Basic: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=0, i32.sub=1
+expr_negate_1-Standard: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=0, i32.sub=1
+expr_negate_1-Aggressive: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=0, i32.sub=1
+expr_compare_32-None: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=384, i32.sub=0
+expr_compare_32-Basic: locals=0, integer_comparisons=[32, 32, 32, 32, 32, 32], f64.neg=0, i32.sub=384
+expr_compare_32-Standard: locals=0, integer_comparisons=[32, 32, 32, 32, 32, 32], f64.neg=0, i32.sub=384
+expr_compare_32-Aggressive: locals=0, integer_comparisons=[32, 32, 32, 32, 32, 32], f64.neg=0, i32.sub=384
+expr_negate_32-None: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=32, i32.sub=0
+expr_negate_32-Basic: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=0, i32.sub=32
+expr_negate_32-Standard: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=0, i32.sub=32
+expr_negate_32-Aggressive: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=0, i32.sub=32
+expr_zero-None: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=0
+expr_zero-Basic: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=1
+expr_zero-Standard: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=1
+expr_zero-Aggressive: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=1
+expr_min-None: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=0
+expr_min-Basic: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=2
+expr_min-Standard: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=2
+expr_min-Aggressive: locals=0, integer_comparisons=[0, 0, 0, 0, 0, 0], f64.neg=1, i32.sub=2
+24 valid modules; typed/source parity, enabled byte parity and independent decoded checks passed

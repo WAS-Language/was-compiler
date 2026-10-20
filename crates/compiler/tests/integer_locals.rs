@@ -224,8 +224,8 @@ fn local_bounds_require_every_intermediate_and_exclude_unsupported_initializers(
         ),
         (
             "let a = 7; let b = -a; let c = b + 1;",
-            vec![ValType::I32, ValType::F64, ValType::F64],
-            "F64Neg",
+            vec![ValType::I32; 3],
+            "I32Sub",
         ),
     ] {
         let source = format!("fn main() -> number {{ {declarations} return c; }}");
@@ -310,13 +310,13 @@ fn parameters_loop_carried_state_and_iteration_bindings_are_not_ordinary_locals(
 }
 
 #[test]
-fn comparisons_and_negation_convert_proven_reads_to_float_without_specializing_consumers() {
+fn comparisons_and_negation_compose_with_proven_local_reads() {
     for (source, required) in [
         (
             "fn main() -> bool { let a = 3; let b = a + 2; return a < b; }",
-            "F64Lt",
+            "I32LtS",
         ),
-        ("fn main() -> number { let a = 3; return -a; }", "F64Neg"),
+        ("fn main() -> number { let a = 3; return -a; }", "I32Sub"),
     ] {
         for level in ENABLED {
             let bytes = compiler(level).compile_source(source).unwrap();
@@ -325,7 +325,7 @@ fn comparisons_and_negation_convert_proven_reads_to_float_without_specializing_c
             assert_eq!(count(&bodies[0], required), 1);
             assert_eq!(
                 count(&bodies[0], "F64ConvertI32S"),
-                if required == "F64Lt" { 2 } else { 1 }
+                if required == "I32LtS" { 0 } else { 1 }
             );
         }
     }

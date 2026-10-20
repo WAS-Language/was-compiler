@@ -1,0 +1,88 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling windows-link v0.2.1
+   Compiling anstyle v1.0.14
+   Compiling clap_lex v1.1.1
+   Compiling thiserror v2.0.21
+   Compiling anyhow v1.0.104
+   Compiling semver v1.0.28
+   Compiling bitflags v2.13.2
+   Compiling leb128fmt v0.1.0
+   Compiling condtype v1.3.0
+   Compiling cfg-if v1.0.5
+   Compiling regex-lite v0.1.9
+   Compiling windows-sys v0.61.2
+   Compiling wasm-encoder v0.261.0
+   Compiling wasmparser v0.261.0
+   Compiling terminal_size v0.4.4
+   Compiling winapi-util v0.1.11
+   Compiling clap_builder v4.6.7
+   Compiling termcolor v1.4.1
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling clap v4.6.7
+   Compiling thiserror-impl v2.0.21
+   Compiling divan-macros v0.1.21
+   Compiling divan v0.1.21
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+   Compiling wasmprinter v0.261.0
+   Compiling integer-comparisons-negation-41-evidence v0.0.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\docs\benchmarks\integer-comparisons-negation-41)
+warning: unused import: `measurement_level`
+ --> expression_corpus.rs:3:32
+  |
+3 | pub use historical::{compiler, measurement_level, Case};
+  |                                ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `measurement_level` is never used
+  --> ..\..\..\tests\support\integer_corpus.rs:16:8
+   |
+16 | pub fn measurement_level() -> OptimizationLevel {
+   |        ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `cases` is never used
+  --> ..\..\..\tests\support\integer_corpus.rs:35:8
+   |
+35 | pub fn cases() -> Vec<Case> {
+   |        ^^^^^
+
+warning: function `cases` is never used
+  --> ..\..\..\tests\support\integer_corpus.rs:35:8
+   |
+35 | pub fn cases() -> Vec<Case> {
+   |        ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `integer-comparisons-negation-41-evidence` (bench "expressions") generated 1 warning
+warning: `integer-comparisons-negation-41-evidence` (bin "emit-expressions") generated 3 warnings (run `cargo fix --bin "emit-expressions" -p integer-comparisons-negation-41-evidence` to apply 1 suggestion)
+    Finished `bench` profile [optimized] target(s) in 1m 26s
+     Running expressions.rs (target\integer-expressions-41\release\deps\expressions-29e49f1e8b8652f0.exe)
+level=None; workload,source_bytes,module_bytes
+expr_compare_1,312,376
+expr_negate_1,58,81
+expr_compare_32,8868,10420
+expr_negate_32,740,1044
+expr_zero,49,71
+expr_min,64,81
+Timer precision: 100 ns
+expressions            fastest       │ slowest       │ median        │ mean          │ samples │ iters
+├─ source_compile                    │               │               │               │         │
+│  ├─ expr_compare_1   53.09 µs      │ 105.5 µs      │ 55.59 µs      │ 58.55 µs      │ 100     │ 100
+│  ├─ expr_compare_32  1.83 ms       │ 2.441 ms      │ 2.007 ms      │ 2.025 ms      │ 100     │ 100
+│  ├─ expr_min         12.79 µs      │ 26.39 µs      │ 13.29 µs      │ 13.57 µs      │ 100     │ 100
+│  ├─ expr_negate_1    12.89 µs      │ 22.79 µs      │ 13.29 µs      │ 13.43 µs      │ 100     │ 100
+│  ├─ expr_negate_32   138.3 µs      │ 266.2 µs      │ 141.6 µs      │ 146.4 µs      │ 100     │ 100
+│  ╰─ expr_zero        11.19 µs      │ 16.89 µs      │ 11.69 µs      │ 11.8 µs       │ 100     │ 100
+╰─ typed_compile                     │               │               │               │         │
+   ├─ expr_compare_1   14.29 µs      │ 30.19 µs      │ 15.19 µs      │ 17.01 µs      │ 100     │ 100
+   ├─ expr_compare_32  267.7 µs      │ 441.8 µs      │ 278.6 µs      │ 287.5 µs      │ 100     │ 100
+   ├─ expr_min         5.199 µs      │ 9.899 µs      │ 5.499 µs      │ 5.634 µs      │ 100     │ 100
+   ├─ expr_negate_1    5.199 µs      │ 19.29 µs      │ 5.499 µs      │ 5.629 µs      │ 100     │ 100
+   ├─ expr_negate_32   27.09 µs      │ 80.59 µs      │ 27.89 µs      │ 28.89 µs      │ 100     │ 100
+   ╰─ expr_zero        4.699 µs      │ 15.09 µs      │ 5.099 µs      │ 5.212 µs      │ 100     │ 100
+

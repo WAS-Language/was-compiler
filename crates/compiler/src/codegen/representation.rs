@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{BinaryOp, Type},
+    ast::{BinaryOp, Type, UnaryOp},
     number_literal,
     typed_ast::{TypedExpr, TypedExprKind, TypedStatement, TypedStatementKind, VariableId},
 };
@@ -116,6 +116,10 @@ impl Facts {
                     })
                 }
                 TypedExprKind::Identifier { id, .. } => self.locals.get(id).copied(),
+                TypedExprKind::Unary {
+                    op: UnaryOp::Negate,
+                    expr: operand,
+                } => self.negate(operand),
                 TypedExprKind::Binary {
                     left,
                     op: op @ (BinaryOp::Add | BinaryOp::Subtract),
@@ -126,6 +130,19 @@ impl Facts {
         };
         self.integers.insert(key, facts);
         facts
+    }
+
+    fn negate(&mut self, operand: &TypedExpr) -> Option<IntegerBounds> {
+        let bounds = self.integer(operand)?;
+        // Negating +0 would produce -0; i32::MIN has no signed-i32 inverse.
+        // Reject intervals containing zero, not just zero-valued endpoints.
+        if bounds.min <= 0 && bounds.max >= 0 {
+            return None;
+        }
+        Some(IntegerBounds {
+            min: bounds.max.checked_neg()?,
+            max: bounds.min.checked_neg()?,
+        })
     }
 
     fn binary(

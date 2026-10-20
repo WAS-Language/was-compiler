@@ -604,3 +604,38 @@ changed after the measured hashes. Historical raw measurement evidence keeps its
 original scope. The implementation remains experimental pending explicit acceptance
 of material regressions and a separate release decision, with no default or public
 type/ABI change.
+
+## Issue #41: matched comparisons and safe negation — 2026-10-20
+
+User-authorized #41 extends the enabled expression pass with all six numeric
+comparisons when both operands are proven signed-i32 integers and unary negation
+excluding operand zero and `i32::MIN`. See the
+[contracts and correctness gates](integer-specialization.md#41-measurements-and-correctness-validation-2026-10-20)
+and [complete new measurement evidence](benchmarks/integer-comparisons-negation-41/README.md).
+Historical #38/#39/#40 records remain unchanged and retain their original scopes.
+
+Two matched repetitions use the unchanged 27-case corpus and public compiler/Node
+measurement seams, sequentially offline, current `None` versus current `Basic`.
+This measures cumulative #39+#40+#41, not isolated incremental #41 timing. The main
+corpus totals **13,414 → 9,538 bytes (−28.90%)**, versus historical #40 Basic's 9,701
+bytes: **163 fewer bytes (−1.68%)**. `compare_32` saves 192 bytes incrementally,
+while `negate_32` grows 32 bytes. All 27 `None` source/module identities match #38;
+enabled presets match each other. A separate expression-only supplement has zero
+Wasm locals and demonstrates comparison/negation independently of #40 storage,
+with module sizes 12,073 → 6,106 bytes (−49.42%).
+
+**Trade-offs:** `compare_32` guest medians improve 28.70% / 9.32%, but typed
+compilation rises 51.41% / 152.00%. `negate_32` guest medians regress 42.24% / 57.09%
+and typed compilation rises 72.78% / 97.15%. Expression-only timing directions
+reverse between repetitions. Concurrent tests/builds and uncontrolled machine/JIT
+state prevent a general guest-speed conclusion. Raw samples, hashes, command
+metadata, complete controls and the failed flat-expression supplement attempt
+are retained alongside its successful balanced retry. Final production hashes
+match measured inputs.
+
+Main 108 and supplement 24 independent oracle/validator/decoded checks passed.
+Separate final correctness validation passed 1,287 workspace tests across 81
+targets with none failed/ignored and 25 current-source rebuilt-browser smoke groups;
+benchmark checks alone do not establish those gates. Size benefit is demonstrated,
+but material regression and release acceptance remain pending. No default, public
+type, or ABI change is authorized.

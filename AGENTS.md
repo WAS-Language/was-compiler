@@ -32,7 +32,7 @@ execution engine. Host registration declares imports; it does not install callba
 | [Compilation roadmap](docs/compilation-roadmap.md) | Architecture, milestones, acceptance criteria |
 | [Memory ABI](docs/memory-abi.md) | Authoritative descriptor, allocation, ownership, and host contract |
 | [Typed arrays #37](docs/typed-arrays.md) | Contextual typing, Rust migration, consumed validation, adapter copy contract and final release evidence |
-| [Integer specialization #38/#39/#40](docs/integer-specialization.md) | Proof/local eligibility contracts, experimental literal/add-sub/local subset, preset parity, final correctness evidence and pending release decision |
+| [Integer specialization #38/#39/#40/#41](docs/integer-specialization.md) | Proof/local eligibility, comparison/negation contracts, preset parity, correctness evidence and pending release decision |
 | [Limitations](docs/limitations.md) | Implemented restrictions versus possible alternatives |
 | [Runtime integration](docs/runtime-integration.md) | CLI, raw execution, imports, explicit marshaling |
 | [Browser guide](docs/browser.md) | Compiler-in-Wasm API, packaging, playground integration |
@@ -100,7 +100,7 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 | `crates/compiler/src/flow.rs` | Private completion sets shared by semantic/backend flow summaries |
 | `crates/compiler/src/host.rs`, `crates/compiler/src/exports.rs` | Ordered host declarations, private external-type eligibility, and owned export selection |
 | `crates/compiler/src/optimization.rs` | Preset-to-numeric policy selection; borrowed `Cow<TypedProgram>` boundary without AST rewrites |
-| `crates/compiler/src/codegen/representation.rs` | Private per-body `Facts` cache for #39/#40 exact-i32 literal/add-sub and eligible ordinary-local/read proofs |
+| `crates/compiler/src/codegen/representation.rs` | Private per-body `Facts` cache for exact-i32 literal/add-sub/negation and eligible ordinary-local/read proofs |
 | `crates/compiler/src/codegen/abi.rs` | Internal language-to-Wasm signatures, separate external signature checks, and named memory-layout constants |
 | `crates/compiler/src/codegen/layout.rs`, `crates/compiler/src/codegen/indices.rs` | Signatures, callees, exports, distinct Wasm index types |
 | `crates/compiler/src/codegen/walker.rs` | Shared structural traversal for separate planning policies |
@@ -145,25 +145,34 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   arbitrary malformed tree produces a recoverable error.
 - Keep `CompilerOptions` small and `Copy`; owned `ExportOptions` stays separate.
   `None` remains default and the byte baseline, as do direct codegen entry points.
-  `Basic`, `Standard`, and `Aggressive` share #39/#40's experimental exact-i32
-  literal/add-sub lowering and eligible never-reassigned ordinary numeric local
-  storage/read-fact propagation; require semantic/diagnostic parity across levels,
+  `Basic`, `Standard`, and `Aggressive` share #39/#40/#41's experimental exact-i32
+  literal/add-sub/negation lowering, proven numeric comparisons, and eligible
+  never-reassigned ordinary numeric local storage/read-fact propagation;
+  require semantic/diagnostic parity across levels,
   enabled-preset byte identity and adapter byte parity within each level.
   Before changing numeric representation, local eligibility, preset parity, or integer
-  benchmarks, read [the #38/#39/#40 contracts](docs/integer-specialization.md).
+  benchmarks, read [the #38/#39/#40/#41 contracts](docs/integer-specialization.md).
   Every ordinary/compound write, including skipped/unreachable writes, excludes its
   binding; parameters, iteration, normalized-call synthetic and captured/promoted
-  bindings are excluded. Calls/memory loads are unknown; comparisons/negation remain
-  f64, with no branch/contract/caller refinement. Facts guide checked emission, which
-  still validates all nodes. Ticket #40 authorizes implementation ahead of WP12, not
-  general WP13 or remaining #38 work. [#40 measurements](docs/benchmarks/integer-locals-40/README.md)
+  bindings are excluded. Calls/memory loads are unknown. Numeric comparisons need
+  two integer proofs; negation excludes zero and i32::MIN. Unknown/unsafe operations
+  retain f64, independently specializing eligible children. No branch/contract/caller
+  refinement is added. Facts guide checked emission, which still validates all nodes.
+  Tickets #40/#41 authorize their bounded implementation ahead of WP12, not general WP13. [#40 measurements](docs/benchmarks/integer-locals-40/README.md)
   show cumulative size benefit but only one byte net savings versus historical #39,
   with mixed timing and material regression signals pending explicit acceptance.
   Final [#40 correctness gates passed](docs/integer-specialization.md#correctness-validation-2026-10-20);
   [#40 review completed](docs/integer-specialization.md#review-completion-40) with zero
   hard standards/spec findings and one low-priority adapter-scenario suggestion
-  deliberately deferred. #39 gates/review retain their historical scope. No regression
-  acceptance, release/default change or public type/ABI change is authorized.
+  deliberately deferred. #39/#40 gates/reviews retain their historical scope.
+    [#41 measurements](docs/benchmarks/integer-comparisons-negation-41/README.md)
+    show 163 fewer cumulative corpus bytes versus #40, but mixed guest timing and
+    compilation-cost regression signals. Expression-only evidence has no local-storage
+    dependency. [#41 correctness/review evidence](docs/integer-specialization.md#41-measurements-and-correctness-validation-2026-10-20)
+  records 1,287 tests across 81 targets, none failed/ignored, 25 rebuilt-browser
+  groups and zero hard two-axis findings; a low-priority shared test-data suggestion
+  is deferred. No regression acceptance, release/default change or public type/ABI
+  change is authorized.
 
 ## Current language support
 

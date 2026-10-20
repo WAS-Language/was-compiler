@@ -1,0 +1,19 @@
+{
+  "utc": "2026-10-20T17:25:01.005418+00:00",
+  "passed": true,
+  "scope": "Append-only source/artifact reconciliation; no compiler validation or timing rerun",
+  "source_snapshot": "final-integration-source-state.json",
+  "all_seven_source_snapshots_match_current": true,
+  "original_artifact_manifest_unchanged": true,
+  "original_artifact_changes": [
+    {
+      "path": "README.md",
+      "original_sha256": "ff8793468885360ae469dc55bb9f331cfc46ef63f5ec2be2b38cb8263513b559",
+      "current_sha256": "55a000dc142cb9d998f588ebc28c6c0377040a0d2f6312d4fff905f1b4dc2063"
+    }
+  ],
+  "original_audit_and_raw_evidence_unchanged": true,
+  "broken_links": [],
+  "trailing_whitespace": [],
+  "full_workspace_rerun_status": "Pending per user report; not executed here"
+}

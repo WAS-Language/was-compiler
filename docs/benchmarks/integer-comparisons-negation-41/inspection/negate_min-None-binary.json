@@ -1,0 +1,17 @@
+{
+  "command": [
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\target\\debug\\was-compiler.exe",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-comparisons-negation-41\\inspection\\negate_min.was",
+    "-O0",
+    "--host",
+    "mark=env.mark(number)->number",
+    "-o",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-comparisons-negation-41\\inspection\\negate_min-None.wasm"
+  ],
+  "utc_started": "2026-10-20T17:11:21.095898+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "negate_min-None-binary.txt",
+  "utc_finished": "2026-10-20T17:11:21.282090+00:00"
+}

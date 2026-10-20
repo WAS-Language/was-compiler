@@ -1,0 +1,19 @@
+{
+  "utc": "2026-10-20T17:14:47.565011+00:00",
+  "passed": true,
+  "production_and_historical_measurement_inputs_unchanged": true,
+  "supplement_measured_inputs_unchanged": true,
+  "postprocessing_files_added_after_timing": true,
+  "command_records_checked": 67,
+  "preserved_expected_failures": [
+    {
+      "metadata": "expressions-1/emit.json",
+      "exit_code": 3221225725,
+      "timed_out": false
+    }
+  ],
+  "machine_runtime_and_node_flags_match": true,
+  "broken_links": [],
+  "trailing_whitespace": [],
+  "scope": "Evidence audit, not full correctness/browser/release validation"
+}

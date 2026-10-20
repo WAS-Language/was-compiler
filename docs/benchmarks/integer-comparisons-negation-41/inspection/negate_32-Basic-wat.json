@@ -1,0 +1,17 @@
+{
+  "command": [
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\target\\debug\\was-compiler.exe",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-comparisons-negation-41\\inspection\\negate_32.was",
+    "-O1",
+    "--host",
+    "mark=env.mark(number)->number",
+    "-o",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-comparisons-negation-41\\inspection\\negate_32-Basic.wat"
+  ],
+  "utc_started": "2026-10-20T17:11:19.446590+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "negate_32-Basic-wat.txt",
+  "utc_finished": "2026-10-20T17:11:19.542471+00:00"
+}

@@ -107,9 +107,16 @@ pub(super) fn emit_as(
             expect_result(function, eager_result(ty, &[operand]), expr.ty, span)?;
             expect_operand(function, ty, operand.ty, span)?;
 
-            let flow = body.emit_expr(operand, span)?;
-
-            body.instruction(&instruction);
+            let flow = if representation == Representation::I32 {
+                body.instruction(&Instruction::I32Const(0));
+                let flow = body.emit_expr_as(operand, span, Representation::I32)?;
+                body.instruction(&Instruction::I32Sub);
+                flow
+            } else {
+                let flow = body.emit_expr(operand, span)?;
+                body.instruction(&instruction);
+                flow
+            };
 
             (flow, result(flow, ty))
         }
@@ -170,7 +177,26 @@ pub(super) fn emit_as(
                 span,
             )?;
 
-            let left_flow = body.emit_expr_as(left, span, representation)?;
+            // Comparison results are bool, independent of the numeric operand
+            // representation. Never widen the resulting boolean as a number.
+            let operands = if operand_type == Type::Number
+                && matches!(
+                    op,
+                    BinaryOp::LessThan
+                        | BinaryOp::LessThanOrEqual
+                        | BinaryOp::GreaterThan
+                        | BinaryOp::GreaterThanOrEqual
+                        | BinaryOp::Equal
+                        | BinaryOp::NotEqual
+                )
+                && body.numeric_representation(left) == Representation::I32
+                && body.numeric_representation(right) == Representation::I32
+            {
+                Representation::I32
+            } else {
+                representation
+            };
+            let left_flow = body.emit_expr_as(left, span, operands)?;
             let flow = if logical {
                 emit_logical(op, right, left_flow, body, span)?
             } else {
@@ -179,15 +205,23 @@ pub(super) fn emit_as(
                 if normalize {
                     body.normalize_bool();
                 }
-                let right_flow = body.emit_expr_as(right, span, representation)?;
+                let right_flow = body.emit_expr_as(right, span, operands)?;
                 if normalize {
                     body.normalize_bool();
                 }
-                if representation == Representation::I32 {
+                if operands == Representation::I32 {
                     body.instruction(&match op {
                         BinaryOp::Add => Instruction::I32Add,
                         BinaryOp::Subtract => Instruction::I32Sub,
-                        _ => unreachable!("only proven addition/subtraction use integer operands"),
+                        BinaryOp::LessThan => Instruction::I32LtS,
+                        BinaryOp::LessThanOrEqual => Instruction::I32LeS,
+                        BinaryOp::GreaterThan => Instruction::I32GtS,
+                        BinaryOp::GreaterThanOrEqual => Instruction::I32GeS,
+                        BinaryOp::Equal => Instruction::I32Eq,
+                        BinaryOp::NotEqual => Instruction::I32Ne,
+                        _ => {
+                            unreachable!("only proven arithmetic/comparisons use integer operands")
+                        }
                     });
                 } else if *op == BinaryOp::In {
                     body.call(body.range_helper(range::Helper::Contains));

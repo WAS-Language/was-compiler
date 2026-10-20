@@ -1,0 +1,12 @@
+{
+  "command": [
+    "rustc",
+    "-Vv"
+  ],
+  "utc_started": "2026-10-20T17:05:40.035557+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "rustc.txt",
+  "utc_finished": "2026-10-20T17:05:40.119993+00:00"
+}

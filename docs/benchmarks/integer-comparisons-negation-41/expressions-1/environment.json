@@ -1,0 +1,11 @@
+{
+  "utc": "2026-10-20T17:08:04.944179+00:00",
+  "command": [
+    "docs/benchmarks/integer-comparisons-negation-41/collect_expressions.py"
+  ],
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "cwd": "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler",
+  "target_dir": "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\target\\integer-expressions-41",
+  "note": "Other owner may run concurrent builds/tests; not an idle-machine timing experiment.",
+  "order": "build/emit/verify; compiler None/Basic, guest None/Basic; compiler Basic/None, guest Basic/None"
+}

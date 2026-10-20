@@ -1,0 +1,20 @@
+{
+  "utc_started": "2026-10-20T17:05:38.153709+00:00",
+  "recorder": "docs/benchmarks/integer-add-sub-39/record_matched.py",
+  "recorder_sha256": "d20dbc781d22247b7a5f57890880db834e3649cf013d9e402acc57b4d63c5dd6",
+  "launcher_sha256": "fc60ceaebc952a68ab4c77f22f49ed2fcfefe4141c9101b6651a7d0c660ad51a",
+  "output": "docs/benchmarks/integer-comparisons-negation-41/collection-1",
+  "adaptation": "Redirect only the #39 output-location assertion; original recorder file unchanged",
+  "original_argv": [
+    "docs/benchmarks/integer-comparisons-negation-41/collect.py"
+  ],
+  "redirects": [
+    {
+      "original_condition": false,
+      "original_message": "Output must be a NEW child of docs/benchmarks/integer-add-sub-39",
+      "allowed_destination": "docs/benchmarks/integer-comparisons-negation-41/collection-1"
+    }
+  ],
+  "completed": true,
+  "utc_finished": "2026-10-20T17:06:16.133248+00:00"
+}

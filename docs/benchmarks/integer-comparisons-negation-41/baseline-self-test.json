@@ -1,0 +1,13 @@
+{
+  "command": [
+    "C:\\Users\\luanr\\AppData\\Local\\Microsoft\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\python.exe",
+    "tests/support/record_integer_baseline.py",
+    "--self-test"
+  ],
+  "utc_started": "2026-10-20T17:05:38.350159+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "baseline-self-test.txt",
+  "utc_finished": "2026-10-20T17:05:39.668778+00:00"
+}

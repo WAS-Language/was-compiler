@@ -1,0 +1,17 @@
+{
+  "command": [
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\target\\debug\\was-compiler.exe",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-comparisons-negation-41\\inspection\\loop_local.was",
+    "-O1",
+    "--host",
+    "mark=env.mark(number)->number",
+    "-o",
+    "C:\\Users\\luanr\\Documents\\Jobs\\rust\\was-compiler\\docs\\benchmarks\\integer-comparisons-negation-41\\inspection\\loop_local-Basic.wat"
+  ],
+  "utc_started": "2026-10-20T17:11:19.822830+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "loop_local-Basic-wat.txt",
+  "utc_finished": "2026-10-20T17:11:19.876997+00:00"
+}
