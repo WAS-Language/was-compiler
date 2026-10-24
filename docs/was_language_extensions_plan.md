@@ -1283,6 +1283,12 @@ default change. Remaining #38 work and general WP13 need separate authorization.
 **Status:** Deferred; implementation is not authorized. WP11's release satisfies
 its predecessor gate but does not authorize WP12.
 
+The [WP12 design handoff](wp12-placeholder-development.md) records accepted
+interview answers Q1–Q25 and final shared-understanding confirmation in Q26.
+It specifies region ownership, reachable exact constraints through inferred
+locals, unary immediate stages, capture allocation order, diagnostics and ordered
+delivery. It is not implementation authorization or release evidence.
+
 **Entry:** WP11. Abstract each permitted placeholder region before final capture
 analysis; each `_` is a distinct left-to-right parameter. Generate hygienic symbols,
 infer only uniquely constrained parameter types, and use the same local callable

@@ -1159,13 +1159,31 @@ Each unbound `_` in a placeholder-function expression denotes a **distinct param
 
 ### 11.2 Abstraction boundaries
 
-Parenthesized placeholder expressions are explicit regions: `(_ * 2)`. In unambiguous local initializers, `let double = _ * 2;` may omit outer parentheses. In a pipeline stage, `value |> (_ * 2)` invokes the synthesized local lambda immediately. In a `match` pattern, `_` is a wildcard, never a placeholder.
+Only permitted local callable initializers and immediate pipeline stages own
+placeholder regions. Grouping parentheses inside a region are transparent:
+`let combine = (_ + 1) * (_ - 1);` has two parameters, not nested callable values.
+Nested callable declarations/stages have separate boundaries; an explicit lambda
+does not acquire implicit parameters from otherwise unowned `_` occurrences.
+An initializer with no owned placeholder remains an ordinary value initializer
+unless independently recognized as an explicit lambda. In a pipeline stage,
+`value |> (_ * 2)` invokes a synthesized unary callable immediately. In a `match`
+pattern, `_` is a wildcard, never a placeholder.
 
 Placeholder abstraction MUST produce the **same compiler-known local closure representation** as §10, including shared reference capture of external bindings. It MUST NOT introduce a different closure runtime or bypass the restriction on passing/returning callable values. Examples such as `filter(_ > 10)` and `map(_ * 2)` are **not valid normal function arguments in v1** and must not be presented as supported unless separately introduced as compiler-known constructs.
 
 ### 11.3 Typing
 
 Infer placeholder parameter types from uniquely constraining operations (e.g. `_ * 2` implies `number`, `_ > 10` implies `number`). A placeholder occurrence without sufficient context (`_ == _`) is an ambiguity error; use explicitly typed lambda parameters instead. The placeholder pass MUST run before final closure capture analysis, and anonymous parameter symbols MUST be generated hygienically.
+
+Constraints are region-local and may propagate through ordinary inferred locals,
+assignments, annotations, calls with resolved formal types and structural joins.
+Callers and pipeline input do not supply inference context. Count placeholders
+structurally, but use only reachable constraint sites as inference evidence under
+existing conservative completion rules; check all children after selecting types.
+Parameters must become concrete existing types before typed callable construction.
+See the [WP12 design handoff](wp12-placeholder-development.md) for boundary examples,
+diagnostic ordering, control contexts and release gates. Its interview decisions
+have final shared-understanding confirmation; implementation remains unauthorized.
 
 ## 12. Feature specification: pipeline operator `|>`
 
@@ -1226,6 +1244,14 @@ let other = 10 |> (_ * factor);
 ```
 
 A pipeline stage is either `value |> named_function_or_local_closure` (call with the value) or `value |> callable_name(args...)` (insert the value as the **first positional argument**). Immediate syntactic lambda/placeholder stages are permitted only after closure support. The pipeline operator does **not** make a function a first-class value and does not permit closures as ordinary function arguments. `values |> filter(_ > 10)` is rejected in v1 unless `filter` is separately defined as an intrinsic language construct with a dedicated lowering.
+
+For proposed WP12, known local callable stages retain positional-only calls;
+named/default support remains specific to named user functions. Immediate stages
+are parenthesized unary typed lambdas or placeholder regions, with no written
+argument suffix. Evaluate incoming input before creating the stage environment
+and invoking its direct helper. Original capture cells still follow WP11 eager
+promotion and may allocate earlier. No first-class callable ABI, allocation-free
+sugar, or general postfix invocation is introduced.
 
 ### 12.2 Order, binding, and errors
 

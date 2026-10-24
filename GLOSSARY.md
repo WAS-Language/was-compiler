@@ -63,3 +63,18 @@ _Avoid_: Snapshot capture, capture by value
 **Lexical callable dependency**:
 A closure's dependence on an earlier visible local callable for direct invocation,
 including its live context when required. It is not a callable alias or value capture.
+
+**Placeholder region**:
+A proposed local callable initializer or immediate pipeline stage in which each
+expression-position `_` denotes a distinct anonymous input in source order.
+Grouping parentheses do not create another region, and nested callables have
+separate boundaries.
+
+**Placeholder callable**:
+A proposed local callable whose anonymous parameter types are uniquely determined
+by constraints within its own placeholder region, not by its callers.
+_Avoid_: Partial application, implicit first-class function
+
+**Immediate pipeline stage**:
+A proposed parenthesized unary lambda or placeholder region invoked directly with
+the preceding pipeline input, without producing a callable value.
