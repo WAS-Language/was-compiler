@@ -1,0 +1,7 @@
+fn main() -> number {
+    let external = 5;
+
+    let sum = (x: number, y: number) => x + y + external;
+
+    return sum(10, 5);
+}
