@@ -1285,9 +1285,13 @@ its predecessor gate but does not authorize WP12.
 
 The [WP12 design handoff](wp12-placeholder-development.md) records accepted
 interview answers Q1–Q25 and final shared-understanding confirmation in Q26.
-It specifies region ownership, reachable exact constraints through inferred
-locals, unary immediate stages, capture allocation order, diagnostics and ordered
-delivery. It is not implementation authorization or release evidence.
+It freezes the raw-AST migration, synthesized callable ownership and hygienic
+identity rules, original source spans, checked normalized pipeline injection,
+concrete diagnostic variants/messages, deterministic constraint/error ordering,
+region-local inference, capture allocation order, and ordered delivery. It is
+not implementation authorization or release evidence. Ticket #43 authorizes
+this contract/documentation work only; implementation and landing retain
+separate authorization gates.
 
 **Entry:** WP11. Abstract each permitted placeholder region before final capture
 analysis; each `_` is a distinct left-to-right parameter. Generate hygienic symbols,

@@ -57,6 +57,54 @@ Inside `let apply = consume(_ + 1);`, however, the region belongs to `apply`:
 if `consume` accepts a number, its argument is a number, not a callable.
 There are no special permissions for names such as `map` or `filter`.
 
+## Public AST migration and callable ownership
+
+The raw AST keeps source syntax and provenance; it does not introduce a callable
+type or a second intermediate representation:
+
+- Add `Expr::Placeholder { span: Span }` for an expression-position `_`. Its span
+  is exactly the original UTF-8 byte range of that token. Match-pattern `_`
+  remains `MatchPatternKind::Wildcard`, not an expression placeholder.
+- Change `PipelineStage` from a name-only target to a target enum, for example
+  `PipelineStageTarget::{Named(String), Immediate(Expr)}`, while retaining
+  `args: Vec<CallArgument>` and the full stage `span`. Existing named stages keep
+  their target and argument representation. Immediate targets retain their
+  parentheses and original expression tree; they have no written argument
+  suffix. A syntactically immediate target must be an explicit lambda or a
+  placeholder-bearing expression, not an arbitrary parenthesized value.
+- A local initializer containing an owned placeholder remains a raw expression
+  with placeholder nodes until region constraints have selected concrete
+  parameter types. Semantic analysis then synthesizes the callable directly into
+  the existing typed closure path before final capture analysis. An immediate
+  pipeline target follows the same path at its stage's source location. Do not
+  expose unresolved parameters in the public AST or add a second public
+  intermediate representation.
+- Every synthesized callable uses the existing `TypedClosure` declaration and
+  `TypedExprKind::LexicalCall`/`TypedNormalizedCall` direct-call forms. The local
+  declaration owns its helper body. Program-wide `CallableId`s follow the
+  existing source-depth-first preorder, including synthesized helpers, with
+  deterministic traversal of pipeline input before stages and stage contents in
+  source order. Synthesized parameter and binding identities are fresh, hygienic
+  IDs in their existing owner-local namespaces; they must not collide with source
+  declarations or depend on spellings such as `_0`.
+- Preserve original source locations through abstraction: placeholder parameter
+  identity retains its `_` token span; the synthesized lambda/declaration retains
+  the initializer or immediate stage span and body span; each stage retains its
+  original full stage span. Do not manufacture source locations from normalized
+  typed calls.
+- Lower pipeline injection by reusing WP10's existing checked normalized-call
+  representation. The preceding pipeline input is the unique first
+  `PipelineInput` binding mapped to formal 0; written bindings follow in source
+  order. Local callable stages remain positional-only. Named user-function
+  stages retain WP10 named/default behavior. Immediate stages invoke the
+  synthesized/direct callable with the input as its sole parameter. No alternate
+  pipeline IR, indirect call, or runtime callable representation is added.
+
+These are additive raw-AST migration requirements. Existing constructors and
+exhaustive consumers must be updated; typed callable ownership and backend
+validation continue to use the WP11 shapes described in the
+[local callable interface](local-callable-interface.md).
+
 ## Parameter inference (Q3, Q5–Q6, Q9, Q11, Q13–Q14, Q17, Q22–Q25)
 
 Infer each parameter from exact constraints within its region, never from later
@@ -154,8 +202,36 @@ between differently structured programs is promised.
 
 ## Diagnostics (Q19, Q24)
 
-Distinguish out-of-region placeholders, ambiguous parameters, conflicting
-constraints, invalid stage targets/arity, and forbidden callable-value uses.
+Use the following semantic variants and stable messages for the new diagnostic
+categories. `Span` values are original UTF-8 byte offsets. The names/messages
+below are the frozen public Rust/API contract for implementation; they do not
+authorize implementation in this documentation ticket.
+
+| Variant | Display message | Location |
+| --- | --- | --- |
+| `InvalidPlaceholder { span }` | `Placeholder is outside a placeholder region at {span:?}` | The offending `_` token. |
+| `CannotInferPlaceholderParameter { span }` | `Cannot infer a concrete type for placeholder parameter at {span:?}` | The first ambiguous placeholder in parameter order. |
+| `ConflictingPlaceholderConstraints { expected, found, span }` | `Conflicting placeholder constraints: expected {expected:?}, found {found:?} at {span:?}` | The earliest incompatible reachable use, using that use's source span where available. |
+| `InvalidPipeline { message, span }` | Existing display form: `Invalid pipeline: {message} at {span:?}`. Use `pipeline stage target is not callable` for an ineligible target and `immediate pipeline stage must have exactly one parameter` for zero- or multi-parameter immediate callables. | The full stage span. |
+| `InvalidCallableValueUse { span }` | `Callable values are not supported at {span:?}` | The forbidden value-use site. |
+
+`InvalidPipeline` already exists and keeps its current variant/display format;
+WP12 fixes the two additional `message` values above rather than adding a
+parallel pipeline error type. A named target that does not resolve continues to
+use the existing `UndefinedFunction`; a lexical variable used as an ordinary
+call continues to use `NotCallable`. Existing `InvalidClosure` remains for
+existing explicit-closure diagnostics. The new callable-value diagnostic covers
+attempts to pass, return, assign, store, export or otherwise use a callable as a
+value; it does not turn a valid `consume(_ + 1)` local initializer into a
+callable argument.
+
+Constraint records retain the originating use span while solving. Where the
+current raw node has no narrow expression span, use the narrowest existing
+source-bearing child span; only fall back to its enclosing declaration/statement
+span when no more precise original location exists. Never derive offsets from a
+rewritten or typed tree. The shared diagnostic renderer continues to render the
+same semantic span in native and browser adapters.
+
 Within a new placeholder region, use this deterministic boundary:
 
 1. Establish syntax, ownership, lexical names and callable eligibility using
@@ -172,9 +248,30 @@ possible, and stage arity at the stage span. Preserve UTF-8 byte spans and share
 native/browser rendering. Unchanged source retains existing error variants,
 messages, spans, and first-error ordering. No general recovery is introduced.
 
-Concrete Rust variant names/messages and public AST migration must be specified
-against the implementation before coding; this interview fixes diagnostic
-categories, locations and ordering, not uninspected Rust API names.
+The ordering is part of the contract: for example, an unconstrained first `_`
+does not mask a later reachable type conflict; report that conflict first.
+After inference succeeds, ordinary body/result diagnostics retain their existing
+ordering and still inspect unreachable/skipped children. No recovery is added.
+
+Representative acceptance/rejection contract:
+
+| Source shape | Result |
+| --- | --- |
+| `let add = _ + _;` | Accept; two distinct `number` parameters. |
+| `let inner = _ + 1; let outer = { inner(_) };` | Accept; nested regions have independent parameters. |
+| `10 |> (_ * 2)` | Accept; one-parameter immediate stage, reusing input injection. |
+| `10 |> (_ + _)` or `10 |> (() => 42)` | `InvalidPipeline` at the stage: immediate arity message above. |
+| `10 |> (42)` | `InvalidPipeline` at the stage: target message above. |
+| `let same = _ == _;` | `CannotInferPlaceholderParameter` at the first `_`. |
+| `let bad = _ + true;` | `ConflictingPlaceholderConstraints` at the incompatible use. |
+| `consume(_ + 1);` as an ordinary expression statement | `InvalidPlaceholder` at the first unowned `_`. |
+| `consume((x: number) => x);` | `InvalidCallableValueUse` at the callable value-use site, not an implicit callable argument. |
+| `let f = (x: number) => x; let y = 1 |> f;` | Accept; the local callable is invoked directly with the injected input. |
+| `let y = 1 |> named_with_default;` | Preserve WP10 named-function stage/default behavior and diagnostics. |
+
+The cases above supplement, rather than replace, the existing WP10/WP11
+compatibility suite. Unchanged source retains its existing error variant,
+message, span, and first-error ordering.
 
 ## Ordered delivery and release evidence (Q20–Q21)
 
