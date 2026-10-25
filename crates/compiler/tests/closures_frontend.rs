@@ -1313,6 +1313,20 @@ fn closures_call_named_defaults_and_contracts_and_pipeline_stages() {
         )
         .unwrap();
     assert!(matches!(
+        semantic_error("fn main() { let add = (a: number, b: number) => a + b; 1 |> add(b: 2); }"),
+        SemanticError::NamedArgumentsNotSupported { .. }
+    ));
+    assert!(matches!(
+        semantic_error("fn main() { let add = (a: number, b: number) => a + b; true |> add(2); }"),
+        SemanticError::TypeMismatch { .. }
+    ));
+    assert!(matches!(
+        semantic_error(
+            "fn main() { let outer = (x: number) => x |> inner; let inner = (x: number) => x; }"
+        ),
+        SemanticError::UndefinedFunction { .. }
+    ));
+    assert!(matches!(
         semantic_error("fn main(x: number = () => missing) {}"),
         SemanticError::InvalidDefaultExpression { .. }
     ));

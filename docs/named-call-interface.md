@@ -31,8 +31,8 @@ WP9 match statements/values are implemented with [release gates passed](was_lang
 including native/current-source rebuilt-browser and full ignored runtime coverage.
 Match retains named/default normalization and raw full-arity ABI; it remains
 outside the shared pure-expression whitelist, including forged typed defaults.
-WP10 named-only pipelines are implemented, including named/default stage binding
-and #27 final-Void discard support;
+WP10 user-function pipeline stages are implemented, including named/default stage
+binding and #27 final-Void discard support;
 [release gates passed](was_language_extensions_plan.md#wp10-release-validation)
 on 2026-10-14. WP11's #29–#33 local callable/shared-capture subsets are implemented,
 including captured numeric compounds (#31), nested parameter/let and live callable-context
@@ -41,10 +41,14 @@ forwarding (#32), and [read-only iteration captures (#33)](local-callable-interf
 [#33 validation passed](local-callable-interface.md#issue-33-validation-2026-10-15).
 Nested/transitive read-only iteration captures compose with captured compounds and
 invocation-local lifetimes; [#35 WP11 release gates passed](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15).
-See [the interface](local-callable-interface.md) for current support and historical
-subset evidence. WP12 remains deferred. WP13 requires separate
-authorization; later packages
-reuse the approved interfaces only after their ordered integration/release gates.
+Issue #44 adds known lexical local callable stages: they resolve through visible
+lexical bindings, receive the pipeline input as formal zero, and accept only
+positional written arguments. They reuse the checked normalized direct-call and
+helper lifecycle; they add no named/default closure parameters or callable values.
+The #44 implementation is committed; integrated release validation, including
+rebuilt-browser parity, remains pending. See [the interface](local-callable-interface.md)
+for WP11 support and historical subset evidence. Placeholder locals and immediate
+stages remain deferred; WP13 requires separate authorization.
 
 ### Typed-array interaction (#37)
 

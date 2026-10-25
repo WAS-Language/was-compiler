@@ -38,17 +38,19 @@ A numeric match pattern selecting values between constant bounds, including frac
 values. It denotes an interval, not the stepped progression of a range value.
 _Avoid_: Range membership pattern, progression pattern
 
-**Named-only pipeline**:
-An ordered chain that supplies its input to the first parameter of each named
-user-function stage; it does not make functions into values.
+**Pipeline**:
+An ordered chain that supplies each preceding result to the first parameter of
+the next named user-function or visible local callable stage; it does not make
+functions into values.
 
 **Pipeline stage**:
-A function invocation within a pipeline, receiving the preceding input as its first
-argument before any written arguments; omitted remaining arguments use defaults.
+A named user-function or lexical callable invocation within a pipeline, receiving
+the preceding input as its first argument before any written arguments. Named
+user-function stages can use defaults; local callable stages are positional-only.
 
 **Final Void stage**:
-The last invocation in a named-only pipeline whose declared result is void,
-permitted only where the pipeline's result is discarded.
+The last invocation in a pipeline whose declared result is void, permitted only
+where the pipeline's result is discarded.
 
 **Local callable binding**:
 A lexical name for a closure that can be invoked directly but cannot be aliased,

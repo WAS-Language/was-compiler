@@ -377,6 +377,22 @@ fn stage_eligibility_shadowing_and_void_restrictions_are_explicit() {
             "fn f() -> number { let add = (a: number, b: number) => a + b; return 1 |> add(2); }",
         )
         .unwrap();
+    assert!(matches!(
+        error("fn f() -> number { let sink = (x: number) => {}; return 1 |> sink; }"),
+        SemanticError::InvalidPipeline {
+            message: "a final void stage requires a discarded result",
+            ..
+        }
+    ));
+    assert!(matches!(
+        error(
+            "fn next(x: number) -> number { return x; } fn f() { let sink = (x: number) => {}; 1 |> sink |> next; }"
+        ),
+        SemanticError::InvalidPipeline {
+            message: "a nonfinal stage cannot return void",
+            ..
+        }
+    ));
     Compiler::new()
         .compile_source(
             "fn pair(a: number, b: number) { return a + b; } fn f() { return 1 |> pair(b: 2); }",

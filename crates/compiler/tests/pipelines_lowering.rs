@@ -21,17 +21,29 @@ fn lexical_pipeline_stage_lowers_to_a_valid_direct_helper_call() {
     compiler.set_exports(ExportOptions::Only(vec!["main".into()]));
     let program = compiler
         .analyze(
-            "fn main() -> number { let add = (a: number, b: number) => a + b; return 1 |> add(2); }",
+            "fn main() -> number { let total = 0; let add = (a: number, b: number) => { total += a; total + b }; return 1 |> add(2); }",
         )
         .unwrap();
     let bytes = compiler.compile(&program).unwrap();
     Validator::new().validate_all(&bytes).unwrap();
 
     let mut body_calls = Vec::new();
+    let mut signatures = Vec::new();
+    let mut function_types = Vec::new();
     let mut function_count = 0;
     for payload in Parser::new(0).parse_all(&bytes) {
         match payload.unwrap() {
-            Payload::FunctionSection(reader) => function_count = reader.count(),
+            Payload::TypeSection(reader) => {
+                signatures.extend(
+                    reader
+                        .into_iter_err_on_gc_types()
+                        .map(|signature| signature.unwrap()),
+                );
+            }
+            Payload::FunctionSection(reader) => {
+                function_count = reader.count();
+                function_types.extend(reader.into_iter().map(Result::unwrap));
+            }
             Payload::CodeSectionEntry(body) => {
                 let calls = body
                     .get_operators_reader()
@@ -48,10 +60,68 @@ fn lexical_pipeline_stage_lowers_to_a_valid_direct_helper_call() {
             _ => {}
         }
     }
-    assert_eq!(function_count, 2);
-    assert_eq!(body_calls.len(), 2);
-    assert_eq!(body_calls[0], [1]);
-    assert!(body_calls[1].is_empty());
+    assert!(function_count > 2);
+    assert_eq!(body_calls.len(), function_count as usize);
+    assert_eq!(
+        body_calls[0].last(),
+        Some(&(function_count - 1)),
+        "main must directly call the final private closure helper"
+    );
+    assert!(body_calls.last().unwrap().is_empty());
+    assert_eq!(
+        signatures[*function_types.last().unwrap() as usize].params(),
+        [ValType::I32, ValType::F64, ValType::F64]
+    );
+}
+
+#[test]
+fn forged_lexical_stages_require_injection_and_reject_defaults() {
+    let source =
+        "fn main() -> number { let add = (a: number, b: number) => a + b; return 1 |> add(2); }";
+    let mut without_injection = Compiler::new().analyze(source).unwrap();
+    let TypedStatementKind::Return(Some(value)) = &mut without_injection.functions[0].body[1].kind
+    else {
+        panic!("pipeline return");
+    };
+    let sequence = normalized(value);
+    sequence.bindings[0].origin = CallBindingOrigin::Explicit { argument: 0 };
+    sequence.bindings[1].origin = CallBindingOrigin::Explicit { argument: 1 };
+    assert!(matches!(
+        codegen::compile(&without_injection),
+        Err(CodegenError::InvalidNormalizedCall {
+            reason: "lexical stages require a pipeline input binding",
+            ..
+        })
+    ));
+
+    let mut with_default = Compiler::new().analyze(source).unwrap();
+    let TypedStatementKind::Return(Some(value)) = &mut with_default.functions[0].body[1].kind
+    else {
+        panic!("pipeline return");
+    };
+    normalized(value).bindings[1].origin = CallBindingOrigin::Default { formal: 1 };
+    assert!(matches!(
+        codegen::compile(&with_default),
+        Err(CodegenError::InvalidNormalizedCall {
+            reason: "lexical stages cannot contain default bindings",
+            ..
+        })
+    ));
+
+    let mut duplicate_injection = Compiler::new().analyze(source).unwrap();
+    let TypedStatementKind::Return(Some(value)) =
+        &mut duplicate_injection.functions[0].body[1].kind
+    else {
+        panic!("pipeline return");
+    };
+    normalized(value).bindings[1].origin = CallBindingOrigin::PipelineInput;
+    assert!(matches!(
+        codegen::compile(&duplicate_injection),
+        Err(CodegenError::InvalidNormalizedCall {
+            reason: "pipeline input must be the first and only injected binding",
+            ..
+        })
+    ));
 }
 
 fn compiler_at(level: OptimizationLevel) -> Compiler {

@@ -168,7 +168,7 @@ and [WP8 status and suites](docs/was_language_extensions_plan.md#wp8--whitelist-
 including freshly rebuilt browser bindings and the full ignored runtime suite.
 WP9 match statements/values are implemented with frontend/backend integrated;
 [release gates passed](docs/was_language_extensions_plan.md#wp9-release-validation).
-WP10 named-only pipelines support positional/named arguments, omitted trailing
+WP10 user-function pipeline stages support positional/named arguments, omitted trailing
 defaults, and final Void stages with discarded results (#27). Implementation is
 complete; [release gates passed](docs/was_language_extensions_plan.md#wp10-release-validation)
 on 2026-10-14, including current-source rebuilt-browser and full ignored runtime coverage.
@@ -188,6 +188,12 @@ under #35. Earlier subset evidence retains its historical scope.
 including rebuilt-browser and full ignored runtime coverage for #30, before #31.
 [#31 validation passed](docs/local-callable-interface.md#issue-31-validation-2026-10-14). WP12 placeholders and
 WP13 optimization are separately scoped.
+
+Issue #44 adds known lexical callable pipeline stages: a visible local callable
+receives the input as formal zero followed by positional written arguments. These
+stages keep the existing direct-helper/shared-capture model and add no named/default
+closure parameters. Implementation is committed; integrated release validation,
+including rebuilt-browser parity, remains pending.
 
 <a id="typed-arrays-37-core-implemented-release-validation-pending"></a>
 

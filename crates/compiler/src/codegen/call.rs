@@ -94,7 +94,8 @@ pub(super) fn emit_normalized(
     span: Span,
 ) -> Result<(Flow, ExprResult), CodegenError> {
     let invalid = |reason| CodegenError::InvalidNormalizedCall { reason, span };
-    let (params, return_type) = match &sequence.call.kind {
+    let lexical_target = matches!(&sequence.call.kind, TypedExprKind::LexicalCall { .. });
+    let (params, return_type, args) = match &sequence.call.kind {
         TypedExprKind::Call {
             func: reference @ FunctionRef::User(_),
             name,
@@ -107,7 +108,7 @@ pub(super) fn emit_normalized(
             if args.len() != target.params.len() {
                 return Err(invalid("final call arity does not match its target"));
             }
-            (target.params.clone(), target.return_type)
+            (target.params.clone(), target.return_type, args)
         }
         TypedExprKind::LexicalCall { callable, args, .. } => {
             let plan = body.callable(*callable, span)?;
@@ -121,13 +122,10 @@ pub(super) fn emit_normalized(
                     .map(|param| param.ty)
                     .collect(),
                 plan.declaration.return_type,
+                args,
             )
         }
         _ => return Err(invalid("final expression must be a direct user call")),
-    };
-    let args = match &sequence.call.kind {
-        TypedExprKind::Call { args, .. } | TypedExprKind::LexicalCall { args, .. } => args,
-        _ => unreachable!(),
     };
     if sequence.call.ty != ExprResult::from(return_type) {
         return Err(invalid("final call result does not match its signature"));
@@ -139,6 +137,14 @@ pub(super) fn emit_normalized(
         return Err(invalid(
             "binding, mapping and argument counts must match the signature",
         ));
+    }
+    if lexical_target
+        && !sequence
+            .bindings
+            .first()
+            .is_some_and(|binding| binding.origin == CallBindingOrigin::PipelineInput)
+    {
+        return Err(invalid("lexical stages require a pipeline input binding"));
     }
 
     let mut bindings = HashMap::with_capacity(sequence.bindings.len());
@@ -165,7 +171,9 @@ pub(super) fn emit_normalized(
                 Some("bindings must have contiguous written-order explicit origins")
             }
             CallBindingOrigin::Default { formal } => {
-                if sequence.formal_to_binding.get(formal) != Some(&binding.id) {
+                if lexical_target {
+                    Some("lexical stages cannot contain default bindings")
+                } else if sequence.formal_to_binding.get(formal) != Some(&binding.id) {
                     Some("default origin must match its formal mapping")
                 } else if previous_default.is_some_and(|previous| formal <= previous) {
                     Some("defaults must follow explicit arguments in increasing formal order")

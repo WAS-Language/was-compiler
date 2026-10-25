@@ -46,7 +46,7 @@ WP8 whitelist contracts are implemented;
 [release gates passed](was_language_extensions_plan.md#wp8-release-validation),
 including rebuilt-browser and full ignored runtime coverage.
 WP9 match statements/values are implemented with frontend/backend integrated;
-[release gates passed](was_language_extensions_plan.md#wp9-release-validation). WP10 named-only pipelines are implemented, including named/default binding and
+[release gates passed](was_language_extensions_plan.md#wp9-release-validation). WP10 user-function pipeline stages are implemented, including named/default binding and
 final-Void discard support (#27);
 [release gates passed](was_language_extensions_plan.md#wp10-release-validation)
 on 2026-10-14, including current-source rebuilt-browser and full ignored runtime coverage.
@@ -61,12 +61,14 @@ with [validation passed](local-callable-interface.md#issue-33-validation-2026-10
 Nested read-only range/array captures and transitive live callable contexts compose
 with captured compounds and invocation-local lifetime behavior (#34). WP11 is
 implemented; #35's full native/browser [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15).
-WP12 remains deferred and WP13 requires separate authorization.
+Issue #44 implements known lexical callable pipeline stages; integrated release
+validation remains pending. WP12 placeholder locals/immediate stages remain deferred,
+and WP13 requires separate authorization.
 See [the #14 contract](result-inference-development.md#issue-14-acyclic-chains-and-diamonds) and the
 [named/default interface](named-call-interface.md) for migration and the
 [development handoff](wp6-wp7-development.md) for historical worktree evidence.
 
-### Named-only pipeline restrictions (WP10; release gates passed)
+### Pipeline restrictions (WP10 release gates passed; #44 implemented)
 
 `value |> function(args)` injects into formal 0 of a named user function and
 supports positional-prefix/named remaining arguments and omitted trailing defaults.
@@ -78,6 +80,9 @@ no permission to operands, call arguments, pipeline inputs or value-producing
 contexts. Nonfinal declared-Void stages are rejected even after Never. Existing
 structural joins for expression if/match remain unchanged; outer discard does not
 permit mixed Void/value branches. Ordinary calls, defaults and ABI remain unchanged.
+Known visible local callable stages are also supported, with positional-only
+written arguments and the injected input mapped to their first parameter. They
+use checked direct helpers and shared captures, not callable values.
 Host/builtin stages, zero-parameter stages, callable values, placeholders and
 expression callees are rejected. User-function wrappers can call
 hosts. Pipelines remain outside the default/contract whitelist. Parenthesize bare

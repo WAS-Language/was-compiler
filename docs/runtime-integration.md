@@ -177,8 +177,9 @@ compounds (#31). #32 adds nested parameter/let forwarding and live callable cont
 Nested read-only range/array captures and transitive live callable contexts compose
 with captured compounds and invocation-local lifetime behavior. WP11 is implemented;
 full native/browser [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
-under #35. WP12 placeholders and
-callable pipeline stages remain deferred.
+under #35. Issue #44 implements known lexical callable pipeline stages; integrated
+release validation remains pending. WP12 placeholder locals and immediate stages
+remain deferred.
 [#30 subset validation passed](local-callable-interface.md#issue-30-validation-2026-10-14),
 including rebuilt-browser and full ignored runtime coverage before #31.
 [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14). WP13 optimization

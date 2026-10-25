@@ -23,6 +23,7 @@ fn identity(x: number) -> number { return x; }
 fn progression(start: number, end: number) -> range { return start..=end by 2; }
 fn total(xs: range) -> number { let n = 0; for x in xs { n += x; } return n; }
 fn main() -> number { return mark(1) |> digits(mark(2), mark(3)) |> identity(); }
+fn local_pipeline() -> number { let add = (a: number, b: number) => a + b; return 1 |> add(2); }
 fn bare() -> number { return 5 |> identity; }
 fn empty() -> number { return 5 |> identity(); }
 fn ranges() -> number { return 1 |> progression(end: 5) |> total; }
@@ -63,6 +64,7 @@ fn discarded_never() -> number { (loop {}) |> sink; }
 "#;
 const SELECTED: &[&str] = &[
     "main",
+    "local_pipeline",
     "bare",
     "empty",
     "ranges",

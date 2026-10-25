@@ -3,9 +3,10 @@
 ## Status and scope
 
 The user accepted interview decisions Q1–Q25 and confirmed the complete shared
-understanding in Q26. The design interview is complete; implementation remains
-unauthorized. WP11's release satisfies the predecessor gate, not authorization.
-No WP12 implementation or release validation is claimed.
+understanding in Q26. WP11's release satisfied the predecessor gate. Explicit
+authorization for issue #44 implemented known lexical callable pipeline stages;
+integrated WP12 release validation remains pending. Placeholder local declarations
+and immediate stages have not been implemented or authorized.
 
 WP12 covers placeholder local declarations, known lexical callable pipeline
 stages, and immediate parenthesized typed-lambda/placeholder stages. It does not
@@ -306,9 +307,9 @@ message, span, and first-error ordering.
 
 ## Ordered delivery and release evidence (Q20–Q21)
 
-After separate implementation authorization:
+Following separate implementation authorization, delivery remains ordered:
 
-1. Known lexical callable pipeline stages.
+1. Known lexical callable pipeline stages (#44 implemented; release validation pending).
 2. Placeholder inference and local declarations.
 3. Immediate stages.
 4. Integrated release validation.

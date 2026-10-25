@@ -23,11 +23,11 @@ fn lexical_callable_pipeline_stages_keep_shared_captures_and_argument_order() {
                 total += input;
                 total + extra
             };
-            return 2 |> add(mark(3));
+            return mark(2) |> add(mark(3));
         }
         "#,
         &["main"],
-        "assert.equal(e.main(), 5); assert.deepEqual(events.splice(0), [3]); assert.equal(e.main(), 5); assert.deepEqual(events.splice(0), [3]);",
+        "assert.equal(e.main(), 5); assert.deepEqual(events.splice(0), [2, 3]); assert.equal(e.main(), 5); assert.deepEqual(events.splice(0), [2, 3]);",
     );
 }
 

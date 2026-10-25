@@ -189,7 +189,7 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   whitelist `requires` contracts; [release gates passed](docs/was_language_extensions_plan.md#wp8-release-validation).
   WP9 match statements/values are implemented with frontend/backend integrated;
   [release gates passed](docs/was_language_extensions_plan.md#wp9-release-validation).
-  WP10 named-only pipelines implement positional/named/default stage binding
+  WP10 user-function pipeline stages implement positional/named/default binding
   and final-Void discard support (#27);
     [release gates passed](docs/was_language_extensions_plan.md#wp10-release-validation) on 2026-10-14.
   WP11 implements capture-free local callables (#29) and immediate-creator shared
@@ -205,7 +205,8 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Nested read-only range/array captures and transitive live callable contexts compose
   with captured compounds and invocation-local lifetime behavior. WP11 is implemented;
   #35's full native/browser [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15).
-  WP12 remains deferred; WP13
+  WP12 placeholder locals and immediate stages remain deferred; #44's known lexical
+  callable stages are implemented, pending integrated release validation. WP13
   optimization requires separate authorization.
   Preserve `target/wp7-inference` when cleaning generated output. Before changing defaults, call binding, or
   normalized lowering, read [the handoff](docs/wp6-wp7-development.md) and
@@ -364,27 +365,31 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Keep invocation-local contexts distinct, preserve completed effects after traps,
   and retain array/string offsets across later allocations; refresh host views after growth.
 - Keep local callables declaration-bound and directly invoked: no immediate
-  invocation, first-class values, aliases, passing/returning callables or callable
-  pipeline stages. WP12 placeholders/stages, reclamation and separately authorized
-  WP13 optimization are outside WP11. Use [#35's release evidence](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
+  invocation, first-class values, aliases or passing/returning callables. Issue #44
+  adds known local callable pipeline stages without named/default closure parameters;
+  WP12 placeholder locals/immediate stages, reclamation and separately authorized
+  WP13 optimization remain out of scope. #44 implementation is committed but integrated
+  release validation is pending. Use [#35's release evidence](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
   for full native/current-source browser validation; earlier subsets retain their
   historical scope.
 - Keep `crates/compiler/tests/closures_frontend.rs`, `crates/compiler/tests/closures_lowering.rs`,
   `crates/compiler/tests/closures_runtime.rs`, and `crates/cli/tests/closures_adapters.rs`, `crates/browser/tests/closures_adapters.rs` at the confirmed
   compiler/typed-input/adapter seams. Runtime cases remain ignored by default.
 
-### Named-only pipelines (WP10 implemented, #27 release gates passed)
+### Pipelines (WP10 and #44 implemented; #44 release validation pending)
 
 - Before changing pipeline binding, discard propagation, diagnostics or lowering,
   read [the normative rules](docs/was_language_extensions_spec.md#12-feature-specification-pipeline-operator-)
   and [public migration](docs/named-call-interface.md#wp10-pipeline-migration-issue-25).
   The plan's #25/#26 validation records are historical subset evidence, not #27 release evidence.
-- Raw pipelines retain input/prefix spans and ordered named stages for inference
+- Raw pipelines retain input/prefix spans and ordered stages for inference
   dependency discovery, whitelist rejection and narrow diagnostics. Typed stages
   nest existing normalized direct calls; `PipelineInput` must be unique, first,
   mapped to formal 0, and cannot read sequence-owned bindings. Written explicit
-  indices still start at zero. Preserve ordinary named/default calls and independent
-  structural/planning policies.
+  indices still start at zero. A local callable stage resolves lexically, injects
+  the input as formal zero, and accepts only positional written arguments; it adds
+  no named/default closure parameters. Preserve ordinary named/default user-function
+  calls and independent structural/planning policies.
 - Stages reuse ordinary positional-prefix/named/default binding with
   formal 0 already occupied, even when defaulted; naming it is a duplicate. Bare
   and empty stages both use remaining defaults. Keep declaration-scope remapping,
