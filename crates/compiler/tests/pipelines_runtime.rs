@@ -31,6 +31,23 @@ fn lexical_callable_pipeline_stages_keep_shared_captures_and_argument_order() {
     );
 }
 
+#[test]
+#[ignore = "requires Node.js on PATH"]
+fn lexical_pipeline_stages_forward_live_callable_contexts() {
+    run(
+        r#"
+        fn main() -> number {
+            let total = 0;
+            let inner = (input: number) => { total += input; total };
+            let outer = (input: number) => input |> inner;
+            return 2 |> outer;
+        }
+        "#,
+        &["main"],
+        "assert.equal(e.main(), 2); assert.equal(e.main(), 2);",
+    );
+}
+
 fn compiler(selected: &[&str]) -> Compiler {
     let mut compiler = Compiler::new();
     compiler
