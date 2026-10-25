@@ -334,6 +334,7 @@ adapter seams. Include:
   runtime/browser suites under the documented offline validation workflow.
 
 Default Cargo success is not release evidence for ignored runtime/browser cases.
-No release success is claimed by this document. The completed design has final
-shared-understanding confirmation; implementation and landing each still need
-their own explicit authorization.
+No full WP12 release success is claimed by this document. The completed design has
+final shared-understanding confirmation. Issue #44 implementation is authorized and
+committed; remaining WP12 implementation and landing each require their own explicit
+authorization.

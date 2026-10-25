@@ -145,7 +145,7 @@ WP8 whitelist contracts are implemented, with
 [release gates passed](was_language_extensions_plan.md#wp8-release-validation).
 WP9 match statements/values are implemented with frontend/backend integrated;
 [release gates passed](was_language_extensions_plan.md#wp9-release-validation).
-WP10 named-only pipelines are implemented through nested checked normalized calls,
+WP10 user-function pipeline stages are implemented through nested checked normalized calls,
 including named/default binding and final-Void discard support (#27); raw pipelines
 retain source spans and stage dependency syntax.
 [Release gates passed](was_language_extensions_plan.md#wp10-release-validation)
@@ -159,7 +159,9 @@ with [validation passed](local-callable-interface.md#issue-33-validation-2026-10
 Nested read-only range/array captures and transitive live callable contexts compose
 with captured compounds and invocation-local lifetime behavior (#34). WP11 is
 implemented; full native/browser [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
-under #35. WP12 remains deferred and WP13 requires separate authorization. See [the local callable interface](local-callable-interface.md). See
+under #35. Issue #44 implements known lexical callable pipeline stages; integrated
+release validation remains pending. WP12 placeholder locals/immediate stages remain
+deferred and WP13 requires separate authorization. See [the local callable interface](local-callable-interface.md). See
 [the #14 inference contract](result-inference-development.md#issue-14-acyclic-chains-and-diamonds). See the
 [interface gate](named-call-interface.md) and [handoff](wp6-wp7-development.md).
 
@@ -924,14 +926,16 @@ records the cross-feature acceptance coverage.
 The default Cargo suite still skips Node cases. WP6/WP7 and their release gates
 are complete; WP8 contracts and their runtime/browser release gates are also complete.
 WP9 frontend/backend are integrated with [release gates passed](was_language_extensions_plan.md#wp9-release-validation);
-WP10 named-only pipelines, including named/default and final-Void discard support,
+WP10 user-function pipeline stages, including named/default and final-Void discard support,
 are implemented (#27), with [release validation passed](was_language_extensions_plan.md#wp10-release-validation).
 WP11's #29–#33 subsets implement local callables, shared parameter/let captures,
 captured numeric compounds, nested parameter/let and live callable-context forwarding,
 and read-only iteration captures ([#33 validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)).
 Nested read-only range/array captures and transitive contexts are supported;
 full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
-under #35. WP12 remains deferred.
+under #35. Issue #44 implements known lexical callable pipeline stages; integrated
+release validation remains pending. WP12 placeholder locals/immediate stages remain
+deferred.
 [#30 subset validation passed](local-callable-interface.md#issue-30-validation-2026-10-14)
 before #31; [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14). WP13 requires separate authorization.
 External range signatures, range equality, and allocation-free range optimization
@@ -1030,7 +1034,7 @@ the default ignored policy; optimization-level parity remains unchanged. See
 [spec §8.2](was_language_extensions_spec.md#82-match-expression-syntax) and
 [the frozen WP9 interview and suites](was_language_extensions_plan.md#wp9--match-statementsvalues-spec-8-implemented).
 
-## Implemented language extension: named-only pipelines (WP10; release gates passed)
+## Implemented language extension: user-function and lexical callable pipelines (WP10/#44)
 
 Named user-function stages inject the once-evaluated input into formal 0, then
 reuse ordinary positional-prefix/named binding and trailing defaults. Injection
@@ -1065,11 +1069,18 @@ include-ignored suite. Focused suites passed with 23 frontend, 25 lowering,
 bindings. The plan's
 [#25](was_language_extensions_plan.md#issue-25-subset-validation-2026-10-14) and
 [#26](was_language_extensions_plan.md#issue-26-subset-validation-2026-10-14) records
-are historical subset validation, not final-Void release evidence. WP11's #29–#33
+are historical subset validation, not final-Void release evidence. Issue #44 extends
+the pipeline target to visible local callables, accepting positional-only written
+arguments after the injected input. Calls use the existing normalized direct-call
+representation and checked helper lifecycle, including shared captures/dependencies;
+no callable value, closure defaults, or named closure arguments are introduced.
+Its focused tests cover forged injection ownership, decoded direct calls and hidden
+contexts, bounded runtime behavior, and adapter byte parity. Integrated #44 release
+validation is pending. WP11's #29–#33
 subsets are implemented ([#33 validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14).
 Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
-under #35; WP12 remains deferred,
-and WP13 requires separate authorization.
+under #35; WP12 placeholder locals/immediate stages remain deferred, and WP13
+requires separate authorization.
 
 ## Implemented language extension: local callables and shared captures (WP11)
 

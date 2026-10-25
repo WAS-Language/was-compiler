@@ -61,7 +61,7 @@ fn lexical_pipeline_stage_lowers_to_a_valid_direct_helper_call() {
         }
     }
     assert!(function_count > 2);
-    assert_eq!(body_calls.len(), function_count as usize);
+    assert_eq!(body_calls.len(), usize::try_from(function_count).unwrap());
     assert_eq!(
         body_calls[0].last(),
         Some(&(function_count - 1)),
@@ -69,7 +69,7 @@ fn lexical_pipeline_stage_lowers_to_a_valid_direct_helper_call() {
     );
     assert!(body_calls.last().unwrap().is_empty());
     assert_eq!(
-        signatures[*function_types.last().unwrap() as usize].params(),
+        signatures[usize::try_from(*function_types.last().unwrap()).unwrap()].params(),
         [ValType::I32, ValType::F64, ValType::F64]
     );
 }
@@ -86,13 +86,10 @@ fn forged_lexical_stages_require_injection_and_reject_defaults() {
     let sequence = normalized(value);
     sequence.bindings[0].origin = CallBindingOrigin::Explicit { argument: 0 };
     sequence.bindings[1].origin = CallBindingOrigin::Explicit { argument: 1 };
-    assert!(matches!(
-        codegen::compile(&without_injection),
-        Err(CodegenError::InvalidNormalizedCall {
-            reason: "lexical stages require a pipeline input binding",
-            ..
-        })
-    ));
+    assert_invalid_reason_at_every_level(
+        &without_injection,
+        "lexical stages require a pipeline input binding",
+    );
 
     let mut with_default = Compiler::new().analyze(source).unwrap();
     let TypedStatementKind::Return(Some(value)) = &mut with_default.functions[0].body[1].kind
@@ -100,13 +97,10 @@ fn forged_lexical_stages_require_injection_and_reject_defaults() {
         panic!("pipeline return");
     };
     normalized(value).bindings[1].origin = CallBindingOrigin::Default { formal: 1 };
-    assert!(matches!(
-        codegen::compile(&with_default),
-        Err(CodegenError::InvalidNormalizedCall {
-            reason: "lexical stages cannot contain default bindings",
-            ..
-        })
-    ));
+    assert_invalid_reason_at_every_level(
+        &with_default,
+        "lexical stages cannot contain default bindings",
+    );
 
     let mut duplicate_injection = Compiler::new().analyze(source).unwrap();
     let TypedStatementKind::Return(Some(value)) =
@@ -115,13 +109,52 @@ fn forged_lexical_stages_require_injection_and_reject_defaults() {
         panic!("pipeline return");
     };
     normalized(value).bindings[1].origin = CallBindingOrigin::PipelineInput;
-    assert!(matches!(
-        codegen::compile(&duplicate_injection),
-        Err(CodegenError::InvalidNormalizedCall {
-            reason: "pipeline input must be the first and only injected binding",
-            ..
-        })
-    ));
+    assert_invalid_reason_at_every_level(
+        &duplicate_injection,
+        "pipeline input must be the first and only injected binding",
+    );
+}
+
+fn assert_invalid_reason_at_every_level(program: &TypedProgram, reason: &'static str) {
+    let matches_reason = |result: Result<Vec<u8>, CodegenError>| matches!(result, Err(CodegenError::InvalidNormalizedCall { reason: actual, .. }) if actual == reason);
+    assert!(matches_reason(codegen::compile(program)), "{reason}");
+    for level in LEVELS {
+        let mut compiler = Compiler::new();
+        compiler.set_optimization_level(level);
+        assert!(
+            matches_reason(compiler.compile(program)),
+            "{reason} at {level:?}"
+        );
+    }
+}
+
+#[test]
+fn lexical_pipeline_stage_bytes_match_across_enabled_presets() {
+    let source =
+        "fn main() -> number { let add = (a: number, b: number) => a + b; return 1 |> add(2); }";
+    let mut enabled_bytes = None;
+    let mut program_snapshot = None;
+    for level in [
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        let mut compiler = Compiler::new();
+        compiler.set_optimization_level(level);
+        let program = compiler.analyze(source).unwrap();
+        if let Some(snapshot) = &program_snapshot {
+            assert_eq!(&program, snapshot, "{level:?}");
+        } else {
+            program_snapshot = Some(program.clone());
+        }
+        let bytes = compiler.compile(&program).unwrap();
+        assert_eq!(compiler.compile(&program).unwrap(), bytes, "{level:?}");
+        if let Some(expected) = &enabled_bytes {
+            assert_eq!(&bytes, expected, "{level:?}");
+        } else {
+            enabled_bytes = Some(bytes);
+        }
+    }
 }
 
 fn compiler_at(level: OptimizationLevel) -> Compiler {

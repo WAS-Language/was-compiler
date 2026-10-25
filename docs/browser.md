@@ -392,11 +392,12 @@ also after possible growth during host reentry. See [the #34 lifetime coverage](
 No reclamation or heap rewind is added.
 
 Callables are local lexical names, not first-class values: aliasing, reassignment,
-passing/returning them, immediate invocation and callable pipeline stages remain
-unsupported. Closure defaults/contracts/result annotations remain unsupported;
-WP12 and WP13 are outside WP11.
+passing/returning them and immediate invocation remain unsupported. Issue #44 adds
+known lexical callable pipeline stages with positional-only written arguments;
+integrated browser validation remains pending. Closure defaults/contracts/result
+annotations and placeholder/immediate stages remain unsupported.
 
-## Named-only pipelines (WP10; release gates passed)
+## Pipelines (WP10 release gates passed; #44 implemented)
 
 The shared core supports named user-function stages with positional-prefix/named
 arguments and omitted trailing defaults. Input occupies formal 0 before written
@@ -415,6 +416,12 @@ after Never; structural joins for expression if/match are unchanged. Shared
 `InvalidPipeline` diagnostics use stage spans and the messages
 `a nonfinal stage cannot return void` and
 `a final void stage requires a discarded result`.
+
+Issue #44 also allows visible local callable stages. Their input is formal zero,
+written arguments are positional-only, and lowering calls the existing direct helper
+with its live capture context when required. No closure defaults or named arguments
+are added. Current-source rebuilt-browser parity and integrated release validation
+remain pending.
 
 There is no typed wrapper or public discard flag. Source-semantic discard is not
 wholly reconstructible from forged typed input; backend injection ownership, type

@@ -275,9 +275,10 @@ its pre-RHS checked address.
 
 Callables cannot be aliased, reassigned, annotated with a value type, passed,
 returned or used as values. Immediate invocation, closure defaults/contracts/result
-annotations, placeholders and closure pipeline stages are not supported. WP12
-placeholder/callable-stage work and separately authorized WP13 optimization are
-outside WP11. WP11's [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15),
+annotations and placeholders are not supported. Issue #44 separately adds known
+lexical callable pipeline stages with positional-only arguments; integrated release
+validation remains pending. WP12 placeholder/immediate-stage work and separately
+authorized WP13 optimization remain outside WP11. WP11's [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15),
 including current-source rebuilt-browser and full ignored runtime coverage.
 
 Generated helpers use direct calls, are never exported, and follow existing runtime

@@ -102,8 +102,10 @@ Only lambda-initialized local bindings and direct positional calls are supported
 Parentheses around initializers are transparent. Callables cannot be used as
 values, aliased, reassigned, given value-type annotations, passed or returned.
 Immediate invocation, named/default closure parameters, closure contracts/result
-annotations, placeholders and closure pipeline stages are rejected. Closures may
-call ordinary named functions with their existing defaults and contracts.
+annotations and placeholders are rejected. Issue #44 adds direct lexical callable
+pipeline stages with positional-only written arguments; see
+[the pipeline interface](named-call-interface.md).
+Closures may call ordinary named functions with their existing defaults and contracts.
 
 A closure may capture ancestor parameters and ordinary lets of every
 concrete type (`number`, `bool`, `string`, `number[]`, `bool[]`, `string[]`, `range`). Captures preserve
@@ -358,8 +360,9 @@ capture/context forwarding by #32 (validation passed). #33 adds read-only iterat
 captures (validation passed). Nested read-only range/array captures and transitive
 live callable contexts compose with captured compounds and invocation-local lifetime
 behavior. Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
-under #35; WP12 placeholders
-and callable pipeline stages remain deferred.
+under #35. Issue #44 implements known lexical callable pipeline stages; integrated
+release validation remains pending. WP12 placeholder locals/immediate stages remain
+deferred.
 
 - Scrutinees that complete must be number/bool/string, not arrays, ranges or Void.
   Patterns are wildcard, exact scalar literals, numeric comparisons and constant
