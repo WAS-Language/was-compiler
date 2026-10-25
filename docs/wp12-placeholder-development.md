@@ -6,9 +6,10 @@ The user accepted interview decisions Q1–Q25 and confirmed the complete shared
 understanding in Q26. WP11's release satisfied the predecessor gate. Explicit
 authorization for issue #44 implemented known lexical callable pipeline stages;
 integrated WP12 release validation remains pending. Issue #45 implements the
-direct-constraint local-declaration milestone described below. Immediate stages,
-local/collection propagation (#46), and full control-flow/nesting composition
-(#47) remain deferred. This is not full WP12 release evidence.
+direct-constraint local-declaration milestone described below. Issue #46 extends
+that solver with local/collection propagation and basic value-if joins. Immediate
+stages and full control-flow/nesting composition (#47) remain deferred.
+This is not full WP12 release evidence.
 
 ### Implemented direct-constraint milestone (#45)
 
@@ -36,11 +37,11 @@ raw-AST migrations. Explicit and synthesized helpers share source-preorder
 Placeholder-callable value uses receive `InvalidCallableValueUse`; unchanged
 explicit-lambda programs retain their historical diagnostics.
 
-This milestone deliberately rejects unresolved complex regions with
+The historical #45 milestone deliberately rejected unresolved complex regions with
 `CannotInferPlaceholderParameter`, rather than guessing a signature. Inferred-local
 relationships, collection propagation, branch/match/value-loop/pipeline expressions
-inside a placeholder body, and nested callable composition inside that body await
-#46/#47. Ordinary code surrounding a placeholder declaration may use these features,
+inside a placeholder body, and nested callable composition inside that body were
+deferred to #46/#47. Ordinary code surrounding a placeholder declaration could use these features,
 including iteration captures, explicit enclosing lambdas, and known lexical
 pipeline stages. Immediate stages still await their separate milestone. The
 remaining sections describe the final design, not all current capabilities.
@@ -72,6 +73,64 @@ Self-review against #45 and the repository standards corrected unreachable
 equality evidence and conflict ordering when fallback source spans overlap.
 The added regressions pass. This was a self-review, not independent agent review.
 
+### Implemented local/collection milestone (#46)
+
+The existing private solver now relates inferred local bindings, annotations,
+ordinary/compound assignments, equality operands, basic value-if joins, array
+elements and resolved ordinary-call formals. Exact evidence propagates along
+these relationships regardless of discovery order. Initializers still precede
+binding introduction, scopes remain lexical, and assignments do not change a
+binding's fixed type. Array element relationships select only `number[]`,
+`bool[]` or `string[]`; indexing retains its existing identifier-based syntax.
+No caller, named-result scheduling or backend inference is added.
+
+**Approved ownership clarification for #46:** inside an enclosing placeholder
+region, `let x = _;` (including transparent parentheses) is an ordinary local
+initialized from that region's parameter. Structural discovery includes these
+bare initializer occurrences when deciding whether the enclosing initializer
+owns a region. Compound placeholder initializers such as `let inner = _ + 1;`
+and explicit lambdas remain independent callable boundaries. Thus
+`let outer = { let x = _; x += 1; x };` declares a unary callable, while
+`let value = { let inner = _ + 1; inner(10) };` declares an ordinary number.
+Top-level `let identity = _;` remains an ambiguous identity callable.
+Ownership is syntax-directed, never selected by later uses or callers.
+
+`len` and equality alone do not select an unknown parameter type, and empty or
+unknown-element array literals contribute no numeric fallback evidence.
+Unreachable sites do not solve parameters; after inference succeeds the existing
+concrete closure checker still checks every child, including unreachable writes.
+Basic `if` value joins propagate exact types without constant-folding conditions.
+Match, value-loop, pipeline and nested callable composition inside a placeholder
+body remain deferred to later milestones. Typed callable shapes and ABI are unchanged.
+
+Browser parity cases are extended but current-source execution remains blocked:
+the documented offline `wasm-pack` command compiled Rust, then failed to locate
+compatible local `wasm-bindgen` tooling. No tooling was installed and no stale
+bindings were used for validation. This is not full WP12 release evidence.
+
+#### #46 validation and review
+
+Passed offline:
+
+- The ticket's closure/pipeline frontend and lowering targets, explicitly executed
+  runtime targets, core adapter target and CLI adapter targets.
+- `cargo test --offline -p was-compiler --test inference --test typed_arrays --test typed_arrays_lowering --test typed_arrays_runtime -- --include-ignored`.
+- `cargo check --offline --workspace --all-targets`.
+- `cargo test --offline` and `cargo test --offline -- --include-ignored`
+  (compiler/CLI default members, including native Node execution; not browser).
+- `cargo clippy --offline --all-targets -- -D warnings`.
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`.
+- `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings`.
+
+The browser adapter target compiles, but its current-source execution remains
+unverified for the tooling reason above. Neither full workspace include-ignored
+validation nor rebuilt-browser smoke/parity success is claimed.
+
+Self-review against repository standards and #46 corrected assignment-conflict
+expected/found orientation and retained annotation evidence from reachable array
+elements before a later divergent element. Focused regression tests cover both.
+This is self-review, not independent two-agent review.
+
 WP12 covers placeholder local declarations, known lexical callable pipeline
 stages, and immediate parenthesized typed-lambda/placeholder stages. It does not
 add first-class callable values, aliases, callable arguments/results, general
@@ -87,7 +146,8 @@ reclamation, or general WP13 optimization.
   remains a wildcard. `_temp` remains an ordinary identifier.
 - Nested explicit lambdas are boundaries: an otherwise unowned `_` in their body
   is invalid, not an extra parameter of either lambda. Nested placeholder local
-  declarations and immediate placeholder stages own their own occurrences.
+  declarations and immediate placeholder stages own their own occurrences, except
+  bare `_` local initializers belonging to an enclosing region as clarified in #46.
 - An initializer with no owned placeholder remains an ordinary value initializer,
   unless independently recognized as an explicit lambda. Nested regions do not
   trigger abstraction of their enclosing initializer.

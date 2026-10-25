@@ -100,14 +100,15 @@ for complete WP10 support.
 
 ### Local callable and shared-capture restrictions (WP11)
 
-Lambda-initialized and #45 directly constrained placeholder local bindings support
+Lambda-initialized and #45/#46 placeholder local bindings support
 direct positional calls.
 Parentheses around initializers are transparent. Callables cannot be used as
 values, aliased, reassigned, given value-type annotations, passed or returned.
 Immediate invocation, named/default closure parameters, closure contracts/result
-annotations are rejected. Placeholder local inference is limited to the
-[#45 milestone](wp12-placeholder-development.md#implemented-direct-constraint-milestone-45),
-not full region-local propagation or control-flow composition. Issue #44 adds direct lexical callable
+annotations are rejected. Placeholder local inference includes exact local/collection
+propagation and basic value-if joins under the
+[#46 milestone](wp12-placeholder-development.md#implemented-localcollection-milestone-46),
+not full control-flow or nested callable composition. Issue #44 adds direct lexical callable
 pipeline stages with positional-only written arguments; see
 [the pipeline interface](named-call-interface.md).
 Closures may call ordinary named functions with their existing defaults and contracts.

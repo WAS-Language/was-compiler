@@ -98,7 +98,7 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 | `crates/compiler/src/parser.rs`, `crates/compiler/src/ast.rs` | Recursive-descent parsing and untyped syntax |
 | `crates/compiler/src/semantic.rs`, `crates/compiler/src/typed_ast.rs` | Types, scopes, loop targets, return analysis, resolved semantic IDs |
 | `crates/compiler/src/semantic/defaults.rs`, `crates/compiler/src/semantic/pure_expression.rs`, `crates/compiler/src/semantic/call_binding.rs` | Declaration-checked defaults/contracts, shared whitelist, and hygienic named/default binding |
-| `crates/compiler/src/semantic/placeholders.rs` | Private #45 direct constraints and structural placeholder ownership; concrete parameters reuse the existing closure checker |
+| `crates/compiler/src/semantic/placeholders.rs` | Private #45/#46 exact local/collection constraints and structural placeholder ownership; concrete parameters reuse the existing closure checker |
 | `crates/compiler/src/number_literal.rs` | Shared literal syntax/finite-representability rules with stage-specific errors |
 | `crates/compiler/src/match_patterns.rs` | Shared semantic/backend numeric-pattern, domain and exhaustiveness checks |
 | `crates/compiler/src/flow.rs` | Private completion sets shared by semantic/backend flow summaries |
@@ -209,9 +209,10 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Nested read-only range/array captures and transitive live callable contexts compose
   with captured compounds and invocation-local lifetime behavior. WP11 is implemented;
   #35's full native/browser [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15).
-  WP12 #45 implements directly constrained placeholder locals; before changing
-  ownership/inference, read [the milestone boundary](docs/wp12-placeholder-development.md#implemented-direct-constraint-milestone-45).
-  Local/collection propagation, full control-flow/nesting and immediate stages remain
+  WP12 #45/#46 implement placeholder locals with exact local/collection propagation
+  and basic value-if joins; before changing ownership/inference, read
+  [the milestone boundary and approved bare-initializer ownership rule](docs/wp12-placeholder-development.md#implemented-localcollection-milestone-46).
+  Full control-flow/nesting and immediate stages remain
   deferred; #44's known lexical callable stages are implemented, pending integrated release validation. WP13
   optimization requires separate authorization.
   Preserve `target/wp7-inference` when cleaning generated output. Before changing defaults, call binding, or
@@ -373,8 +374,8 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
 - Keep local callables declaration-bound and directly invoked: no immediate
   invocation, first-class values, aliases or passing/returning callables. Issue #44
   adds known local callable pipeline stages without named/default closure parameters;
-  #45 adds directly constrained placeholder locals through the same helper boundary.
-  Remaining WP12 inference/composition and immediate stages, reclamation and separately
+  #45/#46 add placeholder locals with exact local/collection constraints through the same helper boundary.
+  Remaining WP12 control-flow/nested composition and immediate stages, reclamation and separately
   authorized WP13 optimization remain out of scope. #44 implementation is committed but integrated
   release validation is pending. Use [#35's release evidence](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
   for full native/current-source browser validation; earlier subsets retain their

@@ -204,11 +204,22 @@ let same = _ == "ready"; // one string parameter
 let result = 10 |> add(5);
 ```
 
+Issue #46 propagates exact constraints through ordinary locals, annotations,
+assignments, array elements and basic value-if joins:
+
+```text
+let increment = { let x = _; x += 1; x };       // number parameter
+let first_plus_one = { let items = _; items[0] + 1 }; // number[] parameter
+let flip_first = { let flags = _; !flags[0] }; // bool[] parameter
+```
+
+Inside an enclosing placeholder region, a bare `_` initializer belongs to that
+region; compound placeholder initializers still declare independent callables.
 Concrete formal argument types also supply constraints. These declarations reuse
 direct helpers and shared captures; bodies run only when invoked. `_ == _` and
 `len(_)` remain ambiguous, and callers do not infer parameter types. This is a
 partial WP12 milestone, not complete inference or release readiness; see the
-[implemented boundary and deferred composition](docs/wp12-placeholder-development.md#implemented-direct-constraint-milestone-45).
+[implemented boundary and deferred composition](docs/wp12-placeholder-development.md#implemented-localcollection-milestone-46).
 
 <a id="typed-arrays-37-core-implemented-release-validation-pending"></a>
 
@@ -292,7 +303,7 @@ Callables cannot be aliased, reassigned, annotated with a value type, passed,
 returned or used as values. Immediate invocation, closure defaults/contracts/result
 annotations are not supported. Issue #44 separately adds known
 lexical callable pipeline stages with positional-only arguments; integrated release
-validation remains pending. #45 adds the directly constrained placeholder subset
+validation remains pending. #45/#46 add the placeholder local/collection subset
 described above. Remaining WP12 inference/immediate-stage work and separately
 authorized WP13 optimization remain outside WP11. WP11's [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15),
 including current-source rebuilt-browser and full ignored runtime coverage.

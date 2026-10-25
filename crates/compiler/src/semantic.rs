@@ -621,7 +621,10 @@ impl SemanticAnalyzer {
                 value,
                 value_span,
             } => {
-                let placeholder = placeholders::has_owned(value);
+                let owned_parameter = self.placeholder_bindings.last().is_some_and(|bindings| {
+                    bindings.contains_key(&std::ptr::from_ref(value).addr())
+                });
+                let placeholder = !owned_parameter && placeholders::has_owned(value);
                 if placeholder || matches!(value, Expr::Lambda(_)) {
                     if ty.is_some() {
                         return Err(SemanticError::InvalidClosure {

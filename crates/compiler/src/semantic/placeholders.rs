@@ -1,6 +1,7 @@
-//! Region-local, direct constraints. No inferred-local relationships, caller
-//! refinement or public unknown types cross the concrete callable boundary.
+//! Exact region-local constraints. Variables and relationships never cross the
+//! concrete callable boundary; callers cannot refine a declaration's signature.
 use super::*;
+use crate::ArrayElementType;
 
 pub(super) struct Parameter {
     pub(super) identity: usize,
@@ -22,13 +23,17 @@ pub(super) fn first_owned_span(expression: &Expr) -> Option<Span> {
     found
 }
 
-// Initializers and explicit lambdas are callable-region boundaries. In
-// particular, a nested declaration alone never abstracts its enclosing block.
+// A bare placeholder initializer connects an ordinary local to this region.
+// Compound placeholder initializers and explicit lambdas remain boundaries.
 fn visit_owned(expression: &Expr, visit: &mut impl FnMut(&Expr)) {
     fn statements(block: &Block, visit: &mut impl FnMut(&Expr)) {
         for statement in block {
             match &statement.kind {
-                StatementKind::Let { .. } => {}
+                StatementKind::Let { value, .. } => {
+                    if matches!(value, Expr::Placeholder { .. }) {
+                        visit_owned(value, visit);
+                    }
+                }
                 StatementKind::Assignment { target, value }
                 | StatementKind::CompoundAssignment { target, value, .. } => {
                     visit_owned(target, visit);
@@ -134,7 +139,108 @@ fn visit_owned(expression: &Expr, visit: &mut impl FnMut(&Expr)) {
 struct Candidate {
     identity: usize,
     span: Span,
-    ty: Option<Type>,
+    variable: Variable,
+}
+
+#[derive(Clone, Copy)]
+struct Variable(usize);
+
+#[derive(Clone, Copy)]
+enum Relation {
+    Equal(Variable),
+    Element(Variable),
+    Array(Variable),
+}
+
+#[derive(Clone, Copy)]
+enum Relationship {
+    SameType,
+    ArrayElement,
+}
+
+#[derive(Default)]
+struct Constraints {
+    types: Vec<Option<Type>>,
+    edges: Vec<Vec<Relation>>,
+}
+
+impl Constraints {
+    fn variable(&mut self) -> Variable {
+        let variable = Variable(self.types.len());
+        self.types.push(None);
+        self.edges.push(Vec::new());
+        variable
+    }
+
+    fn concrete(&mut self, ty: Type) -> Variable {
+        let variable = self.variable();
+        self.types[variable.0] = Some(ty);
+        variable
+    }
+
+    fn assign(&mut self, variable: Variable, ty: Type) -> Result<(), (Type, Type)> {
+        let mut pending = vec![(variable, ty)];
+        while let Some((variable, ty)) = pending.pop() {
+            if let Some(expected) = self.types[variable.0] {
+                if expected != ty {
+                    return Err((expected, ty));
+                }
+                continue;
+            }
+            self.types[variable.0] = Some(ty);
+            for relation in &self.edges[variable.0] {
+                let (next, ty) = Self::related(*relation, ty)?;
+                pending.push((next, ty));
+            }
+        }
+        Ok(())
+    }
+
+    fn related(relation: Relation, ty: Type) -> Result<(Variable, Type), (Type, Type)> {
+        match relation {
+            Relation::Equal(next) => Ok((next, ty)),
+            Relation::Element(next) => match ty {
+                Type::Array(element) => Ok((next, element.value_type())),
+                _ => Err((Type::Array(ArrayElementType::Number), ty)),
+            },
+            Relation::Array(next) => {
+                let element = match ty {
+                    Type::Number => ArrayElementType::Number,
+                    Type::Bool => ArrayElementType::Bool,
+                    Type::String => ArrayElementType::String,
+                    _ => return Err((Type::Number, ty)),
+                };
+                Ok((next, Type::Array(element)))
+            }
+        }
+    }
+
+    fn connect(
+        &mut self,
+        left: Variable,
+        right: Variable,
+        relationship: Relationship,
+    ) -> Result<(), (Type, Type)> {
+        let (forward, backward) = match relationship {
+            Relationship::SameType => (Relation::Equal(right), Relation::Equal(left)),
+            Relationship::ArrayElement => (Relation::Element(right), Relation::Array(left)),
+        };
+        if let (Some(left), Some(right)) = (self.types[left.0], self.types[right.0]) {
+            let (_, expected) = Self::related(forward, left)?;
+            if expected != right {
+                return Err((expected, right));
+            }
+        }
+        self.edges[left.0].push(forward);
+        self.edges[right.0].push(backward);
+        for (variable, relation) in [(left, forward), (right, backward)] {
+            if let Some(ty) = self.types[variable.0] {
+                let (next, ty) = Self::related(relation, ty)?;
+                self.assign(next, ty)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 struct Region<'a> {
@@ -143,7 +249,8 @@ struct Region<'a> {
     parameter_indices: HashMap<usize, usize>,
     conflicts: Vec<(usize, SemanticError)>,
     next_site: usize,
-    scopes: Vec<HashMap<String, Option<Type>>>,
+    scopes: Vec<HashMap<String, Option<Variable>>>,
+    constraints: Constraints,
     deferred: bool,
 }
 
@@ -160,6 +267,7 @@ impl SemanticAnalyzer {
             conflicts: Vec::new(),
             next_site: 0,
             scopes: Vec::new(),
+            constraints: Constraints::default(),
             deferred: false,
         };
         visit_owned(expression, &mut |expr| {
@@ -168,10 +276,11 @@ impl SemanticAnalyzer {
                 region
                     .parameter_indices
                     .insert(identity, region.parameters.len());
+                let variable = region.constraints.variable();
                 region.parameters.push(Candidate {
                     identity,
                     span: *span,
-                    ty: None,
+                    variable,
                 });
             }
         });
@@ -193,11 +302,11 @@ impl SemanticAnalyzer {
                 Ok(Parameter {
                     identity: parameter.identity,
                     span: parameter.span,
-                    ty: parameter
-                        .ty
-                        .ok_or(SemanticError::CannotInferPlaceholderParameter {
+                    ty: region.constraints.types[parameter.variable.0].ok_or(
+                        SemanticError::CannotInferPlaceholderParameter {
                             span: parameter.span,
-                        })?,
+                        },
+                    )?,
                 })
             })
             .collect()
@@ -205,34 +314,64 @@ impl SemanticAnalyzer {
 }
 
 impl Region<'_> {
+    fn constrain(&mut self, variable: Variable, ty: Type, site: usize, span: Span) {
+        let result = self
+            .constraints
+            .assign(variable, ty)
+            .map_err(|(found, expected)| (expected, found));
+        self.record(result, site, span);
+    }
+
+    fn relate(&mut self, left: Variable, right: Variable, site: usize, span: Span) {
+        let result = self
+            .constraints
+            .connect(left, right, Relationship::SameType);
+        self.record(result, site, span);
+    }
+
+    fn record(&mut self, result: Result<(), (Type, Type)>, site: usize, span: Span) {
+        if let Err((expected, found)) = result {
+            self.conflicts.push((
+                site,
+                SemanticError::ConflictingPlaceholderConstraints {
+                    expected,
+                    found,
+                    span,
+                },
+            ));
+        }
+    }
+
     fn expression(
         &mut self,
         expression: &Expr,
         span: Span,
         expected: Option<Type>,
         reachable: bool,
-    ) -> Result<(Option<Type>, Flow), SemanticError> {
+    ) -> Result<(Option<Variable>, Flow), SemanticError> {
         let site = self.next_site;
         self.next_site += 1;
         let mut flow = Flow::FALLTHROUGH;
         let ty = match expression {
             Expr::Placeholder { .. } => {
                 let identity = std::ptr::from_ref(expression).addr();
-                let parameter = &mut self.parameters[self.parameter_indices[&identity]];
-                if reachable {
-                    parameter.ty = parameter.ty.or(expected);
+                let variable = self.parameters[self.parameter_indices[&identity]].variable;
+                if reachable && let Some(expected) = expected {
+                    self.constrain(variable, expected, site, span);
                 }
-                return Ok((parameter.ty, flow));
+                return Ok((Some(variable), flow));
             }
-            Expr::Number(_) => Some(Type::Number),
-            Expr::Bool(_) => Some(Type::Bool),
-            Expr::String(_) => Some(Type::String),
+            Expr::Number(_) => Some(self.constraints.concrete(Type::Number)),
+            Expr::Bool(_) => Some(self.constraints.concrete(Type::Bool)),
+            Expr::String(_) => Some(self.constraints.concrete(Type::String)),
             Expr::Identifier(name) => {
                 if let Some(ty) = self.scopes.iter().rev().find_map(|scope| scope.get(name)) {
                     *ty
                 } else {
                     match self.analyzer.lookup_binding(name) {
-                        Some(LexicalBinding::Value(binding)) => Some(binding.ty),
+                        Some(LexicalBinding::Value(binding)) => {
+                            Some(self.constraints.concrete(binding.ty))
+                        }
                         Some(LexicalBinding::Callable(callable))
                             if callable.origin == closures::CallableOrigin::Placeholder =>
                         {
@@ -260,7 +399,7 @@ impl Region<'_> {
                 };
                 let (_, next) = self.expression(expr, span, Some(ty), reachable)?;
                 flow = next;
-                Some(ty)
+                Some(self.constraints.concrete(ty))
             }
             Expr::Binary { left, op, right } => {
                 let (operand, result) = match op {
@@ -284,22 +423,24 @@ impl Region<'_> {
                     if *op == BinaryOp::In {
                         Some(Type::Range)
                     } else {
-                        operand.or(left_ty)
+                        operand
                     },
                     reachable && left_flow.can_fall_through(),
                 )?;
                 if operand.is_none()
-                    && left_ty.is_none()
-                    && let Expr::Placeholder { .. } = left.as_ref()
+                    && reachable
+                    && left_flow.can_fall_through()
+                    && right_flow.can_fall_through()
+                    && let (Some(left), Some(right)) = (left_ty, right_ty)
                 {
-                    self.expression(left, span, right_ty, reachable)?;
+                    self.relate(left, right, site, span);
                 }
                 flow = if matches!(op, BinaryOp::And | BinaryOp::Or) {
                     left_flow.then(Flow::FALLTHROUGH.join(right_flow.without_fallthrough()))
                 } else {
                     left_flow.then(right_flow)
                 };
-                Some(result)
+                Some(self.constraints.concrete(result))
             }
             Expr::Call {
                 func,
@@ -411,10 +552,10 @@ impl Region<'_> {
                     )?;
                     flow = flow.then(next);
                 }
-                Some(result)
+                Some(self.constraints.concrete(result))
             }
             Expr::Block(block) => {
-                let (ty, next) = self.block(block, reachable)?;
+                let (ty, next) = self.block(block, expected, reachable)?;
                 flow = next;
                 ty
             }
@@ -433,16 +574,83 @@ impl Region<'_> {
                     )?;
                     flow = flow.then(next);
                 }
-                Some(Type::Range)
+                Some(self.constraints.concrete(Type::Range))
             }
-            // These compositions belong to #46/#47. Discover their parameters
+            Expr::Index { expr, index } => {
+                let (array, before) = self.expression(expr, span, None, reachable)?;
+                let (_, next) = self.expression(
+                    index,
+                    span,
+                    Some(Type::Number),
+                    reachable && before.can_fall_through(),
+                )?;
+                flow = before.then(next);
+                let element = self.constraints.variable();
+                if reachable
+                    && flow.can_fall_through()
+                    && let Some(array) = array
+                {
+                    let result =
+                        self.constraints
+                            .connect(array, element, Relationship::ArrayElement);
+                    self.record(result, site, span);
+                }
+                Some(element)
+            }
+            Expr::Array(values) => {
+                // No numeric fallback supplies evidence about an unknown input.
+                // Once parameters are concrete the ordinary checker applies its
+                // existing literal context and empty-array fallback rules.
+                let array = self.constraints.variable();
+                if reachable && let Some(Type::Array(element)) = expected {
+                    self.constrain(array, Type::Array(element), site, span);
+                }
+                for value in values {
+                    let active = reachable && flow.can_fall_through();
+                    let (element, next) = self.expression(value, span, None, active)?;
+                    if active
+                        && next.can_fall_through()
+                        && let Some(element) = element
+                    {
+                        let result =
+                            self.constraints
+                                .connect(array, element, Relationship::ArrayElement);
+                        self.record(result, site, span);
+                    }
+                    flow = flow.then(next);
+                }
+                Some(array)
+            }
+            Expr::If { cond, then, else_ } => {
+                let (_, condition_flow) =
+                    self.expression(cond, span, Some(Type::Bool), reachable)?;
+                let active = reachable && condition_flow.can_fall_through();
+                let (then_type, then_flow) = self.block(then, expected, active)?;
+                let (else_type, else_flow) = if let Some(block) = else_ {
+                    self.block(block, expected, active)?
+                } else {
+                    (
+                        Some(self.constraints.concrete(Type::Void)),
+                        Flow::FALLTHROUGH,
+                    )
+                };
+                if active
+                    && then_flow.can_fall_through()
+                    && else_flow.can_fall_through()
+                    && let (Some(left), Some(right)) = (then_type, else_type)
+                {
+                    self.relate(left, right, site, span);
+                }
+                flow = condition_flow.then(then_flow.join(else_flow));
+                if then_flow.can_fall_through() {
+                    then_type
+                } else {
+                    else_type
+                }
+            }
+            // These compositions belong to #47. Discover their parameters
             // structurally but do not use partial evidence to choose a signature.
-            Expr::If { .. }
-            | Expr::Match { .. }
-            | Expr::Loop { .. }
-            | Expr::Pipeline { .. }
-            | Expr::Array(_)
-            | Expr::Index { .. } => {
+            Expr::Match { .. } | Expr::Loop { .. } | Expr::Pipeline { .. } => {
                 self.deferred = true;
                 None
             }
@@ -455,17 +663,9 @@ impl Region<'_> {
         };
         if reachable
             && flow.can_fall_through()
-            && let (Some(expected), Some(found)) = (expected, ty)
-            && expected != found
+            && let (Some(expected), Some(variable)) = (expected, ty)
         {
-            self.conflicts.push((
-                site,
-                SemanticError::ConflictingPlaceholderConstraints {
-                    expected,
-                    found,
-                    span,
-                },
-            ));
+            self.constrain(variable, expected, site, span);
         }
         Ok((ty.filter(|_| flow.can_fall_through()), flow))
     }
@@ -473,17 +673,22 @@ impl Region<'_> {
     fn block(
         &mut self,
         block: &ValueBlock,
+        expected: Option<Type>,
         reachable: bool,
-    ) -> Result<(Option<Type>, Flow), SemanticError> {
+    ) -> Result<(Option<Variable>, Flow), SemanticError> {
         self.scopes.push(HashMap::new());
         let result = (|| {
             let flow = self.statements(&block.statements, reachable)?;
             if let Some(tail) = &block.tail {
-                let (ty, tail_flow) =
-                    self.expression(tail, block.span, None, reachable && flow.can_fall_through())?;
+                let (ty, tail_flow) = self.expression(
+                    tail,
+                    block.span,
+                    expected,
+                    reachable && flow.can_fall_through(),
+                )?;
                 Ok((ty, flow.then(tail_flow)))
             } else {
-                Ok((Some(Type::Void), flow))
+                Ok((Some(self.constraints.concrete(Type::Void)), flow))
             }
         })();
         self.scopes.pop();
@@ -512,7 +717,9 @@ impl Region<'_> {
                 StatementKind::Let {
                     name, value, ty, ..
                 } => {
-                    if has_owned(value) || matches!(value, Expr::Lambda(_)) {
+                    if (has_owned(value) && !matches!(value, Expr::Placeholder { .. }))
+                        || matches!(value, Expr::Lambda(_))
+                    {
                         // Nested callable composition is deliberately deferred.
                         // Do not treat its body as evidence for this region.
                         return Err(SemanticError::CannotInferPlaceholderParameter {
@@ -527,7 +734,7 @@ impl Region<'_> {
                             span,
                         });
                     }
-                    scope.insert(name.clone(), ty.or(inferred));
+                    scope.insert(name.clone(), inferred);
                     next
                 }
                 StatementKind::Assignment { target, value }
@@ -535,17 +742,22 @@ impl Region<'_> {
                     let numeric =
                         matches!(statement.kind, StatementKind::CompoundAssignment { .. });
                     let (target_type, target_flow) =
-                        self.expression(target, span, None, reachable)?;
-                    let (_, value_flow) = self.expression(
+                        self.expression(target, span, numeric.then_some(Type::Number), reachable)?;
+                    let (value_type, value_flow) = self.expression(
                         value,
                         span,
-                        if numeric {
-                            Some(Type::Number)
-                        } else {
-                            target_type
-                        },
+                        if numeric { Some(Type::Number) } else { None },
                         reachable && target_flow.can_fall_through(),
                     )?;
+                    if reachable
+                        && target_flow.can_fall_through()
+                        && value_flow.can_fall_through()
+                        && let (Some(target), Some(value)) = (target_type, value_type)
+                    {
+                        let site = self.next_site;
+                        self.next_site += 1;
+                        self.relate(target, value, site, span);
+                    }
                     target_flow.then(value_flow)
                 }
                 StatementKind::Break => Flow::BREAK,

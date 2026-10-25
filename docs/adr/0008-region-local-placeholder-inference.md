@@ -13,6 +13,15 @@ parameters structurally, infer from reachable constraint sites, then check all
 children against concrete types. This avoids both accidental callable values and
 an implementation-dependent arithmetic whitelist.
 
+During #46 implementation the user approved a syntax-directed clarification:
+bare `_` local initializers inside a placeholder region connect ordinary locals
+to that region's parameters. Compound placeholder initializers and explicit
+lambdas remain separate callable boundaries. Structural discovery applies the
+same rule before inference. This resolves the conflict between #46's required
+`{ let x = _; x += 1; x }` example and the original blanket initializer boundary,
+without making ownership depend on later uses. A standalone `let identity = _;`
+still declares a callable whose parameter is ambiguous without internal evidence.
+
 See the [design handoff](../wp12-placeholder-development.md) for the accepted
 interview answers and examples. Final shared understanding was confirmed in Q26.
 This decision does not authorize WP12 implementation or claim release validation.

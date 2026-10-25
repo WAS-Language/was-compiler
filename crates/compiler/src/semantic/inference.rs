@@ -224,6 +224,7 @@ struct LexicalWalker<'a, F> {
     call: F,
     has_value_return: bool,
     lambdas: Vec<usize>,
+    placeholder_region: bool,
 }
 
 impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
@@ -233,6 +234,7 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
             call,
             has_value_return: false,
             lambdas: Vec::new(),
+            placeholder_region: false,
         }
     }
 
@@ -255,11 +257,15 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
             match &statement.kind {
                 StatementKind::Let { name, value, .. } => {
                     let saved_return = self.has_value_return;
-                    let synthesized = super::placeholders::has_owned(value);
+                    let saved_region = self.placeholder_region;
+                    let ordinary_input = saved_region && matches!(value, Expr::Placeholder { .. });
+                    let synthesized = !ordinary_input && super::placeholders::has_owned(value);
                     if synthesized {
                         self.lambdas.push(std::ptr::from_ref(value).addr());
+                        self.placeholder_region = true;
                     }
                     self.expr(value, span);
+                    self.placeholder_region = saved_region;
                     if synthesized {
                         self.has_value_return = saved_return;
                     }
@@ -406,6 +412,8 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
             Expr::Lambda(lambda) => {
                 self.lambdas.push(std::ptr::from_ref(lambda).addr());
                 let has_value_return = self.has_value_return;
+                let placeholder_region = self.placeholder_region;
+                self.placeholder_region = false;
                 self.scopes.push(
                     lambda
                         .params
@@ -419,6 +427,7 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
                 }
                 self.scopes.pop();
                 self.has_value_return = has_value_return;
+                self.placeholder_region = placeholder_region;
             }
             Expr::Match { scrutinee, arms } => self.match_arms(scrutinee, arms, span),
             Expr::Loop { body } => self.scoped_block(body),

@@ -27,7 +27,9 @@ fn main() -> number {
     let wrapper = () => { let nested = () => first(mark(2)); nested() };
     let sink = () => { mark(3); return; };
     let state = 0;
-    let plus = _ + _ + state;
+    let plus = { let x = _; let y = _; let values = [x, y]; values[0] + values[1] + state };
+    let flip = { let flags = _; !flags[0] };
+    let ready = { let words = _; words[0] == "ready" };
     let increment = () => { state = state + 1; };
     let invoke = () => { let nested = () => increment(); nested() };
     invoke(); sink(); return wrapper() |> plus(0);
@@ -139,6 +141,16 @@ enum ErrorKind {
 
 const ERRORS: &[(&str, &str, ErrorKind)] = &[
     ("let f = len(_);", "_", ErrorKind::PlaceholderAmbiguity),
+    (
+        "let f = { let items = _; len(items) };",
+        "_",
+        ErrorKind::PlaceholderAmbiguity,
+    ),
+    (
+        "let f = { let x = _; x = 1; x = true; x };",
+        "x = true;",
+        ErrorKind::PlaceholderConflict,
+    ),
     (
         "let f = _ + true;",
         "_ + true",

@@ -329,7 +329,10 @@
 # A bare final loop in a lambda's braced body remains a statement loop, so
 # () => { loop {} } has a Void signature; parenthesize a value-loop tail there.
 # No result annotations, defaults, contracts or immediate invocation are added.
-# #45 adds directly constrained placeholder locals, not complete WP12 inference.
+# #45/#46 add placeholder locals and exact local/collection constraints.
+# Bare "_" let initializers in a placeholder region belong to that region;
+# compound placeholder initializers still own separate callable regions.
+# Full control-flow/nested-region inference remains deferred.
 # No first-class callables, immediate pipeline stages, reclamation
 # or optimization (WP13) are added. WP11 is implemented; release gates passed on
 # 2026-10-15. Evidence:

@@ -62,6 +62,52 @@ fn run(source: &str, selected: &[&str], assertions: &str) {
 
 #[test]
 #[ignore = "requires Node.js on PATH"]
+fn placeholder_locals_preserve_array_aliases_checked_places_and_typed_elements() {
+    run(
+        r#"fn numeric() -> number {
+            let values = [10];
+            let update = {
+                let items = _;
+                let alias = items;
+                items[mark(0)] += { alias[0] = 100; mark(2) };
+                alias[0]
+            };
+            mark(1);
+            return update(values);
+        }
+        fn flags() -> bool {
+            let update = { let items = _; items[0] = !items[0]; items[0] };
+            return update([true]);
+        }
+        fn texts() -> bool {
+            let update = {
+                let items = _;
+                let word: string = items[0];
+                items[0] = "updated";
+                word == "ready"
+            };
+            let values = ["ready"];
+            return update(values) && values[0] == "updated";
+        }
+        fn make() -> number[] { return [0]; }
+        fn trap(values: number[]) -> number {
+            let update = { let items = _; items[0] = mark(7); items[2] + 1 };
+            return update(values);
+        }"#,
+        &["numeric", "flags", "texts", "make", "trap"],
+        "assert.equal(e.numeric(), 12);
+         assert.deepEqual(events.splice(0), [1, 0, 2]);
+         assert.equal(e.flags(), 0);
+         assert.equal(e.texts(), 1);
+         const values = e.make();
+         assert.throws(() => e.trap(values), WebAssembly.RuntimeError);
+         assert.deepEqual(contents(values), [7]);
+         assert.deepEqual(events.splice(0), [7]);",
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js on PATH"]
 fn placeholder_callables_defer_bodies_share_captures_and_evaluate_arguments_once() {
     run(
         "fn main() -> number {

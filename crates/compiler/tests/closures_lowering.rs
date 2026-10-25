@@ -6,6 +6,57 @@ fn span() -> Span {
 }
 
 #[test]
+fn propagated_collection_parameters_remain_concrete_and_independently_checked() {
+    use was_compiler::{ArrayElementType, OptimizationLevel};
+    let source = "fn main() -> bool {
+        let flip = { let items = _; !items[0] };
+        return flip([true]);
+    }";
+    let mut compiler = Compiler::new();
+    let program = compiler.analyze(source).unwrap();
+    let TypedStatementKind::Closure(flip) = &program.functions[0].body[0].kind else {
+        panic!("expected inferred helper");
+    };
+    assert_eq!(flip.params[0].ty, Type::Array(ArrayElementType::Bool));
+    let mut enabled_bytes = None;
+    for level in [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        compiler.set_optimization_level(level);
+        assert_eq!(compiler.analyze(source).unwrap(), program);
+        let bytes = compiler.compile(&program).unwrap();
+        assert_eq!(compiler.compile_source(source).unwrap(), bytes);
+        let count = Parser::new(0)
+            .parse_all(&bytes)
+            .filter(|p| matches!(p, Ok(Payload::CodeSectionEntry(_))))
+            .count();
+        let helper = operators(&bytes, count - 1);
+        assert!(
+            helper
+                .iter()
+                .any(|op| matches!(op, Operator::I32Load8U { .. }))
+        );
+        assert!(
+            !helper
+                .iter()
+                .any(|op| matches!(op, Operator::F64Load { .. } | Operator::CallIndirect { .. }))
+        );
+        if level != OptimizationLevel::None {
+            assert_eq!(*enabled_bytes.get_or_insert_with(|| bytes.clone()), bytes);
+        }
+    }
+    let mut forged = program.clone();
+    let TypedStatementKind::Closure(flip) = &mut forged.functions[0].body[0].kind else {
+        unreachable!();
+    };
+    flip.params[0].ty = Type::Array(ArrayElementType::String);
+    assert!(compiler.compile(&forged).is_err());
+}
+
+#[test]
 fn synthesized_placeholder_parameters_lower_to_direct_unexported_helpers() {
     let source = "fn main() -> number { let difference = _ - _; return difference(9, 4); }";
     let mut compiler = Compiler::new();

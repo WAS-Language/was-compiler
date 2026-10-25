@@ -67,13 +67,13 @@ A closure's dependence on an earlier visible local callable for direct invocatio
 including its live context when required. It is not a callable alias or value capture.
 
 **Placeholder region**:
-A proposed local callable initializer or immediate pipeline stage in which each
+A local callable initializer or proposed immediate pipeline stage in which each
 expression-position `_` denotes a distinct anonymous input in source order.
 Grouping parentheses do not create another region, and nested callables have
 separate boundaries.
 
 **Placeholder callable**:
-A proposed local callable whose anonymous parameter types are uniquely determined
+A local callable whose anonymous parameter types are uniquely determined
 by constraints within its own placeholder region, not by its callers.
 _Avoid_: Partial application, implicit first-class function
 

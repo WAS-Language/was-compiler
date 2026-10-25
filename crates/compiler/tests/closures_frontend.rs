@@ -3,6 +3,184 @@ use was_compiler::semantic::SemanticError;
 use was_compiler::typed_ast::TypedStatementKind;
 use was_compiler::{Compiler, Type};
 
+#[test]
+fn placeholder_constraints_propagate_through_ordinary_locals() {
+    let source = "fn main() -> number {
+        let increment = { let x = (_); let alias = x; alias += 1; x };
+        return increment(4);
+    }";
+    let program = Compiler::new().analyze(source).unwrap();
+    let increment = closure(&program, 0, 0);
+    assert_eq!(increment.params.len(), 1);
+    assert_eq!(increment.params[0].ty, Type::Number);
+    assert_eq!(increment.return_type, Type::Number);
+    let bytes = Compiler::new().compile(&program).unwrap();
+    wasmparser::Validator::new().validate_all(&bytes).unwrap();
+}
+
+#[test]
+fn placeholder_collection_constraints_select_exact_supported_elements() {
+    use was_compiler::ArrayElementType::{Bool, Number, String};
+    for (body, expected) in [
+        ("{ let items = _; items[0] + 1 }", Type::Array(Number)),
+        ("{ let items = _; !items[0] }", Type::Array(Bool)),
+        (
+            r#"{ let items = _; items[0] == "ready" }"#,
+            Type::Array(String),
+        ),
+        (
+            "{ let items = _; consume(items); items[0] }",
+            Type::Array(Bool),
+        ),
+        ("{ let items: string[] = _; items[0] }", Type::Array(String)),
+        (
+            "{ let value = _; let items = [value]; consume(items); value }",
+            Type::Bool,
+        ),
+        ("{ let items = _; items == [true] }", Type::Array(Bool)),
+        ("[_ + 1]", Type::Number),
+    ] {
+        let source = format!("fn consume(items: bool[]) {{}} fn main() {{ let f = {body}; }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        assert_eq!(closure(&program, 1, 0).params[0].ty, expected, "{body}");
+        let bytes = Compiler::new().compile(&program).unwrap();
+        wasmparser::Validator::new().validate_all(&bytes).unwrap();
+    }
+}
+
+#[test]
+fn placeholder_exact_relationships_are_independent_of_constraint_discovery_order() {
+    for body in [
+        "{ let x = _; let y = _; x = y; y = 1; x }",
+        "{ let x = _; let y = _; y = 1; x = y; x }",
+        "{ let x = _; let y = _; x == y; y + 1 }",
+        "{ let x = _; let alias = x; let n: number = alias; n }",
+        "{ let x = _; let y = if true { x } else { 1 }; y }",
+        "{ let x = _; let y = if true { 1 } else { x }; y }",
+    ] {
+        let source = format!("fn main() {{ let f = {body}; }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        assert!(
+            closure(&program, 0, 0)
+                .params
+                .iter()
+                .all(|p| p.ty == Type::Number),
+            "{body}"
+        );
+    }
+}
+
+#[test]
+fn placeholder_local_ambiguity_conflicts_and_lexical_checks_remain_deterministic() {
+    for body in [
+        "{ let x = _; let y = _; x == y }",
+        "{ let items = _; len(items) }",
+        "[_]",
+        "{ let x = _; let items = [x]; len(items) }",
+        "{ let items = _; items == [] }",
+        "{ let x = _; return 1; x + 1 }",
+        "{ let items = _; return 1; items[0] + 1 }",
+    ] {
+        let source = format!("fn main() {{ let f = {body}; }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::CannotInferPlaceholderParameter { .. }
+            ),
+            "{body}"
+        );
+    }
+    for body in [
+        "{ let x = _; x = 1; x = true; x }",
+        "{ let x = _; let alias = x; alias += 1; !x }",
+        "{ let items = _; items[0] = true; items[0] + 1 }",
+    ] {
+        let source = format!("fn main() {{ let f = {body}; }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::ConflictingPlaceholderConstraints { .. }
+            ),
+            "{body}"
+        );
+    }
+    assert!(matches!(
+        semantic_error("fn main() { let f = { let x = _; missing; x + true }; }"),
+        SemanticError::UndefinedVariable { name, .. } if name == "missing"
+    ));
+    assert!(matches!(
+        semantic_error("fn main() { let f = { let x = _; let y = later; let later = 1; x + y }; }"),
+        SemanticError::UndefinedVariable { name, .. } if name == "later"
+    ));
+    assert!(matches!(
+        semantic_error("fn main() { let f = { let x = _; let x = 1; x }; }"),
+        SemanticError::DuplicateVariable { .. }
+    ));
+}
+
+#[test]
+fn bare_initializer_ownership_does_not_turn_compound_initializers_into_outer_parameters() {
+    use was_compiler::typed_ast::CallableId;
+    let source = "fn main() -> number {
+        let value = { let inner = _ + 1; inner(10) };
+        let increment = { let x = _; x + value };
+        let explicit = () => 2;
+        return increment(explicit());
+    }";
+    let program = Compiler::new().analyze(source).unwrap();
+    let increment = closure(&program, 0, 1);
+    assert_eq!(increment.id, CallableId(1));
+    assert_eq!(increment.params.len(), 1);
+    assert_eq!(increment.captures.len(), 1);
+    assert_eq!(closure(&program, 0, 2).id, CallableId(2));
+    assert!(matches!(
+        semantic_error("fn main() { let identity = _; identity(1); }"),
+        SemanticError::CannotInferPlaceholderParameter { .. }
+    ));
+    let bytes = Compiler::new().compile(&program).unwrap();
+    wasmparser::Validator::new().validate_all(&bytes).unwrap();
+}
+
+#[test]
+fn placeholder_array_annotations_constrain_reachable_elements_before_later_divergence() {
+    let program = Compiler::new()
+        .analyze(
+            "fn main() {
+            let f = {
+                let x = _;
+                let values: bool[] = [x, { return 1; true }];
+                2
+            };
+        }",
+        )
+        .unwrap();
+    assert_eq!(closure(&program, 0, 0).params[0].ty, Type::Bool);
+    let bytes = Compiler::new().compile(&program).unwrap();
+    wasmparser::Validator::new().validate_all(&bytes).unwrap();
+}
+
+#[test]
+fn placeholder_local_conflicts_precede_ambiguity_at_the_original_use_in_every_preset() {
+    use was_compiler::{OptimizationLevel, tokens::Span};
+    let source = "fn main() { /* λ */ let f = { _; let x = _; x = 1; x = true; x }; }";
+    let start = source.find("x = true;").unwrap();
+    let expected = CompileError::Semantic(SemanticError::ConflictingPlaceholderConstraints {
+        expected: Type::Number,
+        found: Type::Bool,
+        span: Span::new(start, start + "x = true;".len()),
+    });
+    let mut compiler = Compiler::new();
+    for level in [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        compiler.set_optimization_level(level);
+        assert_eq!(compiler.analyze(source).unwrap_err(), expected);
+    }
+}
+
 fn closure(
     program: &was_compiler::typed_ast::TypedProgram,
     function: usize,
@@ -176,9 +354,7 @@ fn placeholder_regions_reject_unreachable_only_evidence_and_deferred_composition
     for source in [
         "fn main() { let f = { return 1; _ + 1 }; }",
         "fn main() { let f = _ == { return 1; true }; }",
-        "fn main() { let f = if _ { 1 } else { 2 }; }",
-        "fn main() { let f = [_ + 1]; }",
-        "fn main() { let f = { let x = _; x + 1 }; }",
+        "fn main() { let f = loop { break _ + 1; }; }",
     ] {
         assert!(
             matches!(
