@@ -241,17 +241,22 @@ struct MemoryVisitor<'a> {
 impl Visitor<'_> for MemoryVisitor<'_> {
     type Break = CodegenError;
 
+    fn enter_closure(
+        &mut self,
+        closure: &crate::typed_ast::TypedClosure,
+    ) -> ControlFlow<CodegenError> {
+        self.plan.observe_type(closure.return_type);
+        for param in &closure.params {
+            self.plan.observe_type(param.ty);
+        }
+        *self.used |= !closure.captures.is_empty()
+            || memory_type(closure.return_type)
+            || closure.params.iter().any(|p| memory_type(p.ty));
+        ControlFlow::Continue(())
+    }
+
     fn enter_statement(&mut self, statement: &TypedStatement) -> ControlFlow<CodegenError> {
         match &statement.kind {
-            TypedStatementKind::Closure(closure) => {
-                self.plan.observe_type(closure.return_type);
-                for param in &closure.params {
-                    self.plan.observe_type(param.ty);
-                }
-                *self.used |= !closure.captures.is_empty()
-                    || memory_type(closure.return_type)
-                    || closure.params.iter().any(|p| memory_type(p.ty));
-            }
             TypedStatementKind::Let { ty, .. } => {
                 self.plan.observe_type(*ty);
                 *self.used |= memory_type(*ty);

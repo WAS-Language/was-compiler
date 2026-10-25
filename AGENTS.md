@@ -213,9 +213,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   structural control flow and nested regions; before changing ownership/inference, read
   [the milestone boundary](docs/wp12-placeholder-development.md#implemented-control-flow-and-nesting-milestone-47)
   and [approved bare-initializer ownership rule](docs/wp12-placeholder-development.md#implemented-localcollection-milestone-46).
-  Immediate stages remain deferred; #44's known lexical callable stages are implemented,
-  pending integrated release validation. WP13
-  optimization requires separate authorization.
+  #48 implements immediate unary typed-lambda/placeholder stages alongside #44's
+  known lexical callable stages; integrated WP12 release validation remains pending.
+  Before changing immediate-stage ownership, inference or allocation order, read
+  [the #48 milestone](docs/wp12-placeholder-development.md#implemented-immediate-stage-milestone-48).
+  WP13 optimization requires separate authorization.
   Preserve `target/wp7-inference` when cleaning generated output. Before changing defaults, call binding, or
   normalized lowering, read [the handoff](docs/wp6-wp7-development.md) and
   [named-call interface](docs/named-call-interface.md) for origins, ownership,
@@ -372,21 +374,22 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   lifetime behavior, read [the #34 lifetime coverage](docs/local-callable-interface.md#capture-lifetime-across-recursion-reentry-and-traps-34).
   Keep invocation-local contexts distinct, preserve completed effects after traps,
   and retain array/string offsets across later allocations; refresh host views after growth.
-- Keep local callables declaration-bound and directly invoked: no immediate
-  invocation, first-class values, aliases or passing/returning callables. Issue #44
-  adds known local callable pipeline stages without named/default closure parameters;
+- Keep local callables directly invoked through declarations or immediate pipeline
+  stages: no general postfix invocation, first-class values, aliases or
+  passing/returning callables. Issue #44 adds known local callable pipeline stages
+  without named/default closure parameters;
   #45–#47 add placeholder locals with exact local/collection constraints, control flow
   and nested regions through the same helper boundary.
-  Remaining WP12 immediate stages, reclamation and separately
-  authorized WP13 optimization remain out of scope. #44 implementation is committed but integrated
-  release validation is pending. Use [#35's release evidence](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
+  #48 adds immediate unary typed-lambda/placeholder stages through that boundary;
+  reclamation and separately authorized WP13 optimization remain out of scope.
+  #44 implementation is committed; integrated WP12 release validation is pending. Use [#35's release evidence](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
   for full native/current-source browser validation; earlier subsets retain their
   historical scope.
 - Keep `crates/compiler/tests/closures_frontend.rs`, `crates/compiler/tests/closures_lowering.rs`,
   `crates/compiler/tests/closures_runtime.rs`, and `crates/cli/tests/closures_adapters.rs`, `crates/browser/tests/closures_adapters.rs` at the confirmed
   compiler/typed-input/adapter seams. Runtime cases remain ignored by default.
 
-### Pipelines (WP10 and #44 implemented; #44 release validation pending)
+### Pipelines (WP10 released; #44/#48 implemented, WP12 release pending)
 
 - Before changing pipeline binding, discard propagation, diagnostics or lowering,
   read [the normative rules](docs/was_language_extensions_spec.md#12-feature-specification-pipeline-operator-)
@@ -400,7 +403,15 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   the input as formal zero, and accepts only positional written arguments; it adds
   no named/default closure parameters. Preserve ordinary named/default user-function
   calls and independent structural/planning policies.
-- Stages reuse ordinary positional-prefix/named/default binding with
+- #48 raw `PipelineStage.target` is `PipelineStageTarget::Named` or
+  `Immediate { expression, expression_span }`. Immediate stages are parenthesized,
+  unary and have no written arguments; placeholder parameters infer only from
+  their own region, never from input. `TypedNormalizedCall.immediate_closure`
+  defaults to `None` for other calls and owns the immediate helper when `Some`,
+  labeled `"<pipeline stage>"` under the lexical owner. Input executes before its
+  environment; eager original capture promotion is unchanged. Reuse direct helper
+  ABI and checked lowering, without another IR or callable values.
+- Named user-function stages reuse ordinary positional-prefix/named/default binding with
   formal 0 already occupied, even when defaulted; naming it is a duplicate. Bare
   and empty stages both use remaining defaults. Keep declaration-scope remapping,
   earlier-formal reads, written argument spans and declaration-default spans.

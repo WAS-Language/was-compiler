@@ -86,13 +86,16 @@ pub(super) fn needed(program: &TypedProgram) -> bool {
     struct Ranges;
     impl Visitor<'_> for Ranges {
         type Break = ();
-        fn enter_statement(&mut self, statement: &TypedStatement) -> ControlFlow<()> {
-            if let TypedStatementKind::Closure(closure) = &statement.kind
-                && (closure.return_type == Type::Range
-                    || closure.params.iter().any(|p| p.ty == Type::Range))
+        fn enter_closure(&mut self, closure: &crate::typed_ast::TypedClosure) -> ControlFlow<()> {
+            if closure.return_type == Type::Range
+                || closure.params.iter().any(|p| p.ty == Type::Range)
             {
                 return ControlFlow::Break(());
             }
+            ControlFlow::Continue(())
+        }
+
+        fn enter_statement(&mut self, statement: &TypedStatement) -> ControlFlow<()> {
             if matches!(
                 statement.kind,
                 TypedStatementKind::Let {

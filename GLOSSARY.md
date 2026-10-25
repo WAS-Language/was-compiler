@@ -40,13 +40,13 @@ _Avoid_: Range membership pattern, progression pattern
 
 **Pipeline**:
 An ordered chain that supplies each preceding result to the first parameter of
-the next named user-function or visible local callable stage; it does not make
-functions into values.
+the next named user-function, visible local callable, or immediate pipeline stage;
+it does not make functions into values.
 
 **Pipeline stage**:
-A named user-function or lexical callable invocation within a pipeline, receiving
-the preceding input as its first argument before any written arguments. Named
-user-function stages can use defaults; local callable stages are positional-only.
+An invocation within a pipeline, receiving the preceding input as its first
+argument before any written arguments. Named user-function stages can use defaults,
+local callable stages are positional-only, and immediate stages take only the input.
 
 **Final Void stage**:
 The last invocation in a pipeline whose declared result is void, permitted only
@@ -67,16 +67,17 @@ A closure's dependence on an earlier visible local callable for direct invocatio
 including its live context when required. It is not a callable alias or value capture.
 
 **Placeholder region**:
-A local callable initializer or proposed immediate pipeline stage in which each
+A local callable initializer or immediate pipeline stage in which each
 expression-position `_` denotes a distinct anonymous input in source order.
 Grouping parentheses do not create another region, and nested callables have
 separate boundaries.
 
 **Placeholder callable**:
-A local callable whose anonymous parameter types are uniquely determined
+A callable whose anonymous parameter types are uniquely determined
 by constraints within its own placeholder region, not by its callers.
 _Avoid_: Partial application, implicit first-class function
 
 **Immediate pipeline stage**:
-A proposed parenthesized unary lambda or placeholder region invoked directly with
-the preceding pipeline input, without producing a callable value.
+A parenthesized unary typed lambda or placeholder region invoked directly with
+the preceding pipeline input, without producing a callable value. A placeholder
+stage's sole parameter type is determined within its region, never by that input.

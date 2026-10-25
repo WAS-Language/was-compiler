@@ -15,6 +15,653 @@ const LEVELS: [OptimizationLevel; 4] = [
     OptimizationLevel::Aggressive,
 ];
 
+fn immediate_fixture(input: &str, stage: &str) -> TypedProgram {
+    let mut program = Compiler::new()
+        .analyze(&format!(
+            "fn input() -> number {{ return 2; }}
+             fn main() -> number {{ let total = 0; let stage = (x: number) => {stage}; return {input} |> stage; }}"
+        ))
+        .unwrap();
+    let TypedStatementKind::Closure(mut closure) = program.functions[1].body.remove(1).kind else {
+        panic!("stage declaration");
+    };
+    closure.name = "<pipeline stage>".into();
+    let TypedStatementKind::Return(Some(value)) = &mut program.functions[1].body[1].kind else {
+        panic!("pipeline return");
+    };
+    normalized(value).immediate_closure = Some(closure);
+    program
+}
+
+#[test]
+fn immediate_stage_creates_environment_after_input_and_keeps_eager_promotion() {
+    let program = immediate_fixture("input()", "{ total += x; total }");
+    let mut enabled = None;
+    for level in LEVELS {
+        let bytes = compiler_at(level).compile(&program).unwrap();
+        Validator::new().validate_all(&bytes).unwrap();
+        let bodies = Parser::new(0)
+            .parse_all(&bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(
+                    body.get_operators_reader()
+                        .unwrap()
+                        .into_iter()
+                        .map(Result::unwrap)
+                        .collect::<Vec<_>>(),
+                ),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let calls = bodies[1]
+            .iter()
+            .filter_map(|op| match op {
+                Operator::Call { function_index } => Some(*function_index),
+                Operator::CallIndirect { .. } => panic!("immediate stages must call directly"),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        // Two user functions, seven memory helpers, then the private stage.
+        assert_eq!(bodies.len(), 10);
+        assert_eq!(
+            calls,
+            [2, 0, 2, 9],
+            "{level:?}: cell, input, environment, stage"
+        );
+        assert!(
+            bodies[9]
+                .iter()
+                .any(|op| matches!(op, Operator::F64Store { .. }))
+        );
+        assert_eq!(compiler_at(level).compile(&program).unwrap(), bytes);
+        if level != OptimizationLevel::None {
+            if let Some(expected) = &enabled {
+                assert_eq!(&bytes, expected);
+            } else {
+                enabled = Some(bytes);
+            }
+        }
+    }
+}
+
+fn immediate_sequence(program: &mut TypedProgram) -> &mut TypedNormalizedCall {
+    let TypedStatementKind::Return(Some(value)) = &mut program.functions[1].body[1].kind else {
+        panic!("pipeline return");
+    };
+    normalized(value)
+}
+
+#[test]
+fn immediate_context_free_stage_keeps_numeric_facts_and_storage_owner_local() {
+    let program = immediate_fixture("input()", "{ let local = 3; x + local }");
+    for level in LEVELS {
+        let bytes = compiler_at(level).compile(&program).unwrap();
+        Validator::new().validate_all(&bytes).unwrap();
+        let mut locals = Vec::new();
+        let mut calls = Vec::new();
+        for payload in Parser::new(0).parse_all(&bytes) {
+            match payload.unwrap() {
+                Payload::MemorySection(_) => panic!("context-free numeric stages need no memory"),
+                Payload::CodeSectionEntry(body) => {
+                    locals.push(
+                        body.get_locals_reader()
+                            .unwrap()
+                            .into_iter()
+                            .map(Result::unwrap)
+                            .collect::<Vec<_>>(),
+                    );
+                    calls.push(
+                        body.get_operators_reader()
+                            .unwrap()
+                            .into_iter()
+                            .filter_map(|op| match op.unwrap() {
+                                Operator::Call { function_index } => Some(function_index),
+                                Operator::CallIndirect { .. } => panic!("direct stage call"),
+                                _ => None,
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+                }
+                _ => {}
+            }
+        }
+        let ordinary = if level == OptimizationLevel::None {
+            ValType::F64
+        } else {
+            ValType::I32
+        };
+        assert_eq!(locals.len(), 3);
+        assert_eq!(
+            locals[1],
+            [(1, ordinary), (1, ValType::F64)],
+            "creator and injected slot: {level:?}"
+        );
+        assert_eq!(locals[2], [(1, ordinary)], "helper-only local: {level:?}");
+        assert_eq!(calls[1], [0, 2]);
+    }
+}
+
+#[test]
+fn immediate_helpers_discover_nested_memory_range_remainder_and_temporary_requirements() {
+    let program = immediate_fixture(
+        "input()",
+        "{ let values = [\"stage\"]; let r = 0..2;
+           let nested = (n: number) => {
+               let scratch = [true];
+               if n in r { len(values) + x % 2 } else { 0 }
+           }; nested(x) }",
+    );
+    for level in LEVELS {
+        let bytes = compiler_at(level).compile(&program).unwrap();
+        Validator::new().validate_all(&bytes).unwrap();
+        let mut bodies = Vec::new();
+        let mut found_string = false;
+        for payload in Parser::new(0).parse_all(&bytes) {
+            match payload.unwrap() {
+                Payload::DataSection(reader) => {
+                    for data in reader {
+                        found_string |=
+                            data.unwrap().data.windows(5).any(|bytes| bytes == b"stage");
+                    }
+                }
+                Payload::CodeSectionEntry(body) => bodies.push(
+                    body.get_operators_reader()
+                        .unwrap()
+                        .into_iter()
+                        .map(Result::unwrap)
+                        .collect::<Vec<_>>(),
+                ),
+                _ => {}
+            }
+        }
+        assert!(found_string);
+        let stage_index = u32::try_from(bodies.len() - 2).unwrap();
+        let nested_index = stage_index + 1;
+        assert!(bodies[1].iter().any(
+            |op| matches!(op, Operator::Call { function_index } if *function_index == stage_index)
+        ));
+        assert!(bodies[bodies.len() - 2].iter().any(
+            |op| matches!(op, Operator::Call { function_index } if *function_index == nested_index)
+        ));
+        assert!(
+            bodies
+                .last()
+                .unwrap()
+                .iter()
+                .any(|op| matches!(op, Operator::I32Store8 { .. }))
+        );
+        assert!(
+            bodies
+                .iter()
+                .flatten()
+                .any(|op| matches!(op, Operator::I64RemS))
+        );
+        // Neither helper's declarations or scratch belong to the creator.
+        assert_eq!(
+            bodies[1]
+                .iter()
+                .filter(|op| matches!(op, Operator::LocalSet { .. }))
+                .count(),
+            2
+        );
+    }
+}
+
+#[test]
+fn immediate_stage_forwards_earlier_live_callable_context_after_input() {
+    let mut program = Compiler::new()
+        .analyze(
+            "fn input() -> number { return 2; }
+             fn main() -> number {
+                 let total = 0;
+                 let previous = (n: number) => { total += n; total };
+                 let stage = (x: number) => previous(x);
+                 return input() |> stage;
+             }",
+        )
+        .unwrap();
+    let TypedStatementKind::Closure(mut closure) = program.functions[1].body.remove(2).kind else {
+        panic!("stage declaration");
+    };
+    closure.name = "<pipeline stage>".into();
+    let TypedStatementKind::Return(Some(value)) = &mut program.functions[1].body[2].kind else {
+        panic!("stage return");
+    };
+    normalized(value).immediate_closure = Some(closure);
+    for level in LEVELS {
+        let bytes = compiler_at(level).compile(&program).unwrap();
+        Validator::new().validate_all(&bytes).unwrap();
+        let calls = Parser::new(0)
+            .parse_all(&bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(
+                    body.get_operators_reader()
+                        .unwrap()
+                        .into_iter()
+                        .filter_map(|op| match op.unwrap() {
+                            Operator::Call { function_index } => Some(function_index),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>(),
+                ),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(calls.len(), 11);
+        assert_eq!(
+            calls[1],
+            [2, 2, 0, 2, 10],
+            "cell, earlier environment, input, stage environment, stage"
+        );
+        assert_eq!(calls[10], [9], "stage calls the earlier helper directly");
+    }
+}
+
+#[test]
+fn immediate_stage_discovery_visits_input_helpers_before_owned_helper() {
+    let mut program = Compiler::new()
+        .analyze(
+            "fn main() -> number {
+             let input = { let before = (n: number) => n + 1; before(2) };
+             let stage = (x: number) => x + 3;
+             return input |> stage;
+         }",
+        )
+        .unwrap();
+    let TypedStatementKind::Let { value: input, .. } = program.functions[0].body.remove(0).kind
+    else {
+        panic!("input initializer");
+    };
+    let TypedStatementKind::Closure(mut closure) = program.functions[0].body.remove(0).kind else {
+        panic!("stage declaration");
+    };
+    closure.name = "<pipeline stage>".into();
+    let TypedStatementKind::Return(Some(value)) = &mut program.functions[0].body[0].kind else {
+        panic!("stage return");
+    };
+    let sequence = normalized(value);
+    sequence.bindings[0].value = input;
+    sequence.immediate_closure = Some(closure);
+    for level in LEVELS {
+        let bytes = compiler_at(level).compile(&program).unwrap();
+        Validator::new().validate_all(&bytes).unwrap();
+        let calls = Parser::new(0)
+            .parse_all(&bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(
+                    body.get_operators_reader()
+                        .unwrap()
+                        .into_iter()
+                        .filter_map(|op| match op.unwrap() {
+                            Operator::Call { function_index } => Some(function_index),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>(),
+                ),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(calls, [vec![1, 2], vec![], vec![]]);
+    }
+}
+
+#[test]
+fn forged_immediate_stage_cannot_capture_its_synthetic_input_binding() {
+    let mut program = immediate_fixture("input()", "x + 1");
+    let sequence = immediate_sequence(&mut program);
+    let closure = sequence.immediate_closure.as_mut().unwrap();
+    closure
+        .captures
+        .push(was_compiler::typed_ast::TypedCapture {
+            owner: closure.owner,
+            variable: sequence.bindings[0].id,
+            ty: Type::Number,
+            mutability: was_compiler::typed_ast::CaptureMutability::Mutable,
+        });
+    let expected = CodegenError::InvalidClosure {
+        reason: "invalid capture metadata",
+        span: closure.span,
+    };
+    for level in LEVELS {
+        assert_eq!(compiler_at(level).compile(&program).unwrap_err(), expected);
+    }
+}
+
+#[test]
+fn source_immediate_stage_observes_input_capture_write_before_environment_creation() {
+    let source = "fn main() -> number {
+        let total = 1;
+        return { total += 2; total } |> ((x: number) => total + x);
+    }";
+    for level in LEVELS {
+        let compiler = compiler_at(level);
+        let program = compiler.analyze(source).unwrap();
+        let bytes = compiler.compile(&program).unwrap();
+        assert_eq!(compiler.compile_source(source).unwrap(), bytes);
+        Validator::new().validate_all(&bytes).unwrap();
+        let ops = Parser::new(0)
+            .parse_all(&bytes)
+            .find_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(
+                    body.get_operators_reader()
+                        .unwrap()
+                        .into_iter()
+                        .map(Result::unwrap)
+                        .collect::<Vec<_>>(),
+                ),
+                _ => None,
+            })
+            .unwrap();
+        let allocations = ops
+            .iter()
+            .enumerate()
+            .filter_map(|(index, op)| match op {
+                Operator::Call { function_index: 1 } => Some(index),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let writes = ops
+            .iter()
+            .enumerate()
+            .filter_map(|(index, op)| match op {
+                Operator::F64Store { .. } => Some(index),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(allocations.len(), 2, "eager cell and stage environment");
+        assert_eq!(
+            writes.len(),
+            2,
+            "initial value and input's shared-cell write"
+        );
+        assert!(allocations[0] < writes[0]);
+        assert!(writes[0] < writes[1]);
+        assert!(
+            writes[1] < allocations[1],
+            "{level:?}: input finishes before environment creation"
+        );
+        assert!(
+            ops[allocations[1] + 1..]
+                .iter()
+                .any(|op| matches!(op, Operator::Call { function_index: 8 }))
+        );
+    }
+}
+
+#[test]
+fn immediate_stage_cannot_capture_input_block_locals_or_depend_on_its_callables() {
+    for dependency in [false, true] {
+        let source = if dependency {
+            "fn main() -> number {
+                return { let hidden = (n: number) => n + 1; hidden(1) }
+                    |> ((x: number) => x + 1);
+            }"
+        } else {
+            "fn main() -> number {
+                return { let hidden = 1; hidden } |> ((x: number) => x + 1);
+            }"
+        };
+        let mut program = Compiler::new().analyze(source).unwrap();
+        let TypedStatementKind::Return(Some(value)) = &mut program.functions[0].body[0].kind else {
+            panic!("stage return");
+        };
+        let sequence = normalized(value);
+        let TypedExprKind::Block(input) = &sequence.bindings[0].value.kind else {
+            panic!("input block");
+        };
+        let closure = sequence.immediate_closure.as_mut().unwrap();
+        let reason = if dependency {
+            let TypedStatementKind::Closure(hidden) = &input.statements[0].kind else {
+                panic!("input-local callable");
+            };
+            closure.dependencies.push(hidden.id);
+            "invalid callable dependency"
+        } else {
+            let TypedStatementKind::Let { id, ty, .. } = &input.statements[0].kind else {
+                panic!("input-local binding");
+            };
+            closure
+                .captures
+                .push(was_compiler::typed_ast::TypedCapture {
+                    owner: closure.owner,
+                    variable: *id,
+                    ty: *ty,
+                    mutability: was_compiler::typed_ast::CaptureMutability::Mutable,
+                });
+            "invalid capture metadata"
+        };
+        let expected = CodegenError::InvalidClosure {
+            reason,
+            span: closure.span,
+        };
+        for level in LEVELS {
+            assert_eq!(compiler_at(level).compile(&program).unwrap_err(), expected);
+        }
+    }
+}
+
+#[test]
+fn source_nested_immediate_stage_forwards_original_captures_through_its_creator() {
+    let source = "fn main(total: number) -> number {
+        let outer = (seed: number) => seed |> ((x: number) => { total += x; total });
+        return 2 |> outer;
+    }";
+    let mut enabled = None;
+    for level in LEVELS {
+        let compiler = compiler_at(level);
+        let program = compiler.analyze(source).unwrap();
+        let bytes = compiler.compile(&program).unwrap();
+        assert_eq!(compiler.compile_source(source).unwrap(), bytes);
+        Validator::new().validate_all(&bytes).unwrap();
+        let calls = Parser::new(0)
+            .parse_all(&bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(
+                    body.get_operators_reader()
+                        .unwrap()
+                        .into_iter()
+                        .filter_map(|op| match op.unwrap() {
+                            Operator::Call { function_index } => Some(function_index),
+                            Operator::CallIndirect { .. } => panic!("direct nested stage call"),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>(),
+                ),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(calls.len(), 10);
+        assert_eq!(calls[0], [1, 1, 8]);
+        assert_eq!(
+            calls[8],
+            [1, 9],
+            "outer creates immediate environment and directly invokes stage"
+        );
+        assert!(calls[9].is_empty());
+        if level != OptimizationLevel::None {
+            if let Some(expected) = &enabled {
+                assert_eq!(&bytes, expected);
+            } else {
+                enabled = Some(bytes);
+            }
+        }
+    }
+}
+
+#[test]
+fn forged_immediate_stage_requires_owned_unary_direct_target_and_exact_injection() {
+    for case in 0..8 {
+        let mut program = immediate_fixture("input()", "x + 1");
+        let sequence = immediate_sequence(&mut program);
+        match case {
+            0 => sequence.immediate_closure.as_mut().unwrap().name = "stage".into(),
+            1 => sequence.immediate_closure.as_mut().unwrap().params.clear(),
+            2 => {
+                let TypedExprKind::LexicalCall { callable, .. } = &mut sequence.call.kind else {
+                    panic!("lexical call")
+                };
+                callable.0 += 1;
+            }
+            3 => {
+                let mut extra = sequence.bindings[0].clone();
+                extra.id.0 += 100;
+                sequence.bindings.push(extra);
+            }
+            4 => sequence.bindings[0].origin = CallBindingOrigin::Explicit { argument: 0 },
+            5 => sequence.formal_to_binding[0].0 += 100,
+            6 => sequence.bindings[0].ty = Type::Bool,
+            7 => sequence.bindings.push(sequence.bindings[0].clone()),
+            _ => unreachable!(),
+        }
+        let expected = codegen::compile(&program).unwrap_err();
+        if case == 7 {
+            // Local planning rejects colliding IDs before normalized-call checks.
+            assert!(matches!(expected, CodegenError::DuplicateVariableId { .. }));
+        } else {
+            assert!(
+                matches!(expected, CodegenError::InvalidNormalizedCall { .. }),
+                "case {case}: {expected:?}"
+            );
+        }
+        for level in LEVELS {
+            assert_eq!(
+                compiler_at(level).compile(&program).unwrap_err(),
+                expected,
+                "case {case}, {level:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn forged_immediate_stage_checks_creator_ownership_and_identity() {
+    for identity in [false, true] {
+        let mut program = immediate_fixture("input()", "x + 1");
+        let closure = immediate_sequence(&mut program)
+            .immediate_closure
+            .as_mut()
+            .unwrap();
+        let reason = if identity {
+            closure.id.0 += 1;
+            "invalid callable identity"
+        } else {
+            closure.owner = was_compiler::typed_ast::BindingOwner::Function(
+                was_compiler::typed_ast::FunctionId(0),
+            );
+            "invalid closure ownership"
+        };
+        let expected = CodegenError::InvalidClosure {
+            reason,
+            span: closure.span,
+        };
+        for level in LEVELS {
+            assert_eq!(compiler_at(level).compile(&program).unwrap_err(), expected);
+        }
+    }
+}
+
+#[test]
+fn immediate_never_input_precedes_environment_and_still_checks_unexported_helper() {
+    let mut program = immediate_fixture("{ return 7; 0 }", "total + x");
+    for level in LEVELS {
+        let mut compiler = compiler_at(level);
+        compiler.set_exports(ExportOptions::None);
+        let bytes = compiler.compile(&program).unwrap();
+        Validator::new().validate_all(&bytes).unwrap();
+        let ops = Parser::new(0)
+            .parse_all(&bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(body),
+                _ => None,
+            })
+            .nth(1)
+            .unwrap()
+            .get_operators_reader()
+            .unwrap()
+            .into_iter()
+            .map(Result::unwrap)
+            .collect::<Vec<_>>();
+        let returned = ops
+            .iter()
+            .position(|op| matches!(op, Operator::Return))
+            .unwrap();
+        let allocations = ops
+            .iter()
+            .enumerate()
+            .filter_map(|(index, op)| match op {
+                Operator::Call { function_index: 2 } => Some(index),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(allocations.len(), 2);
+        assert!(allocations[0] < returned, "eager capture cell");
+        assert!(
+            allocations[1] > returned,
+            "environment is unreachable after input transfer"
+        );
+    }
+    let closure = immediate_sequence(&mut program)
+        .immediate_closure
+        .as_mut()
+        .unwrap();
+    closure.body = was_compiler::typed_ast::TypedClosureBody::Expression(Box::new(TypedExpr {
+        kind: TypedExprKind::Number("invalid".into()),
+        ty: Type::Number.into(),
+    }));
+    let expected = codegen::compile(&program).unwrap_err();
+    assert!(matches!(
+        expected,
+        CodegenError::InvalidNumberLiteral { .. }
+    ));
+    for level in LEVELS {
+        let mut compiler = compiler_at(level);
+        compiler.set_exports(ExportOptions::None);
+        assert_eq!(compiler.compile(&program).unwrap_err(), expected);
+    }
+}
+
+#[test]
+fn immediate_helper_is_unavailable_to_its_input_and_does_not_escape_stage_scope() {
+    for in_input in [true, false] {
+        let mut program = immediate_fixture("input()", "x + 1");
+        let sequence = immediate_sequence(&mut program);
+        let callable = sequence.immediate_closure.as_ref().unwrap().id;
+        let call = TypedExpr {
+            kind: TypedExprKind::LexicalCall {
+                callable,
+                args: vec![TypedExpr {
+                    kind: TypedExprKind::Number("1".into()),
+                    ty: Type::Number.into(),
+                }],
+                span: sequence.bindings[0].span,
+            },
+            ty: Type::Number.into(),
+        };
+        if in_input {
+            sequence.bindings[0].value = call;
+        } else {
+            let span = sequence.bindings[0].span;
+            program.functions[1]
+                .body
+                .push(was_compiler::typed_ast::TypedStatement {
+                    kind: TypedStatementKind::Expression(call),
+                    span,
+                });
+        }
+        let expected = codegen::compile(&program).unwrap_err();
+        assert!(matches!(
+            expected,
+            CodegenError::InvalidClosure {
+                reason: "invalid callable call",
+                ..
+            }
+        ));
+        for level in LEVELS {
+            assert_eq!(compiler_at(level).compile(&program).unwrap_err(), expected);
+        }
+    }
+}
+
 #[test]
 fn lexical_pipeline_stage_lowers_to_a_valid_direct_helper_call() {
     let mut compiler = Compiler::new();

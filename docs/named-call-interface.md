@@ -49,8 +49,9 @@ The #44 implementation is committed; integrated release validation, including
 rebuilt-browser parity, remains pending. See [the interface](local-callable-interface.md)
 for WP11 support and historical subset evidence. #45 adds
 [directly constrained placeholder locals](wp12-placeholder-development.md#implemented-direct-constraint-milestone-45).
-Remaining placeholder inference/composition and immediate stages remain deferred;
-WP13 requires separate authorization.
+#46–#47 extend inference through locals/collections, control flow and nested regions;
+#48 implements immediate unary typed-lambda/placeholder stages. Integrated WP12
+release validation remains pending; WP13 requires separate authorization.
 
 ### Typed-array interaction (#37)
 
@@ -99,10 +100,13 @@ implicitly. Raw exports remain full-arity and carry no defaults/type metadata.
 ### WP10 pipeline migration (issue #25)
 
 Raw expression consumers must handle `Expr::Pipeline { input: Box<Expr>,
-input_span: Span, stages: Vec<PipelineStage> }` and visit input then stage arguments.
-`PipelineStage { name: String, args: Vec<CallArgument>, span: Span }` retains the
-written target/arguments. Parser-produced pipelines have at least one stage; bare
-and empty-parenthesis stages have empty argument vectors. Input spans include
+input_span: Span, stages: Vec<PipelineStage> }` and visit input then stage contents.
+#48 replaces raw `PipelineStage.name` with `target: PipelineStageTarget`, retaining
+`args: Vec<CallArgument>` and `span: Span`. Match `Named(String)` for existing
+named targets or `Immediate { expression: Expr, expression_span: Span }` for an
+immediate target. The latter's exact UTF-8 byte span excludes the stage's outer
+parentheses and its `args` must be empty. Parser-produced pipelines have at least
+one stage; bare and empty-parenthesis named stages have empty argument vectors. Input spans include
 parentheses; stage spans exclude the operator/trivia and include closing parentheses.
 
 Typed consumers add the unit origin `CallBindingOrigin::PipelineInput`; there is
@@ -144,13 +148,40 @@ No typed wrapper or public discard flag is added. Existing normalized-call suppo
 for Void direct calls in forged typed input is unchanged; source-semantic discard
 is not wholly reconstructible from that input. Backend injection ownership, type,
 result and flow checks remain independent, not complete source revalidation.
-Stages remain user-only; ordinary named/default calls and the full-arity ABI are
+WP10 stages remain user-only; ordinary named/default calls and the full-arity ABI are
 unchanged. WP10 implementation is complete, and
 [#27 release gates passed](was_language_extensions_plan.md#wp10-release-validation),
 including freshly rebuilt browser bindings and the full ignored runtime suite.
 The plan's [#25](was_language_extensions_plan.md#issue-25-subset-validation-2026-10-14)
 and [#26](was_language_extensions_plan.md#issue-26-subset-validation-2026-10-14)
 records validate historical subsets, not the current final-Void release.
+
+### WP12 immediate-stage migration (#48)
+
+#44 implements visible lexical callable stages, with positional-only written
+arguments. #48 implements parenthesized immediate unary typed lambdas and
+placeholder stages, such as `10 |> ((x: number) => x * 2)` and `10 |> (_ * 2)`.
+Immediate stages have exactly one parameter and no written argument suffix.
+Placeholder parameter types come only from constraints within the stage, never
+from its input or later stages. This adds neither first-class callable values nor
+general postfix invocation; final-Void discard rules remain unchanged.
+
+Typed consumers must initialize the new
+`TypedNormalizedCall.immediate_closure: Option<TypedClosure>` to `None` for existing
+non-immediate calls. `Some` owns the immediate stage's helper, whose `owner` is the
+lexical owner of the pipeline. Its internal name is `"<pipeline stage>"`, not a
+source identifier; the normalized direct `LexicalCall` invokes that helper with
+the unique first `PipelineInput` binding mapped to formal 0. Preserve source spans
+and traverse the owned helper separately from creator-local planning.
+
+Evaluate input before creating the stage environment and invoking the helper.
+Input failure creates no stage environment and executes no body, but all children
+remain statically checked. Eager promotion of original captured bindings is
+unchanged. Existing checked normalized calls, direct-helper ABI and capture storage
+are reused, without another IR or runtime callable value. See the
+[full ownership and span migration](wp12-placeholder-development.md#public-ast-migration-and-callable-ownership).
+#44/#45–#47 evidence retains its historical scope; #48 validation is ongoing and
+integrated WP12 release evidence remains pending.
 
 ### WP8 contract constructor migration
 

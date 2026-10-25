@@ -70,6 +70,39 @@ results, calls and transfers through existing checked lowering. Context-free hel
 have only explicit parameters and allocate no callable environment. Ordinary body
 operations and handle signatures may still require memory.
 
+## Immediate pipeline helper ownership (#48)
+
+#44 adds known lexical callable pipeline stages; #45–#47 add placeholder local
+callables with exact local/collection constraints, control flow and nested regions.
+#48 implements immediate unary typed-lambda and placeholder stages:
+`10 |> ((x: number) => x * 2)` and `10 |> (_ * 2)`. They require exactly one
+parameter and no written arguments. Placeholder parameter types infer only within
+their region, never from input. Ordinary calls remain identifier-led; this adds
+neither first-class callable values nor general postfix invocation.
+
+Raw `PipelineStage.target: PipelineStageTarget` replaces `name` with `Named(String)`
+or `Immediate { expression: Expr, expression_span: Span }`; immediate `args` are
+empty. Existing `TypedNormalizedCall` constructors add `immediate_closure: None`.
+For an immediate stage, `Some(TypedClosure)` owns the helper body under the lexical
+owner containing the pipeline; the helper body owner remains `Closure(id)`.
+Its name is the internal label `"<pipeline stage>"`, never a lexical lookup name.
+The normalized call invokes that helper directly through `LexicalCall`, with its
+sole input supplied by the unique first `PipelineInput` binding.
+
+Discovery/checking includes the stage-owned helper, while creator-local planning
+excludes its body. Reuse the existing checked helper lifecycle, source-preorder
+callable IDs, capture/dependency validation and direct-helper ABI; no second IR
+or runtime callable representation is introduced. Input executes before creating
+the stage environment. A trapping/diverging input creates no stage environment or
+body effects, without skipping static checks. Original captured bindings still
+use eager shared-cell promotion, including cells allocated before reaching a
+stage; shared captures, iteration mutability and lifetime rules are unchanged.
+
+See the [implemented #48 milestone](wp12-placeholder-development.md#implemented-immediate-stage-milestone-48)
+and [public ownership/span migration](wp12-placeholder-development.md#public-ast-migration-and-callable-ownership).
+Validation is ongoing; integrated WP12 release evidence is pending. WP11 release
+and #44/#45–#47 milestone records retain their historical scope.
+
 ## Typed-array interaction (#37)
 
 #37 adds `bool[]` and `string[]` to the existing shared-binding/callable contracts,

@@ -61,6 +61,20 @@ fn discarded(flag: bool) -> number {
     return 65;
 }
 fn discarded_never() -> number { (loop {}) |> sink; }
+fn immediate() -> number {
+    let factor = 2;
+    let add = (x: number) => { factor += 1; x + factor };
+    return { factor = 3; mark(2) }
+        |> (_ * factor)
+        |> ((x: number) => { let twice = _ * 2; twice(x) |> (_ |> add) })
+        |> defaults(c: 18);
+}
+fn immediate_void() { 4 |> ((x: number) => { mark(x); }); }
+fn immediate_trap() -> number {
+    let n = 7;
+    return mark(1) |> ((x: number) => { mark(x + n); let xs = [0]; xs[1] })
+        |> (_ + mark(99));
+}
 "#;
 const SELECTED: &[&str] = &[
     "main",
@@ -84,9 +98,18 @@ const SELECTED: &[&str] = &[
     "sink_trap_wrapper",
     "discarded",
     "discarded_never",
+    "immediate",
+    "immediate_void",
+    "immediate_trap",
 ];
 
 const ERRORS: &[(&str, &str)] = &[
+    ("// é🦀\r\n\tfn f() { return 10 |> (_ + _); }", "(_ + _)"),
+    (
+        "// é🦀\r\n\tfn f() { return 10 |> (() => 42); }",
+        "(() => 42)",
+    ),
+    ("// é🦀\r\n\tfn f() { return 10 |> (42); }", "(42)"),
     ("// é🦀\r\n\tfn f() { return 1 |> mark; }\r\n", "mark"),
     ("// é🦀\r\n\tfn f() { return [1] |> len(); }\r\n", "len()"),
     (
@@ -125,6 +148,16 @@ const ERRORS: &[(&str, &str)] = &[
 const FINAL_VOID: &str = "a final void stage requires a discarded result";
 const NONFINAL_VOID: &str = "a nonfinal stage cannot return void";
 const VOID_ERRORS: &[(&str, &str, &str)] = &[
+    (
+        "// é🦀\r\n\tfn f() { return 1 |> ((x: number) => {}); }",
+        "((x: number) => {})",
+        FINAL_VOID,
+    ),
+    (
+        "// é🦀\r\n\tfn f() { (loop {}) |> ((x: number) => {}) |> (_ + 1); }",
+        "((x: number) => {})",
+        NONFINAL_VOID,
+    ),
     (
         "fn f() { return 1 |> discard; } fn discard(a: number) {}",
         "discard",
@@ -432,6 +465,7 @@ fn rebuilt_browser_pipeline_bytes_wat_execution_and_diagnostics_match_native() {
     field(&mut input, SOURCE.as_bytes());
     field(&mut input, SELECTED.join(",").as_bytes());
     let mut native = compiler();
+    let mut enabled_bytes = None;
     for (_, level) in LEVELS {
         native.set_optimization_level(level);
         for names in [SELECTED, &["main"][..], &[][..]] {
@@ -440,6 +474,13 @@ fn rebuilt_browser_pipeline_bytes_wat_execution_and_diagnostics_match_native() {
             ));
             let bytes = native.compile_source(SOURCE).unwrap();
             Validator::new().validate_all(&bytes).unwrap();
+            if names == SELECTED && level != OptimizationLevel::None {
+                if let Some(expected) = &enabled_bytes {
+                    assert_eq!(&bytes, expected, "{level:?}");
+                } else {
+                    enabled_bytes = Some(bytes.clone());
+                }
+            }
             field(&mut input, &bytes);
             field(
                 &mut input,
@@ -524,6 +565,12 @@ fn rebuilt_browser_pipeline_bytes_wat_execution_and_diagnostics_match_native() {
                     assert.throws(() => e.defaults(4), WebAssembly.RuntimeError);
                     assert.ok(!('progression' in e)); assert.ok(!('total' in e));
                     assertDiscardedVoid(assert, e, events);
+                    events.length = 0;
+                    assert.equal(e.immediate(), 1788); assert.deepEqual(events.splice(0), [2]);
+                    assert.equal(e.immediate_void(), undefined); assert.deepEqual(events.splice(0), [4]);
+                    assert.throws(() => e.immediate_trap(), WebAssembly.RuntimeError);
+                    assert.deepEqual(events.splice(0), [1,8]);
+                    assert.equal(e.immediate(), 1788); assert.deepEqual(events.splice(0), [2]);
                 }
             } finally {compiler.free();}
         }

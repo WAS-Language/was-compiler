@@ -234,6 +234,7 @@ pub struct TypedMatchArm {
 /// Ordered invocation-local storage followed by a canonical full-arity direct call.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypedNormalizedCall {
+    pub immediate_closure: Option<TypedClosure>,
     pub bindings: Vec<TypedCallBinding>,
     pub formal_to_binding: Vec<VariableId>,
     pub call: Box<TypedExpr>,

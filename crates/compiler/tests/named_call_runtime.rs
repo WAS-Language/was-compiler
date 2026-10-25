@@ -403,6 +403,7 @@ fn normalize_expr(expr: &mut TypedExpr, next_id: &mut usize) {
                 ty: Type::Number.into(),
             };
             expr.kind = TypedExprKind::NormalizedCall(TypedNormalizedCall {
+                immediate_closure: None,
                 bindings,
                 formal_to_binding,
                 call: Box::new(call),

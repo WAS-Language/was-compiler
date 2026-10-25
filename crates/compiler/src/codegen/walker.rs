@@ -76,13 +76,7 @@ fn walk_statements<'ast, V: Visitor<'ast>>(
         visitor.enter_statement(statement)?;
 
         match &statement.kind {
-            TypedStatementKind::Closure(closure) => {
-                visitor.enter_closure(closure)?;
-                if visitor.visit_closure_bodies() {
-                    walk_closure_body(&closure.body, visitor)?;
-                }
-                visitor.exit_closure(closure)?;
-            }
+            TypedStatementKind::Closure(closure) => walk_closure(closure, visitor)?,
             TypedStatementKind::Let { value, .. }
             | TypedStatementKind::BreakValue { value, .. }
             | TypedStatementKind::Expression(value) => {
@@ -199,6 +193,9 @@ pub(super) fn walk_expression<'ast, V: Visitor<'ast>>(
                 visitor.enter_call_binding(binding)?;
                 walk_expression(&binding.value, visitor)?;
             }
+            if let Some(closure) = &sequence.immediate_closure {
+                walk_closure(closure, visitor)?;
+            }
             walk_expression(&sequence.call, visitor)?;
         }
 
@@ -236,6 +233,17 @@ pub(super) fn walk_expression<'ast, V: Visitor<'ast>>(
     }
 
     ControlFlow::Continue(())
+}
+
+fn walk_closure<'ast, V: Visitor<'ast>>(
+    closure: &'ast TypedClosure,
+    visitor: &mut V,
+) -> ControlFlow<V::Break> {
+    visitor.enter_closure(closure)?;
+    if visitor.visit_closure_bodies() {
+        walk_closure_body(&closure.body, visitor)?;
+    }
+    visitor.exit_closure(closure)
 }
 
 pub(super) fn walk_closure_body<'ast, V: Visitor<'ast>>(

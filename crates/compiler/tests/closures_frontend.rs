@@ -4,6 +4,117 @@ use was_compiler::typed_ast::TypedStatementKind;
 use was_compiler::{Compiler, Type};
 
 #[test]
+fn nested_immediate_regions_resolve_independently_before_outer_calls() {
+    for body in [
+        "_ |> (_ + 1)",
+        "_ |> ((n: number) => n + 1)",
+        "_ |> (_ |> (_ + 1))",
+        "{ let x = _; let result = 1 |> (_ + x); x + 1; result }",
+        "{ let x = _; let result = 1 |> ((n: number) => n + x); x + 1; result }",
+        "{ let inner = _ |> (_ + 1); inner(_) }",
+    ] {
+        let source = format!("fn main() {{ let outer = {body}; outer(3); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        assert_eq!(closure(&program, 0, 0).params[0].ty, Type::Number, "{body}");
+    }
+}
+
+#[test]
+fn nested_immediate_regions_never_infer_from_inputs_results_or_captured_uses() {
+    for body in [
+        "{ _ + 1; 1 |> (_) }",
+        "_ |> (_) |> (_ + 1)",
+        "{ let x = _; 1 |> (_ + x) }",
+        "{ let x = _; 1 |> ((n: number) => n + x) }",
+        "{ let x = _; 1 |> ((n: number) => x) |> (_ + 1) }",
+        "{ _ + 1; 1 |> ({ return 1; _ + 1 }) }",
+    ] {
+        let source = format!("fn main() {{ let outer = {body}; outer(3); }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::CannotInferPlaceholderParameter { .. }
+            ),
+            "{body}"
+        );
+    }
+}
+
+#[test]
+fn nested_immediate_regions_keep_source_preorder_callable_ids() {
+    use was_compiler::typed_ast::CallableId;
+
+    let source = "fn main() {
+        let value = { let input = () => 1; input() } |> (_ + 1);
+        let outer = _ |> (_ |> ((n: number) => n + 1));
+        let after = () => 1;
+    }";
+    let compiler = Compiler::new();
+    for _ in 0..2 {
+        let program = compiler.analyze(source).unwrap();
+        assert_eq!(closure(&program, 0, 1).id, CallableId(2));
+        assert_eq!(closure(&program, 0, 2).id, CallableId(5));
+    }
+}
+
+#[test]
+fn immediate_regions_preserve_named_result_dependencies_and_return_ownership() {
+    let source = "fn main() { return 1 |> ((n: number) => later(n)); }
+        fn later(n: number) { return n + 1; }";
+    let program = Compiler::new().analyze(source).unwrap();
+    assert_eq!(program.functions[0].return_type, Type::Number);
+    assert_eq!(program.functions[1].return_type, Type::Number);
+    assert!(matches!(
+        semantic_error("fn main() { return 1 |> ((n: number) => main()); }"),
+        SemanticError::RecursiveResultAnnotationRequired { .. }
+    ));
+
+    for target in ["{ return _ + 1; }", "(n: number) => { return n + 1; }"] {
+        let source = format!("fn main() {{ let value = 1 |> ({target}); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        assert_eq!(program.functions[0].return_type, Type::Void);
+    }
+}
+
+#[test]
+fn nested_immediate_regions_check_eligibility_arity_and_independent_loop_contexts() {
+    for (target, message) in [
+        ("42", "pipeline stage target is not callable"),
+        (
+            "_ + _",
+            "immediate pipeline stage must have exactly one parameter",
+        ),
+        (
+            "() => 42",
+            "immediate pipeline stage must have exactly one parameter",
+        ),
+        (
+            "_ == _",
+            "immediate pipeline stage must have exactly one parameter",
+        ),
+    ] {
+        let source = format!("fn main() {{ let outer = {{ _ + 1; 1 |> ({target}) }}; }}");
+        assert!(matches!(
+            semantic_error(&source),
+            SemanticError::InvalidPipeline { message: found, .. } if found == message
+        ));
+    }
+    let source = "fn main() {
+        let outer = { _ + 1; loop { 1 |> ({ _ + 1; break; }); break; } 0 };
+    }";
+    let found = semantic_error(source);
+    assert!(
+        matches!(found, SemanticError::BreakOutsideLoop { .. }),
+        "{found:?}"
+    );
+    let source = "fn main() { let outer = { _ + 1; 1 |> ((n: number) => _ + n) }; }";
+    assert!(matches!(
+        semantic_error(source),
+        SemanticError::InvalidPlaceholder { .. }
+    ));
+}
+
+#[test]
 fn nested_placeholder_regions_resolve_independently_before_outer_calls() {
     for body in [
         "{ let inner = _ + 1; inner(_) }",

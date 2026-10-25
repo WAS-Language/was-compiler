@@ -52,6 +52,20 @@ fn discarded(flag: bool) -> number {
     return 65;
 }
 fn discarded_never() -> number { (loop {}) |> sink; }
+fn immediate() -> number {
+    let factor = 2;
+    let add = (x: number) => { factor += 1; x + factor };
+    return { factor = 3; mark(2) }
+        |> (_ * factor)
+        |> ((x: number) => { let twice = _ * 2; twice(x) |> (_ |> add) })
+        |> defaults(c: 18);
+}
+fn immediate_void() { 4 |> ((x: number) => { mark(x); }); }
+fn immediate_trap() -> number {
+    let n = 7;
+    return mark(1) |> ((x: number) => { mark(x + n); let xs = [0]; xs[1] })
+        |> (_ + mark(99));
+}
 "#;
 const SELECTED: &[&str] = &[
     "main",
@@ -74,6 +88,9 @@ const SELECTED: &[&str] = &[
     "sink_trap_wrapper",
     "discarded",
     "discarded_never",
+    "immediate",
+    "immediate_void",
+    "immediate_trap",
 ];
 
 fn compiler() -> Compiler {
@@ -85,6 +102,27 @@ fn compiler() -> Compiler {
         SELECTED.iter().map(|name| (*name).into()).collect(),
     ));
     compiler
+}
+
+#[test]
+fn immediate_pipeline_analysis_and_enabled_preset_bytes_are_stable() {
+    let mut native = compiler();
+    let program = native.analyze(SOURCE).unwrap();
+    let mut enabled_bytes = None;
+    for (_, level) in LEVELS {
+        native.set_optimization_level(level);
+        assert_eq!(native.analyze(SOURCE).unwrap(), program);
+        let bytes = native.compile_source(SOURCE).unwrap();
+        assert_eq!(native.compile(&program).unwrap(), bytes);
+        Validator::new().validate_all(&bytes).unwrap();
+        if level != OptimizationLevel::None {
+            if let Some(expected) = &enabled_bytes {
+                assert_eq!(&bytes, expected, "{level:?}");
+            } else {
+                enabled_bytes = Some(bytes);
+            }
+        }
+    }
 }
 
 #[test]

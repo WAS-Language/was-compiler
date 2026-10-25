@@ -4,7 +4,7 @@ use crate::{
     ast::{
         BinaryOp, Block, CallArgument, ContractExpression, DefaultExpression, Expr, Function,
         Lambda, LambdaBody, MatchArm, MatchPattern, MatchPatternKind, Param, PipelineStage,
-        Program, Statement, StatementKind, Type, UnaryOp, ValueBlock,
+        PipelineStageTarget, Program, Statement, StatementKind, Type, UnaryOp, ValueBlock,
     },
     tokens::{Span, Token, TokenKind},
 };
@@ -730,15 +730,30 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
 
         while self.consume(TokenKind::Pipeline) {
             let start = self.current_span().start();
-            let name = self.parse_identifier()?;
-            let args = if self.consume(TokenKind::LeftParen) {
-                self.parse_call_arguments()?
+            let (target, args) = if self.consume(TokenKind::LeftParen) {
+                let expression_start = self.current_span().start();
+                let expression = self.parse_expression()?;
+                let expression_span = self.span_since(expression_start);
+                self.expect(TokenKind::RightParen)?;
+                (
+                    PipelineStageTarget::Immediate {
+                        expression,
+                        expression_span,
+                    },
+                    Vec::new(),
+                )
             } else {
-                Vec::new()
+                let name = self.parse_identifier()?;
+                let args = if self.consume(TokenKind::LeftParen) {
+                    self.parse_call_arguments()?
+                } else {
+                    Vec::new()
+                };
+                (PipelineStageTarget::Named(name), args)
             };
 
             stages.push(PipelineStage {
-                name,
+                target,
                 args,
                 span: self.span_since(start),
             });

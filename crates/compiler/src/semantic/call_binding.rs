@@ -20,8 +20,103 @@ impl SemanticAnalyzer {
         }
 
         for (index, stage) in stages.iter().enumerate() {
-            let name = &stage.name;
             let span = stage.span;
+            let name = match &stage.target {
+                PipelineStageTarget::Named(name) => name,
+                PipelineStageTarget::Immediate {
+                    expression,
+                    expression_span,
+                } => {
+                    if !stage.args.is_empty() {
+                        return Err(SemanticError::InvalidPipeline {
+                            message: "immediate pipeline stages cannot have written arguments",
+                            span,
+                        });
+                    }
+                    let params;
+                    let source = match expression {
+                        Expr::Lambda(lambda) => {
+                            if lambda.params.len() != 1 {
+                                return Err(SemanticError::InvalidPipeline {
+                                    message: "immediate pipeline stage must have exactly one parameter",
+                                    span,
+                                });
+                            }
+                            closures::ClosureSource::Explicit(lambda)
+                        }
+                        _ if placeholders::has_owned(expression) => {
+                            if placeholders::owned_parameter_count(expression) != 1 {
+                                return Err(SemanticError::InvalidPipeline {
+                                    message: "immediate pipeline stage must have exactly one parameter",
+                                    span,
+                                });
+                            }
+                            params =
+                                self.infer_placeholder_parameters(expression, *expression_span)?;
+                            closures::ClosureSource::Placeholder {
+                                expression,
+                                span: *expression_span,
+                                params: &params,
+                            }
+                        }
+                        _ => {
+                            return Err(SemanticError::InvalidPipeline {
+                                message: "pipeline stage target is not callable",
+                                span,
+                            });
+                        }
+                    };
+                    let closure = self.analyze_closure("<pipeline stage>", span, source)?;
+                    let expected = closure.params[0].ty;
+                    self.expect_type(expected, value.ty, prefix_span)?;
+                    let result_type = closure.return_type;
+                    let message = if result_type != Type::Void {
+                        None
+                    } else if index + 1 != stages.len() {
+                        Some("a nonfinal stage cannot return void")
+                    } else if context != ExprContext::Discard {
+                        Some("a final void stage requires a discarded result")
+                    } else {
+                        None
+                    };
+                    if let Some(message) = message {
+                        return Err(SemanticError::InvalidPipeline { message, span });
+                    }
+                    let id = VariableId(self.next_variable_id);
+                    self.next_variable_id += 1;
+                    let call = TypedExpr {
+                        kind: TypedExprKind::LexicalCall {
+                            callable: closure.id,
+                            args: vec![TypedExpr {
+                                kind: TypedExprKind::Identifier {
+                                    id,
+                                    name: String::new(),
+                                },
+                                ty: expected.into(),
+                            }],
+                            span,
+                        },
+                        ty: result_type.into(),
+                    };
+                    value = TypedExpr {
+                        kind: TypedExprKind::NormalizedCall(TypedNormalizedCall {
+                            immediate_closure: Some(closure),
+                            bindings: vec![TypedCallBinding {
+                                id,
+                                ty: expected,
+                                value,
+                                origin: CallBindingOrigin::PipelineInput,
+                                span: prefix_span,
+                            }],
+                            formal_to_binding: vec![id],
+                            call: Box::new(call),
+                        }),
+                        ty: Self::completion_result(result_type.into(), flow),
+                    };
+                    prefix_span = Span::new(input_span.start(), span.end());
+                    continue;
+                }
+            };
             if let Some(binding) = self.lookup_binding(name).cloned() {
                 match binding {
                     LexicalBinding::Callable(callable) => {
@@ -104,6 +199,7 @@ impl SemanticAnalyzer {
                         };
                         let stage_value = TypedExpr {
                             kind: TypedExprKind::NormalizedCall(TypedNormalizedCall {
+                                immediate_closure: None,
                                 bindings,
                                 formal_to_binding,
                                 call: Box::new(call),
@@ -390,6 +486,7 @@ impl SemanticAnalyzer {
         Ok((
             TypedExpr {
                 kind: TypedExprKind::NormalizedCall(TypedNormalizedCall {
+                    immediate_closure: None,
                     bindings,
                     formal_to_binding,
                     call: Box::new(call),

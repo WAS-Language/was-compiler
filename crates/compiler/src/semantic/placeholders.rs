@@ -2,7 +2,7 @@
 //! concrete callable boundary; callers cannot refine a declaration's signature.
 use super::*;
 use crate::ArrayElementType;
-use crate::ast::MatchPatternKind;
+use crate::ast::{MatchPatternKind, PipelineStageTarget};
 use std::collections::HashSet;
 
 pub(super) struct Parameter {
@@ -13,6 +13,16 @@ pub(super) struct Parameter {
 
 pub(super) fn has_owned(expression: &Expr) -> bool {
     first_owned_span(expression).is_some()
+}
+
+pub(super) fn owned_parameter_count(expression: &Expr) -> usize {
+    let mut count = 0;
+    visit_owned(expression, &mut |expr| {
+        if matches!(expr, Expr::Placeholder { .. }) {
+            count += 1;
+        }
+    });
+    count
 }
 
 pub(super) fn first_owned_span(expression: &Expr) -> Option<Span> {
@@ -1117,11 +1127,57 @@ impl Region<'_> {
                 let (mut input, before) = self.expression(input, *input_span, None, reachable)?;
                 flow = before;
                 for stage in stages {
+                    let name = match &stage.target {
+                        PipelineStageTarget::Named(name) => name,
+                        PipelineStageTarget::Immediate {
+                            expression,
+                            expression_span,
+                        } => {
+                            if !stage.args.is_empty() {
+                                return Err(SemanticError::InvalidPipeline {
+                                    message: "immediate pipeline stages cannot have written arguments",
+                                    span: stage.span,
+                                });
+                            }
+                            let parameter_count = if let Expr::Lambda(lambda) = expression {
+                                lambda.params.len()
+                            } else {
+                                let count = owned_parameter_count(expression);
+                                if count == 0 {
+                                    return Err(SemanticError::InvalidPipeline {
+                                        message: "pipeline stage target is not callable",
+                                        span: stage.span,
+                                    });
+                                }
+                                count
+                            };
+                            if parameter_count != 1 {
+                                return Err(SemanticError::InvalidPipeline {
+                                    message: "immediate pipeline stage must have exactly one parameter",
+                                    span: stage.span,
+                                });
+                            }
+                            let callable = self.nested_callable(expression, *expression_span)?;
+                            // Publish the independently solved signature toward the
+                            // input, never input evidence toward the stage's region.
+                            let injected = input.unwrap_or_else(|| self.constraints.variable());
+                            let (result, next) = self.apply_callable(
+                                &callable,
+                                &stage.args,
+                                stage.span,
+                                Some(injected),
+                                reachable && flow.can_fall_through(),
+                            )?;
+                            flow = flow.then(next);
+                            input = result;
+                            continue;
+                        }
+                    };
                     if let Some(RegionBinding::Callable(callable)) = self
                         .scopes
                         .iter()
                         .rev()
-                        .find_map(|scope| scope.get(&stage.name))
+                        .find_map(|scope| scope.get(name))
                         .cloned()
                     {
                         // Even a noncompleting input occupies formal zero.
@@ -1137,27 +1193,22 @@ impl Region<'_> {
                         input = result;
                         continue;
                     }
-                    let lexical = match self
-                        .scopes
-                        .iter()
-                        .rev()
-                        .find_map(|scope| scope.get(&stage.name))
-                    {
+                    let lexical = match self.scopes.iter().rev().find_map(|scope| scope.get(name)) {
                         Some(RegionBinding::Callable(_)) => {
                             unreachable!("region callable handled above")
                         }
                         Some(RegionBinding::Value(_)) => {
                             return Err(SemanticError::NotCallable {
-                                name: stage.name.clone(),
+                                name: name.clone(),
                                 span: stage.span,
                             });
                         }
-                        None => self.analyzer.lookup_binding(&stage.name).cloned(),
+                        None => self.analyzer.lookup_binding(name).cloned(),
                     };
                     let (first, written, result) = match lexical {
                         Some(LexicalBinding::Value(_)) => {
                             return Err(SemanticError::NotCallable {
-                                name: stage.name.clone(),
+                                name: name.clone(),
                                 span: stage.span,
                             });
                         }
@@ -1183,13 +1234,12 @@ impl Region<'_> {
                             )
                         }
                         None => {
-                            let signature =
-                                self.analyzer.functions.get(&stage.name).ok_or_else(|| {
-                                    SemanticError::UndefinedFunction {
-                                        name: stage.name.clone(),
-                                        span: stage.span,
-                                    }
-                                })?;
+                            let signature = self.analyzer.functions.get(name).ok_or_else(|| {
+                                SemanticError::UndefinedFunction {
+                                    name: name.clone(),
+                                    span: stage.span,
+                                }
+                            })?;
                             if !matches!(signature.reference, FunctionRef::User(_)) {
                                 return Err(SemanticError::InvalidPipeline {
                                     message: "stages must name user-defined functions",
@@ -1203,7 +1253,7 @@ impl Region<'_> {
                                 });
                             }
                             let mapping = self.analyzer.map_call_arguments(
-                                &stage.name,
+                                name,
                                 &stage.args,
                                 stage.span,
                                 true,

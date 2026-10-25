@@ -66,6 +66,20 @@ fn discarded(flag: bool) -> number {
     return 65;
 }
 fn discarded_never() -> number { (loop {}) |> sink; }
+fn immediate() -> number {
+    let factor = 2;
+    let add = (x: number) => { factor += 1; x + factor };
+    return { factor = 3; mark(2) }
+        |> (_ * factor)
+        |> ((x: number) => { let twice = _ * 2; twice(x) |> (_ |> add) })
+        |> defaults(c: 18);
+}
+fn immediate_void() { 4 |> ((x: number) => { mark(x); }); }
+fn immediate_trap() -> number {
+    let n = 7;
+    return mark(1) |> ((x: number) => { mark(x + n); let xs = [0]; xs[1] })
+        |> (_ + mark(99));
+}
 "#;
 const SELECTED: &[&str] = &[
     "main",
@@ -89,9 +103,18 @@ const SELECTED: &[&str] = &[
     "sink_trap_wrapper",
     "discarded",
     "discarded_never",
+    "immediate",
+    "immediate_void",
+    "immediate_trap",
 ];
 
 const ERRORS: &[(&str, &str)] = &[
+    ("// é🦀\r\n\tfn f() { return 10 |> (_ + _); }", "(_ + _)"),
+    (
+        "// é🦀\r\n\tfn f() { return 10 |> (() => 42); }",
+        "(() => 42)",
+    ),
+    ("// é🦀\r\n\tfn f() { return 10 |> (42); }", "(42)"),
     ("// é🦀\r\n\tfn f() { return 1 |> mark; }\r\n", "mark"),
     ("// é🦀\r\n\tfn f() { return [1] |> len(); }\r\n", "len()"),
     (
@@ -130,6 +153,16 @@ const ERRORS: &[(&str, &str)] = &[
 const FINAL_VOID: &str = "a final void stage requires a discarded result";
 const NONFINAL_VOID: &str = "a nonfinal stage cannot return void";
 const VOID_ERRORS: &[(&str, &str, &str)] = &[
+    (
+        "// é🦀\r\n\tfn f() { return 1 |> ((x: number) => {}); }",
+        "((x: number) => {})",
+        FINAL_VOID,
+    ),
+    (
+        "// é🦀\r\n\tfn f() { (loop {}) |> ((x: number) => {}) |> (_ + 1); }",
+        "((x: number) => {})",
+        NONFINAL_VOID,
+    ),
     (
         "fn f() { return 1 |> discard; } fn discard(a: number) {}",
         "discard",
@@ -480,12 +513,20 @@ fn cli_pipeline_wasm_and_wat_equal_native_at_every_level_and_export_selection() 
         .compile_source(SOURCE)
         .expect("pipeline source compilation");
     assert_full_arity_default_export(&baseline);
+    let mut enabled_bytes = None;
     for (flag, level) in LEVELS {
         native.set_optimization_level(level);
         native.set_exports(ExportOptions::Only(
             SELECTED.iter().map(|name| (*name).into()).collect(),
         ));
         let selected_bytes = native.compile_source(SOURCE).unwrap();
+        if level != OptimizationLevel::None {
+            if let Some(expected) = &enabled_bytes {
+                assert_eq!(&selected_bytes, expected, "{level:?}");
+            } else {
+                enabled_bytes = Some(selected_bytes.clone());
+            }
+        }
         assert_full_arity_default_export(&selected_bytes);
         let program = native.analyze(SOURCE).unwrap();
         assert_eq!(selected_bytes, native.compile(&program).unwrap());
@@ -671,6 +712,12 @@ fn cli_discarded_void_pipelines_execute_defaults_contracts_and_full_arity_wrappe
             env: {mark(n) {events.push(n); return n;}}
         }).exports;
         assertDiscardedVoid(assert, e, events);
+        events.length = 0;
+        assert.equal(e.immediate(), 1788); assert.deepEqual(events.splice(0), [2]);
+        assert.equal(e.immediate_void(), undefined); assert.deepEqual(events.splice(0), [4]);
+        assert.throws(() => e.immediate_trap(), WebAssembly.RuntimeError);
+        assert.deepEqual(events.splice(0), [1,8]);
+        assert.equal(e.immediate(), 1788); assert.deepEqual(events.splice(0), [2]);
     "#;
     let script = [VOID_ASSERTIONS, script].concat();
     for (flag, level) in LEVELS {

@@ -67,11 +67,11 @@
                            <ws> "=" <ws> <expression>
                            <ws> ";"
 
-# #45 admits expression-position _ in local callable initializers. Each owned
-# occurrence is a distinct parameter; direct exact constraints must select its
-# concrete type. Match-pattern _ remains a wildcard, and _temp remains a name.
-# Local/collection propagation, full nested/control composition and immediate
-# stages remain deferred; see docs/wp12-placeholder-development.md.
+# #45-#47 admit expression-position _ in local callable initializers with exact
+# local/collection constraints, control flow and nested regions. Each owned
+# occurrence is a distinct parameter; only reachable evidence selects its type.
+# Match-pattern _ remains a wildcard, and _temp remains a name. #48 adds unary
+# immediate pipeline regions; see docs/wp12-placeholder-development.md.
 
 <assignment> ::= <identifier> <ws> "=" <ws> <expression> <ws> ";"
                | <array_access> <ws> "=" <ws> <expression> <ws> ";"
@@ -204,6 +204,17 @@
 
 <pipeline_stage> ::= <identifier>
                      ( <ws> "(" <ws> <argument_list>? <ws> ")" )?
+                   | "(" <ws> <expression> <ws> ")"
+
+# #44 permits known lexical callable stages with positional-only written arguments.
+# #48's parenthesized stage must be an explicit typed lambda or an expression
+# owning placeholders, with exactly one parameter and no written argument suffix.
+# Examples: 10 |> ((x: number) => x * 2), 10 |> (_ * 2).
+# Placeholder types infer within the region, never from input: (_) is ambiguous;
+# (_ + _) has wrong stage arity; (42) is not callable. Input executes before the
+# stage environment; eager original capture promotion is unchanged. No first-class
+# callable values or general postfix invocation are added. Integrated WP12 release
+# validation remains pending.
 
 # WP10 supplies input to formal 0 of named user-defined functions, even when that
 # formal has a default; naming formal 0 is a duplicate. Remaining formals use
@@ -315,8 +326,9 @@
 
 <lambda_parameter> ::= <identifier> <ws> ":" <ws> <type>
 
-# WP11 accepts lambdas only as unannotated local callable initializers.
-# Parentheses are transparent; invocation is identifier-led and positional only.
+# WP11 accepts lambdas as unannotated local callable initializers; #48 additionally
+# permits parenthesized unary typed lambdas as immediate pipeline stages.
+# Parentheses are transparent; ordinary invocation is identifier-led and positional only.
 # Callable bindings cannot be values, aliases or assignment targets. Known lexical
 # callable pipeline stages are supported by #44.
 # Parameters and loop/return contexts belong to the lambda, not its creator.
@@ -328,13 +340,13 @@
 # forward their live contexts transitively, without callable values or self/forward hoisting.
 # A bare final loop in a lambda's braced body remains a statement loop, so
 # () => { loop {} } has a Void signature; parenthesize a value-loop tail there.
-# No result annotations, defaults, contracts or immediate invocation are added.
-# #45/#46 add placeholder locals and exact local/collection constraints.
+# No result annotations, defaults, contracts or general postfix invocation are added.
+# #45-#47 add placeholder locals, exact local/collection constraints, control flow
+# and nested-region composition; #48 adds immediate unary placeholder stages.
 # Bare "_" let initializers in a placeholder region belong to that region;
 # compound placeholder initializers still own separate callable regions.
-# Full control-flow/nested-region inference remains deferred.
-# No first-class callables, immediate pipeline stages, reclamation
-# or optimization (WP13) are added. WP11 is implemented; release gates passed on
+# No first-class callables, reclamation or optimization (WP13) are added.
+# WP11 is implemented; release gates passed on
 # 2026-10-15. Evidence:
 # docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15.
 

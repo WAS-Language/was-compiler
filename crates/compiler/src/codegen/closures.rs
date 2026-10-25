@@ -12,7 +12,7 @@ use crate::{
     tokens::Span,
     typed_ast::{
         BindingOwner, CallableId, TypedClosure, TypedClosureBody, TypedFunction, TypedParam,
-        TypedProgram, TypedStatement, TypedStatementKind, VariableId,
+        TypedProgram, VariableId,
     },
 };
 
@@ -253,15 +253,13 @@ impl Storage {
                 false
             }
 
-            fn enter_statement(&mut self, statement: &TypedStatement) -> ControlFlow<Self::Break> {
-                if let TypedStatementKind::Closure(c) = &statement.kind {
-                    if self.plans[c.id.0].needs_context {
-                        self.callables.push(c.id);
-                    }
-                    for capture in &c.captures {
-                        if capture.owner == self.owner {
-                            self.bindings.insert(capture.variable);
-                        }
+            fn enter_closure(&mut self, c: &TypedClosure) -> ControlFlow<Self::Break> {
+                if self.plans[c.id.0].needs_context {
+                    self.callables.push(c.id);
+                }
+                for capture in &c.captures {
+                    if capture.owner == self.owner {
+                        self.bindings.insert(capture.variable);
                     }
                 }
                 ControlFlow::Continue(())

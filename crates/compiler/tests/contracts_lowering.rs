@@ -140,6 +140,7 @@ fn every_forbidden_contract_form_is_checked_in_skipped_and_unexported_contracts(
         ),
         expr(
             TypedExprKind::NormalizedCall(TypedNormalizedCall {
+                immediate_closure: None,
                 bindings: vec![],
                 formal_to_binding: vec![],
                 call: Box::new(user_call),

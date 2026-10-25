@@ -38,6 +38,7 @@ fn fixture() -> TypedProgram {
         identifier(VariableId(100), Type::Number),
     ];
     value.kind = TypedExprKind::NormalizedCall(TypedNormalizedCall {
+        immediate_closure: None,
         bindings: values
             .into_iter()
             .enumerate()
@@ -355,6 +356,7 @@ fn normalized_calls_support_mixed_storage_types_and_void_results() {
             .map(|binding| identifier(binding.id, binding.ty))
             .collect();
         value.kind = TypedExprKind::NormalizedCall(TypedNormalizedCall {
+            immediate_closure: None,
             bindings,
             formal_to_binding: vec![VariableId(102), VariableId(101), VariableId(100)],
             call: Box::new(call),

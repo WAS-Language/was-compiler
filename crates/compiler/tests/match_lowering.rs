@@ -879,6 +879,7 @@ fn match_is_rejected_in_forged_contracts_and_normalized_defaults() {
 
     let sequence = expr(
         TypedExprKind::NormalizedCall(TypedNormalizedCall {
+            immediate_closure: None,
             bindings: vec![TypedCallBinding {
                 id: VariableId(10),
                 ty: Type::Bool,

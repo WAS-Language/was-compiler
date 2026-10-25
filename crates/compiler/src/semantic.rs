@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::{
     ast::{
         BinaryOp, Block, CallArgument, Expr, Function, Lambda, LambdaBody, MatchArm, PipelineStage,
-        Program, Statement, StatementKind, Type, UnaryOp, ValueBlock,
+        PipelineStageTarget, Program, Statement, StatementKind, Type, UnaryOp, ValueBlock,
     },
     flow::Flow,
     host::HostFunctions,

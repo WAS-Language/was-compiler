@@ -21,6 +21,176 @@ fn span(source: &str, text: &str) -> Span {
 }
 
 #[test]
+fn immediate_unary_stages_accept_typed_lambdas_and_independent_placeholders() {
+    for stage in ["((x: number) => x * 2)", "(_ * 2)"] {
+        let source = format!("fn main() -> number {{ return 10 |> {stage}; }}");
+        Compiler::new().analyze(&source).unwrap();
+    }
+}
+
+#[test]
+fn immediate_stage_eligibility_and_arity_errors_keep_full_stage_spans() {
+    for (stage, message) in [
+        ("(42)", "pipeline stage target is not callable"),
+        ("(f)", "pipeline stage target is not callable"),
+        (
+            "(() => 42)",
+            "immediate pipeline stage must have exactly one parameter",
+        ),
+        (
+            "((a: number, b: number) => a + b)",
+            "immediate pipeline stage must have exactly one parameter",
+        ),
+        (
+            "(_ + _)",
+            "immediate pipeline stage must have exactly one parameter",
+        ),
+        (
+            "(_ == _)",
+            "immediate pipeline stage must have exactly one parameter",
+        ),
+    ] {
+        let source = format!("/*🦀*/ fn main() {{ return 10 |> {stage}; }}");
+        assert_eq!(
+            error(&source),
+            SemanticError::InvalidPipeline {
+                message,
+                span: span(&source, stage),
+            }
+        );
+    }
+    for expression in [
+        "10 |> (_ + 1)(2)",
+        "10 |> ((x: number) => x)(2)",
+        "((x: number) => x)(10)",
+    ] {
+        let source = format!("fn main() {{ return {expression}; }}");
+        assert!(
+            matches!(
+                Compiler::new().analyze(&source),
+                Err(CompileError::Parse(_))
+            ),
+            "{expression}"
+        );
+    }
+}
+
+#[test]
+fn immediate_placeholder_signature_never_comes_from_input_or_later_stages() {
+    for expression in ["10 |> (_)", "10 |> (_) |> (_ + 1)", "true |> (_ == _)"] {
+        let source = format!("fn main() {{ return {expression}; }}");
+        let found = error(&source);
+        if expression.ends_with("(_ == _)") {
+            assert!(matches!(found, SemanticError::InvalidPipeline { .. }));
+        } else {
+            assert_eq!(
+                found,
+                SemanticError::CannotInferPlaceholderParameter {
+                    span: span(&source, "_")
+                }
+            );
+        }
+    }
+    for expression in ["true |> (_ + 1)", "10 |> ((x: bool) => !x)"] {
+        let source = format!("fn main() {{ return {expression}; }}");
+        assert!(matches!(error(&source), SemanticError::TypeMismatch { .. }));
+    }
+}
+
+#[test]
+fn immediate_stage_raw_and_typed_provenance_retains_unicode_and_grouping() {
+    use was_compiler::ast::PipelineStageTarget;
+    use was_compiler::typed_ast::{BindingOwner, CallableId, FunctionId};
+    let source =
+        "/*🦀*/ fn main() { return (10) |> ( /*λ*/ _ + 1 /*x*/ ) |> ((x: number) => x * 2); }";
+    let raw = Parser::new(&Lexer::new(source).tokenize())
+        .parse_program()
+        .unwrap();
+    let StatementKind::Return(Some(Expr::Pipeline { stages, .. })) = &raw.functions[0].body[0].kind
+    else {
+        panic!("pipeline")
+    };
+    let PipelineStageTarget::Immediate {
+        expression_span, ..
+    } = &stages[0].target
+    else {
+        panic!("immediate")
+    };
+    assert_eq!(*expression_span, span(source, "_ + 1"));
+    assert_eq!(stages[0].span, span(source, "( /*λ*/ _ + 1 /*x*/ )"));
+    let program = Compiler::new().analyze(source).unwrap();
+    let TypedStatementKind::Return(Some(value)) = &program.functions[0].body[0].kind else {
+        panic!("return")
+    };
+    let TypedExprKind::NormalizedCall(outer) = &value.kind else {
+        panic!("outer")
+    };
+    let TypedExprKind::NormalizedCall(inner) = &outer.bindings[0].value.kind else {
+        panic!("inner")
+    };
+    let helper = inner.immediate_closure.as_ref().unwrap();
+    assert_eq!(helper.id, CallableId(0));
+    assert_eq!(helper.owner, BindingOwner::Function(FunctionId(0)));
+    assert_eq!(helper.name, "<pipeline stage>");
+    assert_eq!(helper.name_span, stages[0].span);
+    assert_eq!(helper.span, *expression_span);
+    assert_eq!(helper.body_span, *expression_span);
+    assert_eq!(helper.params[0].span, span(source, "_"));
+    assert_eq!(outer.immediate_closure.as_ref().unwrap().id, CallableId(1));
+}
+
+#[test]
+fn immediate_stage_iteration_captures_reject_even_skipped_or_nested_writes() {
+    for (iterable, replacement) in [
+        ("1..=2", "3"),
+        ("[1, 2]", "3"),
+        ("[true]", "false"),
+        ("[\"a\"]", "\"b\""),
+    ] {
+        for body in [
+            format!("item = {replacement};"),
+            format!("false && {{ item = {replacement}; true }};"),
+            format!("1 |> ((y: number) => {{ item = {replacement}; y }});"),
+        ] {
+            let source = format!(
+                "fn main() {{ for item in {iterable} {{ 1 |> ((x: number) => {{ {body} x }}); }} }}"
+            );
+            assert!(
+                matches!(error(&source), SemanticError::ReadOnlyVariable { name, .. } if name == "item")
+            );
+        }
+    }
+}
+
+#[test]
+fn immediate_void_stages_preserve_discard_rules_even_after_never() {
+    for input in ["1", "(loop {})"] {
+        for stage in ["((x: number) => {})", "({ _ + 1; })"] {
+            let discarded = format!("fn main() {{ {input} |> {stage}; }}");
+            Compiler::new().compile_source(&discarded).unwrap();
+            for (suffix, message) in [
+                ("", "a final void stage requires a discarded result"),
+                (" |> (_ + 1)", "a nonfinal stage cannot return void"),
+            ] {
+                let source = format!("fn main() {{ return {input} |> {stage}{suffix}; }}");
+                assert_eq!(
+                    error(&source),
+                    SemanticError::InvalidPipeline {
+                        message,
+                        span: span(&source, stage)
+                    }
+                );
+            }
+        }
+    }
+    let source = "fn main() { return (loop {}) |> (_ + missing); }";
+    assert!(matches!(
+        error(source),
+        SemanticError::UndefinedVariable { .. }
+    ));
+}
+
+#[test]
 fn positional_stages_normalize_with_distinct_injection_and_written_indices() {
     let source = "fn pair(a: number, b: number) { return a + b; } fn identity(x: number) { return x; } fn main() { return 1 |> pair(2) |> identity(); }";
     let program = Compiler::new().analyze(source).unwrap();
@@ -269,7 +439,13 @@ fn pipeline_precedence_is_below_or_and_stages_are_left_associative() {
         }
     ));
     assert_eq!(
-        stages.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(),
+        stages
+            .iter()
+            .map(|s| match &s.target {
+                was_compiler::ast::PipelineStageTarget::Named(name) => name.as_str(),
+                _ => panic!("named stage"),
+            })
+            .collect::<Vec<_>>(),
         ["first", "second"]
     );
     assert!(stages.iter().all(|s| s.args.is_empty()));
@@ -283,7 +459,6 @@ fn malformed_stage_syntax_and_split_operator_bytes_are_rejected() {
         "1 | > f",
         "1 |/*é*/> f",
         "1 |> ",
-        "1 |> (f)",
         "1 |> _",
         "1 |> 2",
         "1 |> f[0]",

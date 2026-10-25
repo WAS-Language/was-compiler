@@ -48,6 +48,173 @@ fn lexical_pipeline_stages_forward_live_callable_contexts() {
     );
 }
 
+#[test]
+#[ignore = "requires Node.js on PATH"]
+fn immediate_stages_keep_live_captures_nested_regions_and_callable_dependencies() {
+    run(
+        r#"
+        fn main() -> number {
+            let total = 1;
+            let xs = [2];
+            let add = (n: number) => { total += n; xs[0] += total; total };
+            let result = { total = 3; xs[0] = 4; mark(2) }
+                |> ((x: number) => { mark(10); total += x; xs[0] += total; x + total })
+                |> ({
+                    let n = _;
+                    let nested = _ + total;
+                    let via = (v: number) => {
+                        let deep = _ |> add;
+                        deep(v)
+                    };
+                    mark(20);
+                    nested(n) + via(1)
+                });
+            return result + total + xs[0];
+        }
+        "#,
+        &["main"],
+        "assert.equal(e.main(), 39); assert.deepEqual(events.splice(0), [2,10,20]); assert.equal(e.main(), 39); assert.deepEqual(events.splice(0), [2,10,20]);",
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js on PATH"]
+fn immediate_stage_environments_follow_input_completion_but_cells_are_eager() {
+    run(
+        r#"
+        fn fail() -> number requires false { return 0; }
+        fn entry(mode: number) -> number {
+            let n = mark(1);
+            return {
+                mark(2);
+                if mode == 0 { return 70; }
+                if mode == 1 { fail(); }
+                if mode == 2 { loop { mark(3); } }
+                mark(4)
+            } |> ((x: number) => {
+                mark(5); n += x;
+                if mode == 3 { fail(); }
+                n
+            }) |> ((x: number) => { mark(6); x + n });
+        }
+        "#,
+        &["entry"],
+        r#"
+        function allocated(action, bytes, expected, n) {
+            const before = e.__alloc(8) >>> 0;
+            action();
+            assert.equal((e.__alloc(8) >>> 0) - before - 8, bytes);
+            assert.deepEqual(events.splice(0), expected);
+            // Parameter and let cells survive even when no stage environment exists.
+            const view = new DataView(e.memory.buffer);
+            assert.equal(view.getFloat64(before + 16, true), n);
+        }
+        allocated(() => assert.equal(e.entry(0), 70), 16, [1,2], 1);
+        allocated(() => assert.throws(() => e.entry(1), WebAssembly.RuntimeError), 16, [1,2], 1);
+        // Bound the syntactically divergent input at its first host effect; it
+        // never completes and cannot reach environment creation or either body.
+        const interrupted = new Error('bounded divergent input');
+        onMark = n => { if (n === 3) throw interrupted; };
+        allocated(() => assert.throws(() => e.entry(2), error => error === interrupted), 16, [1,2,3], 1);
+        onMark = () => {};
+        allocated(() => assert.throws(() => e.entry(3), WebAssembly.RuntimeError), 32, [1,2,4,5], 5);
+        allocated(() => assert.equal(e.entry(4), 10), 40, [1,2,4,5,6], 5);
+        allocated(() => assert.equal(e.entry(4), 10), 40, [1,2,4,5,6], 5);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js on PATH"]
+fn immediate_stages_preserve_recursive_reentrant_and_trapped_invocation_lifetimes() {
+    run(
+        r#"
+        fn fail() -> number requires false { return 0; }
+        fn recursive(n: number) -> number {
+            let saved = n;
+            return n |> ((x: number) => {
+                if x > 0 { recursive(x - 1); }
+                saved += 10;
+                saved
+            });
+        }
+        fn entry(seed: number, bad: bool) -> number[] {
+            let xs = [seed];
+            seed |> ((x: number) => {
+                xs[0] += x;
+                mark(x);
+                xs[0] += 1;
+                if bad { fail(); } else {}
+            });
+            return xs;
+        }
+        "#,
+        &["recursive", "entry"],
+        r#"
+        assert.equal(e.recursive(4), 14);
+        let inner;
+        let calls = 0;
+        onMark = n => {
+            if (n === 2) {
+                calls++;
+                inner = e.entry(10, 0);
+                assert.throws(() => e.entry(20, 1), WebAssembly.RuntimeError);
+                // Growth during reentry must not invalidate the outer capture.
+                e.__alloc(70000);
+                assert.deepEqual(contents(inner), [21]);
+            }
+        };
+        const outer = e.entry(2, 0);
+        onMark = () => {};
+        assert.equal(calls, 1);
+        assert.deepEqual(events.splice(0), [2,10,20]);
+        assert.deepEqual(contents(outer), [5]);
+        assert.deepEqual(contents(inner), [21]);
+        const later = e.entry(3, 0);
+        assert.deepEqual(events.splice(0), [3]);
+        assert.equal(new Set([outer, inner, later]).size, 3);
+        assert.deepEqual([outer, inner, later].map(h => contents(h)), [[5],[21],[7]]);
+        assert.equal(e.recursive(2), 12);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js on PATH"]
+fn immediate_stages_forward_read_only_iteration_captures_and_observe_array_aliases() {
+    run(
+        r#"
+        fn main() -> number {
+            let total = 0;
+            for n in 1..=3 {
+                total += 10 |> ((x: number) => x |> (_ + n));
+            }
+            let numbers = [2, 4];
+            for n in numbers {
+                total += 1 |> ((x: number) => x + n);
+                numbers[1] = 8;
+            }
+            for flag in [true, false] {
+                total += 1 |> ((x: number) => x |> ({
+                    let n = _;
+                    if flag { n + 10 } else { n + 20 }
+                }));
+            }
+            let texts = ["a", "b"];
+            for text in texts {
+                total += 1 |> ((x: number) => x |> ((y: number) => {
+                    if text == "a" { y + 100 } else { y + 200 }
+                }));
+                texts[1] = "a";
+            }
+            return total;
+        }
+        "#,
+        &["main"],
+        "assert.equal(e.main(), 282); assert.equal(e.main(), 282); assert.deepEqual(events, []);",
+    );
+}
+
 fn compiler(selected: &[&str]) -> Compiler {
     let mut compiler = Compiler::new();
     compiler
@@ -65,6 +232,7 @@ fn compiler(selected: &[&str]) -> Compiler {
 fn run(source: &str, selected: &[&str], assertions: &str) {
     let mut compiler = compiler(selected);
     let baseline_program = compiler.analyze(source).unwrap();
+    let mut enabled_bytes = None;
     for level in LEVELS {
         compiler.set_optimization_level(level);
         let bytes = compiler
@@ -73,6 +241,13 @@ fn run(source: &str, selected: &[&str], assertions: &str) {
         let program = compiler.analyze(source).unwrap();
         assert_eq!(compiler.compile(&program).unwrap(), bytes);
         Validator::new().validate_all(&bytes).unwrap();
+        if level != OptimizationLevel::None {
+            if let Some(expected) = &enabled_bytes {
+                assert_eq!(&bytes, expected, "{level:?}");
+            } else {
+                enabled_bytes = Some(bytes.clone());
+            }
+        }
         assert_eq!(program, baseline_program, "{level:?}");
         assert_eq!(compiler.compile_source(source).unwrap(), bytes);
         let function_indices = Parser::new(0)

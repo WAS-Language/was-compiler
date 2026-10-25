@@ -181,9 +181,18 @@ pub struct MatchArm {
 
 #[derive(Debug, PartialEq)]
 pub struct PipelineStage {
-    pub name: String,
+    pub target: PipelineStageTarget,
     pub args: Vec<CallArgument>,
     pub span: Span,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum PipelineStageTarget {
+    Named(String),
+    Immediate {
+        expression: Expr,
+        expression_span: Span,
+    },
 }
 
 #[derive(Debug, PartialEq)]

@@ -64,13 +64,14 @@ implemented; #35's full native/browser [release gates passed on 2026-10-15](loca
 Issue #44 implements known lexical callable pipeline stages; integrated release
 validation remains pending. #45 implements
 [directly constrained placeholder locals](wp12-placeholder-development.md#implemented-direct-constraint-milestone-45);
-remaining WP12 inference/composition and immediate stages remain deferred,
-and WP13 requires separate authorization.
+#46–#47 extend exact local/collection inference, control flow and nested regions.
+#48 implements immediate unary typed-lambda/placeholder pipeline stages; integrated
+WP12 release validation remains pending. WP13 requires separate authorization.
 See [the #14 contract](result-inference-development.md#issue-14-acyclic-chains-and-diamonds) and the
 [named/default interface](named-call-interface.md) for migration and the
 [development handoff](wp6-wp7-development.md) for historical worktree evidence.
 
-### Pipeline restrictions (WP10 release gates passed; #44 implemented)
+### Pipeline restrictions (WP10 released; #44/#48 implemented, WP12 release pending)
 
 `value |> function(args)` injects into formal 0 of a named user function and
 supports positional-prefix/named remaining arguments and omitted trailing defaults.
@@ -85,8 +86,12 @@ permit mixed Void/value branches. Ordinary calls, defaults and ABI remain unchan
 Known visible local callable stages are also supported, with positional-only
 written arguments and the injected input mapped to their first parameter. They
 use checked direct helpers and shared captures, not callable values.
-Host/builtin stages, zero-parameter stages, callable values, placeholders and
-expression callees are rejected. User-function wrappers can call
+#48 also accepts parenthesized immediate unary typed lambdas and placeholder
+regions, with no written argument suffix. Placeholder parameter types must be
+uniquely inferred inside the stage, never from its input: `10 |> (_)` is ambiguous,
+`10 |> (_ + _)` has wrong arity, and `10 |> (42)` is not callable. Host/builtin
+stages, zero-parameter stages, callable values and arbitrary expression callees
+remain rejected. User-function wrappers can call
 hosts. Pipelines remain outside the default/contract whitelist. Parenthesize bare
 if/match/loop constructs for continuation across statement/tail boundaries.
 
@@ -104,12 +109,15 @@ Lambda-initialized and #45–#47 placeholder local bindings support
 direct positional calls.
 Parentheses around initializers are transparent. Callables cannot be used as
 values, aliased, reassigned, given value-type annotations, passed or returned.
-Immediate invocation, named/default closure parameters, closure contracts/result
+General postfix invocation, named/default closure parameters, closure contracts/result
 annotations are rejected. Placeholder local inference includes exact local/collection
 propagation, structural control-flow joins and nested callable composition under the
 [#47 milestone](wp12-placeholder-development.md#implemented-control-flow-and-nesting-milestone-47).
 Unreachable-only evidence and unresolved circular capture/signature dependencies
-remain uninferable. Immediate pipeline stages are deferred. Issue #44 adds direct lexical callable
+remain uninferable. #48's immediate stages reuse direct helpers and live captures:
+input executes before the stage environment, while eager original capture-cell
+promotion remains unchanged. Input failure skips that environment/body, not static
+checking; no new ABI or IR is introduced. Issue #44 adds direct lexical callable
 pipeline stages with positional-only written arguments; see
 [the pipeline interface](named-call-interface.md).
 Closures may call ordinary named functions with their existing defaults and contracts.

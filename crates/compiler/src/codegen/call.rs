@@ -95,6 +95,17 @@ pub(super) fn emit_normalized(
 ) -> Result<(Flow, ExprResult), CodegenError> {
     let invalid = |reason| CodegenError::InvalidNormalizedCall { reason, span };
     let lexical_target = matches!(&sequence.call.kind, TypedExprKind::LexicalCall { .. });
+    if let Some(closure) = &sequence.immediate_closure
+        && (closure.name != "<pipeline stage>"
+            || closure.params.len() != 1
+            || sequence.bindings.len() != 1
+            || !matches!(&sequence.call.kind, TypedExprKind::LexicalCall { callable, .. }
+                if *callable == closure.id))
+    {
+        return Err(invalid(
+            "immediate stage must directly call its owned unary helper",
+        ));
+    }
     let (params, return_type, args) = match &sequence.call.kind {
         TypedExprKind::Call {
             func: reference @ FunctionRef::User(_),
@@ -111,17 +122,19 @@ pub(super) fn emit_normalized(
             (target.params.clone(), target.return_type, args)
         }
         TypedExprKind::LexicalCall { callable, args, .. } => {
-            let plan = body.callable(*callable, span)?;
-            if args.len() != plan.declaration.params.len() {
+            // An immediate helper is not lexically active until its input has
+            // completed and its declaration has established the creator facts.
+            let declaration = if let Some(closure) = &sequence.immediate_closure {
+                closure
+            } else {
+                body.callable(*callable, span)?.declaration
+            };
+            if args.len() != declaration.params.len() {
                 return Err(invalid("final call arity does not match its target"));
             }
             (
-                plan.declaration
-                    .params
-                    .iter()
-                    .map(|param| param.ty)
-                    .collect(),
-                plan.declaration.return_type,
+                declaration.params.iter().map(|param| param.ty).collect(),
+                declaration.return_type,
                 args,
             )
         }
@@ -234,6 +247,12 @@ pub(super) fn emit_normalized(
             if binding.value.ty != ExprResult::Never {
                 body.local_set(slot);
             }
+        }
+        if let Some(closure) = &sequence.immediate_closure {
+            // Keep this after checked input emission, even on Never paths: the
+            // declaration and helper still require static checks, while runtime
+            // transfers/traps cannot reach the environment allocation.
+            body.declare_callable(closure)?;
         }
         // Explicit initializers remain outside generated-binding scope. Defaults
         // grant only checked earlier-formal reads; the final call reads all slots.

@@ -3,7 +3,8 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use super::{FunctionId, SemanticAnalyzer, SemanticError};
 use crate::{
     ast::{
-        Block, Expr, Function, Lambda, LambdaBody, MatchArm, Program, StatementKind, ValueBlock,
+        Block, Expr, Function, Lambda, LambdaBody, MatchArm, PipelineStageTarget, Program,
+        StatementKind, ValueBlock,
     },
     tokens::Span,
 };
@@ -373,13 +374,37 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
             } => {
                 self.expr(input, *input_span);
                 for stage in stages {
-                    if !self
-                        .scopes
-                        .iter()
-                        .rev()
-                        .any(|scope| scope.contains(stage.name.as_str()))
-                    {
-                        (self.call)(&stage.name, stage.span);
+                    match &stage.target {
+                        PipelineStageTarget::Named(name) => {
+                            if !self
+                                .scopes
+                                .iter()
+                                .rev()
+                                .any(|scope| scope.contains(name.as_str()))
+                            {
+                                (self.call)(name, stage.span);
+                            }
+                        }
+                        PipelineStageTarget::Immediate {
+                            expression,
+                            expression_span,
+                        } => {
+                            if matches!(expression, Expr::Lambda(_)) {
+                                self.expr(expression, *expression_span);
+                            } else if super::placeholders::has_owned(expression) {
+                                self.lambdas.push(std::ptr::from_ref(expression).addr());
+                                let saved_return = self.has_value_return;
+                                let saved_region = self.placeholder_region;
+                                self.placeholder_region = true;
+                                self.scopes.push(HashSet::new());
+                                self.expr(expression, *expression_span);
+                                self.scopes.pop();
+                                self.has_value_return = saved_return;
+                                self.placeholder_region = saved_region;
+                            } else {
+                                self.expr(expression, *expression_span);
+                            }
+                        }
                     }
                     for arg in &stage.args {
                         self.expr(&arg.value, arg.span);

@@ -8,8 +8,10 @@ authorization for issue #44 implemented known lexical callable pipeline stages;
 integrated WP12 release validation remains pending. Issue #45 implements the
 direct-constraint local-declaration milestone described below. Issue #46 extends
 that solver with local/collection propagation and basic value-if joins. Issue #47
-implements control-flow/nested-region composition. Immediate stages remain deferred.
-This is not full WP12 release evidence.
+implements control-flow/nested-region composition. Issue #48 implements immediate
+unary typed-lambda and placeholder pipeline stages. Integrated WP12 release
+validation remains pending; the earlier milestone records retain their historical
+scope.
 
 ### Implemented direct-constraint milestone (#45)
 
@@ -198,6 +200,62 @@ regressions cover both. The two-axis checklist was applied locally, without
 independent subagents. A possible follow-up is consolidating the ordinary-call
 and pipeline signature lookup branches; it is not needed for this milestone.
 
+### Implemented immediate-stage milestone (#48)
+
+Parenthesized unary typed lambdas and placeholder regions now work directly as
+pipeline stages:
+
+```text
+10 |> ((x: number) => x * 2); // 20
+10 |> (_ * 2);               // 20
+```
+
+Immediate stages require exactly one parameter and no written argument suffix.
+Explicit lambda parameters remain typed; a placeholder stage's sole parameter
+must be uniquely inferred from its own region, never from the incoming input or
+later stages. Thus `10 |> (_)` remains ambiguous, `_ + _` has the wrong stage
+arity, and `(42)` is not a callable target. No first-class callable values or
+general postfix invocation are added. Final-Void discard rules remain unchanged.
+
+The raw stage-target and typed normalized-call migration below is implemented.
+Each immediate stage owns its `TypedClosure` helper under the lexical owner, using
+`"<pipeline stage>"` only as an internal label. The input executes before the
+stage environment is created; input failure skips that environment and body, not
+static checking. Original captured bindings still use eager shared-cell promotion.
+The existing direct-helper ABI, checked lowering and IR remain in use.
+
+#### #48 validation and remaining gate
+
+Validation on 2026-10-25 passed for this milestone:
+
+- `cargo check --offline --all-targets` and the focused pipeline/closure frontend
+  and checked-lowering targets passed, including forged ownership/mapping checks,
+  independent instruction/allocation decoding and Wasm validation.
+- Explicit ignored pipeline/closure runtime and CLI adapter runs passed. Coverage
+  includes input-before-environment order, eager original cells, traps/divergence,
+  live mutable and read-only iteration captures, nested dependencies, recursion,
+  host reentry, growth and preset parity.
+- `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name
+  was_compiler --mode no-install --no-opt --offline` rebuilt current sources.
+  Browser pipeline/closure parity targets passed with `--include-ignored`, and
+  `node tests/browser.cjs pkg` passed all 25 smoke groups.
+- `cargo test --offline` passed 1,145 tests across 70 targets, with 204 ignored.
+  The final `cargo test --offline --workspace -- --include-ignored` passed
+  1,362 tests across 81 targets, with none failed or ignored. Earlier attempts
+  exceeded their bounded time limits during build/test contention; only the
+  completed final runs are passing evidence.
+- Native all-target Clippy, portable-core Wasm build and browser-target Clippy
+  passed under the documented offline commands.
+
+Two-axis review found zero hard standards findings and zero confirmed behavioral
+spec violations. Its iteration-capture coverage suggestion was implemented and
+verified; low-priority shared target-classification and adapter-fixture suggestions
+remain deferred rather than merging separate semantic/planning policies.
+
+These results validate #48, not a separate integrated WP12 release decision.
+Earlier #44/#45–#47 records retain their historical scope. Integrated WP12 release
+validation/acceptance remains a distinct gate.
+
 ## Regions and binding (Q1–Q2, Q6–Q7, Q9–Q12, Q15, Q18)
 
 - Only a local callable initializer or immediate pipeline stage owns a placeholder
@@ -283,7 +341,8 @@ type or a second intermediate representation:
   `TypedExprKind::LexicalCall`/`TypedNormalizedCall` direct-call forms. The local
   declaration owns its helper body. For immediate stages, extend the
   existing `TypedNormalizedCall` with `immediate_closure: Option<TypedClosure>`;
-  it is `Some` only for a synthesized immediate stage, and the normalized
+  existing non-immediate constructors set it to `None`. It is `Some` only for an
+  immediate stage (explicit lambda or synthesized placeholder), and the normalized
   call's existing direct `call` invokes that helper. The `TypedClosure` is
   owned by that normalized stage and its `owner` is the lexical owner containing
   the pipeline expression. Check/cache its body through the existing closure
@@ -317,9 +376,11 @@ type or a second intermediate representation:
   synthesized/direct callable with the input as its sole parameter. No alternate
   pipeline IR, indirect call, or runtime callable representation is added.
 
-These are additive raw-AST migration requirements. Existing constructors and
-exhaustive consumers must be updated; typed callable ownership and backend
-validation continue to use the WP11 shapes described in the
+These are public Rust AST migration requirements: replace raw `PipelineStage.name`
+access with a match on `target`, and set `immediate_closure: None` in existing
+non-immediate `TypedNormalizedCall` constructors. Update exhaustive consumers;
+typed callable ownership and backend validation continue to use the WP11 shapes
+described in the
 [local callable interface](local-callable-interface.md).
 
 ## Parameter inference (Q3, Q5–Q6, Q9, Q11, Q13–Q14, Q17, Q22–Q25)
@@ -495,9 +556,9 @@ message, span, and first-error ordering.
 Following separate implementation authorization, delivery remains ordered:
 
 1. Known lexical callable pipeline stages (#44 implemented; release validation pending).
-2. Placeholder inference and local declarations.
-3. Immediate stages.
-4. Integrated release validation.
+2. Placeholder inference and local declarations (#45–#47 implemented; milestone evidence above).
+3. Immediate stages (#48 implemented; validation ongoing).
+4. Integrated release validation (pending).
 
 Each milestone preserves the final agreed semantics. Extend existing closure and
 pipeline suites at their source, forged-input, decoded-lowering, runtime and
@@ -520,6 +581,6 @@ adapter seams. Include:
 
 Default Cargo success is not release evidence for ignored runtime/browser cases.
 No full WP12 release success is claimed by this document. The completed design has
-final shared-understanding confirmation. Issue #44 implementation is authorized and
-committed; remaining WP12 implementation and landing each require their own explicit
-authorization.
+final shared-understanding confirmation; #44 and #45–#48 implement the ordered
+language milestones. Integrated release evidence is pending and must be recorded
+separately from their historical subset validation.

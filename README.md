@@ -229,8 +229,21 @@ let outer = { let inner = _ + 1; loop { break inner(_); } };
 Parameters are counted structurally, but only reachable constraint sites select
 types. Nested callables have independent return/loop contexts, and unresolved
 circular captures do not infer signatures. See the
-[implemented boundary](docs/wp12-placeholder-development.md#implemented-control-flow-and-nesting-milestone-47);
-immediate pipeline stages remain deferred.
+[implemented boundary](docs/wp12-placeholder-development.md#implemented-control-flow-and-nesting-milestone-47).
+Issue #48 adds immediate unary typed-lambda and placeholder stages:
+
+```text
+10 |> ((x: number) => x * 2); // 20
+10 |> (_ * 2);               // 20
+```
+
+Immediate stages take exactly one parameter and no written arguments. Placeholder
+parameter types must be uniquely inferred inside the stage, never from its input;
+`10 |> (_)` is ambiguous and `10 |> (_ + _)` has the wrong arity. Input runs before
+the stage environment is created; original captures still use eager shared-cell
+promotion. These are direct helpers, not first-class callable values or general
+postfix invocation. See [#48 contracts and migration](docs/wp12-placeholder-development.md#implemented-immediate-stage-milestone-48).
+Validation is ongoing; integrated WP12 release evidence remains pending.
 
 <a id="typed-arrays-37-core-implemented-release-validation-pending"></a>
 
@@ -311,12 +324,13 @@ place and old value across RHS effects; ordinary indexed assignment also retains
 its pre-RHS checked address.
 
 Callables cannot be aliased, reassigned, annotated with a value type, passed,
-returned or used as values. Immediate invocation, closure defaults/contracts/result
+returned or used as values. General postfix invocation, closure defaults/contracts/result
 annotations are not supported. Issue #44 separately adds known
 lexical callable pipeline stages with positional-only arguments; integrated release
 validation remains pending. #45–#47 add placeholder locals, collections,
-control flow and nested regions as described above. WP12 immediate-stage work and separately
-authorized WP13 optimization remain outside WP11. WP11's [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15),
+control flow and nested regions as described above. #48 implements immediate unary
+pipeline stages, separately from WP11's release; integrated WP12 release validation
+remains pending. WP13 optimization requires separate authorization. WP11's [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15),
 including current-source rebuilt-browser and full ignored runtime coverage.
 
 Generated helpers use direct calls, are never exported, and follow existing runtime
@@ -346,7 +360,8 @@ fn sink(x: number) -> void {}
 fn discarded() { 10 |> add |> sink; } // final Void result is discarded
 ```
 
-`|>` associates left and binds below logical OR. Each stage names a user function:
+`|>` associates left and binds below logical OR. Named user-function stages retain
+WP10 binding:
 input binds to formal 0 even when it has a default; naming that formal is a duplicate.
 Written arguments start at formal 1 and support a positional prefix followed by
 named arguments, with exact types. Omitted trailing defaults run in formal order
@@ -362,7 +377,10 @@ pipelines in operands, call arguments, pipeline inputs, initializers, returns, o
 value breaks. Nonfinal declared-Void stages are rejected even after `Never`.
 Expression-form if/match retain their existing structural result joins; discarding
 them does not allow mixed Void/value branches. Ordinary calls and the ABI remain unchanged. Host functions, builtin `len`, zero-parameter
-functions, callable values, placeholders, and expression callees are ineligible.
+functions and callable values are ineligible. #44 also permits visible local callable
+stages with positional-only written arguments; #48 permits parenthesized immediate
+unary typed lambdas and placeholder stages, without a written argument suffix.
+Arbitrary expression callees and general postfix invocation remain unsupported.
 Use user-function wrappers for host effects. Parenthesize whole bare if/match/loop
 constructs to continue with `|>` across statement/tail classification boundaries.
 Pipelines are forbidden in defaults/contracts, including skipped operands.

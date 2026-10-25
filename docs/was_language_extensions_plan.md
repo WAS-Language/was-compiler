@@ -8,7 +8,7 @@ mixed adapter suites were split. Shared fixtures/support remain at root `tests/`
 Use [current validation](validation.md) for package selection and rebuild commands;
 [the roadmap](compilation-roadmap.md#structure) lists current source locations.
 
-**Status:** WP1–WP9 implemented; WP5, WP6 (#13), WP7 (#16), and WP8 release gates passed (exact evidence in §5). WP9 frontend/backend are integrated and [release gates passed](#wp9-release-validation). WP10 user-function pipeline stages, including positional/named/default binding and final-Void discard support (#27), are implemented with [release gates passed](#wp10-release-validation). WP11's local callable (#29), immediate-creator shared parameter/let capture (#30), captured numeric compound (#31), and nested capture/live callable-context forwarding (#32) subsets are implemented in the frontend/backend; [#32 validation passed](local-callable-interface.md#issue-32-validation-2026-10-14); [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14); [#30 subset validation passed](local-callable-interface.md#issue-30-validation-2026-10-14). #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive live callable contexts compose with captured compounds and invocation-local lifetime behavior (#34). WP11 is implemented; full native/browser [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35. Earlier subset evidence retains its historical scope. Issue #44 implements known lexical callable pipeline stages; integrated release validation is pending. WP12 placeholder locals/immediate stages remain deferred; WP13 requires separate authorization.
+**Status:** WP1–WP9 implemented; WP5, WP6 (#13), WP7 (#16), and WP8 release gates passed (exact evidence in §5). WP9 frontend/backend are integrated and [release gates passed](#wp9-release-validation). WP10 user-function pipeline stages, including positional/named/default binding and final-Void discard support (#27), are implemented with [release gates passed](#wp10-release-validation). WP11's local callable (#29), immediate-creator shared parameter/let capture (#30), captured numeric compound (#31), and nested capture/live callable-context forwarding (#32) subsets are implemented in the frontend/backend; [#32 validation passed](local-callable-interface.md#issue-32-validation-2026-10-14); [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14); [#30 subset validation passed](local-callable-interface.md#issue-30-validation-2026-10-14). #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive live callable contexts compose with captured compounds and invocation-local lifetime behavior (#34). WP11 is implemented; full native/browser [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35. Earlier subset evidence retains its historical scope. Issue #44 implements known lexical callable pipeline stages. #45–#47 implement placeholder locals with exact local/collection constraints, control flow and nested regions; #48 implements immediate unary typed-lambda/placeholder stages. Integrated WP12 release validation remains pending; WP13 requires separate authorization.
 **Narrow scheduling exception (#38/#39/#40/#41):** [Proven integer specialization](integer-specialization.md)
 may precede WP12 within its agreed scope. #38 established the broader contract and
 baseline; user-approved #39 implements experimental exact-i32 literal/add-sub
@@ -103,7 +103,7 @@ support; all WP5 release gates passed as recorded in §5. WP6 named/default para
 and WP7 acyclic result inference are implemented with release gates passed (#13/#16).
 WP8 whitelist contracts are implemented, with
 [release gates passed](#wp8-release-validation). WP9 match statements/values are
-implemented with frontend/backend integrated and [release gates passed](#wp9-release-validation). WP10 user-function pipelines are implemented with [release gates passed](#wp10-release-validation). WP11's local callable (#29), immediate-creator shared parameter/let capture (#30), captured numeric compound (#31), and nested capture/live callable-context forwarding (#32) subsets are implemented in the frontend/backend; [#32 validation passed](local-callable-interface.md#issue-32-validation-2026-10-14); [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14); [#30 subset validation passed](local-callable-interface.md#issue-30-validation-2026-10-14). #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive contexts compose with captured compounds and lifetime behavior. Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35. Issue #44 implements known lexical callable pipeline stages; integrated release validation remains pending. WP12 placeholder locals/immediate stages remain deferred; WP13 requires separate authorization.
+implemented with frontend/backend integrated and [release gates passed](#wp9-release-validation). WP10 user-function pipelines are implemented with [release gates passed](#wp10-release-validation). WP11's local callable (#29), immediate-creator shared parameter/let capture (#30), captured numeric compound (#31), and nested capture/live callable-context forwarding (#32) subsets are implemented in the frontend/backend; [#32 validation passed](local-callable-interface.md#issue-32-validation-2026-10-14); [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14); [#30 subset validation passed](local-callable-interface.md#issue-30-validation-2026-10-14). #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive contexts compose with captured compounds and lifetime behavior. Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35. Issue #44 implements known lexical callable pipeline stages. #45–#47 implement placeholder locals with exact local/collection constraints, control flow and nested regions; #48 implements immediate unary typed-lambda/placeholder stages. Integrated WP12 release validation remains pending; WP13 requires separate authorization.
 `requires`, `match`, and standalone `_` are reserved for source/host-language names,
 not arbitrary nonempty host module/field names. `_temp` remains valid; `by` stays
 contextual. WP9 does not implement ignored bindings or placeholder expressions.
@@ -286,8 +286,8 @@ WP8 is implemented with release gates passed; WP9 frontend/backend are now
 integrated with [release gates passed](#wp9-release-validation). WP10 is implemented
 with [release gates passed](#wp10-release-validation). WP11's #29–#33 subsets are
 implemented in the frontend/backend; #31 adds captured numeric compounds and #32
-adds nested capture/live callable-context forwarding ([validation passed](local-callable-interface.md#issue-32-validation-2026-10-14)); [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14); #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive contexts compose with compounds and lifetime behavior. Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35. WP12 remains deferred and unauthorized; WP13
-requires separate authorization. The module paths below
+adds nested capture/live callable-context forwarding ([validation passed](local-callable-interface.md#issue-32-validation-2026-10-14)); [#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14); #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive contexts compose with compounds and lifetime behavior. Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35. WP12's #44/#45–#48 language milestones are implemented, with integrated release
+validation pending; WP13 requires separate authorization. The module paths below
 record original write-scope assignments, not current module inventory or a reason
 to create empty scaffolding.
 
@@ -1280,8 +1280,10 @@ default change. Remaining #38 work and general WP13 need separate authorization.
 
 ### WP12 — Placeholder sugar and closure pipeline stages (spec §§11–12)
 
-**Status:** Deferred; implementation is not authorized. WP11's release satisfies
-its predecessor gate but does not authorize WP12.
+**Status:** Language milestones implemented through #48; integrated WP12 release
+validation remains pending. #44 implements known lexical callable stages; #45–#47
+implement placeholder locals, exact local/collection constraints, control flow and
+nested regions. #48 implements immediate unary typed-lambda and placeholder stages.
 
 The [WP12 design handoff](wp12-placeholder-development.md) records accepted
 interview answers Q1–Q25 and final shared-understanding confirmation in Q26.
@@ -1291,9 +1293,24 @@ concrete diagnostic variants/messages, deterministic constraint/error ordering,
 region-local inference, capture allocation order, and ordered delivery. The
 handoff defines the exact raw stage-target enum and source-span fields, including
 initializer and immediate-stage body provenance; immediate helpers are owned by
-the existing normalized call. It is not implementation authorization or release
-evidence. Ticket #43 authorizes this contract/documentation work only;
-implementation and landing retain separate authorization gates.
+the existing normalized call. Ticket #43 authorized contract/documentation work
+only; the later #44/#45–#48 milestones implement that contract under their separate
+scope. Earlier milestone validation retains its historical scope, not integrated
+WP12 release evidence.
+
+Immediate stages such as `10 |> ((x: number) => x * 2)` and `10 |> (_ * 2)` require
+exactly one parameter and no written arguments. Infer placeholder parameters only
+inside their region, never from pipeline input. Raw `PipelineStage.target` uses
+`PipelineStageTarget::{Named, Immediate { expression, expression_span }}`;
+`TypedNormalizedCall.immediate_closure: Option<TypedClosure>` is `None` for other
+calls and owns an immediate helper when `Some`. Its internal label is
+`"<pipeline stage>"` and its owner is the pipeline's lexical owner. Input executes
+before creating the stage environment; eager original capture promotion is
+unchanged. This adds no first-class callables, general postfix invocation, ABI
+or second IR. See [#48 contracts and migration](wp12-placeholder-development.md#implemented-immediate-stage-milestone-48).
+
+**Pending evidence:** #48 validation is ongoing; record results and integrated
+WP12 release evidence in the handoff when available.
 
 **Entry:** WP11. Abstract each permitted placeholder region before final capture
 analysis; each `_` is a distinct left-to-right parameter. Generate hygienic symbols,
@@ -1418,7 +1435,7 @@ WP10 is now implemented with [release gates passed](#wp10-release-validation);
 WP11's #29–#33 subsets are implemented in the frontend/backend, including captured
 numeric compounds and nested capture/live callable-context forwarding;
 [#32 validation passed](local-callable-interface.md#issue-32-validation-2026-10-14).
-[#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14). #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive live contexts compose with compounds and lifetime behavior. Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35; WP12 remains deferred and unauthorized, and WP13 optimization requires separate authorization.
+[#31 validation passed](local-callable-interface.md#issue-31-validation-2026-10-14). #33 implements [read-only iteration captures](local-callable-interface.md#implemented-read-only-iteration-captures-33) ([validation passed](local-callable-interface.md#issue-33-validation-2026-10-15)); nested read-only range/array captures and transitive live contexts compose with compounds and lifetime behavior. Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15) under #35; WP12 language milestones through #48 are implemented with integrated release validation pending; WP13 optimization requires separate authorization.
 Earlier WP5–WP9 release records retain their historical scope and counts; see
 [the separate #30 evidence](local-callable-interface.md#issue-30-validation-2026-10-14)
 for shared-storage validation before #31, not captured compounds.
