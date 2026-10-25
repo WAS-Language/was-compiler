@@ -195,6 +195,21 @@ stages keep the existing direct-helper/shared-capture model and add no named/def
 closure parameters. Implementation is committed; integrated release validation,
 including rebuilt-browser parity, remains pending.
 
+Issue #45 adds directly constrained placeholder local callables:
+
+```text
+let add = (_ + _);       // two independent number parameters
+let negate = !_;        // one bool parameter
+let same = _ == "ready"; // one string parameter
+let result = 10 |> add(5);
+```
+
+Concrete formal argument types also supply constraints. These declarations reuse
+direct helpers and shared captures; bodies run only when invoked. `_ == _` and
+`len(_)` remain ambiguous, and callers do not infer parameter types. This is a
+partial WP12 milestone, not complete inference or release readiness; see the
+[implemented boundary and deferred composition](docs/wp12-placeholder-development.md#implemented-direct-constraint-milestone-45).
+
 <a id="typed-arrays-37-core-implemented-release-validation-pending"></a>
 
 ### Typed arrays (#37; implemented, release gates passed)
@@ -275,9 +290,10 @@ its pre-RHS checked address.
 
 Callables cannot be aliased, reassigned, annotated with a value type, passed,
 returned or used as values. Immediate invocation, closure defaults/contracts/result
-annotations and placeholders are not supported. Issue #44 separately adds known
+annotations are not supported. Issue #44 separately adds known
 lexical callable pipeline stages with positional-only arguments; integrated release
-validation remains pending. WP12 placeholder/immediate-stage work and separately
+validation remains pending. #45 adds the directly constrained placeholder subset
+described above. Remaining WP12 inference/immediate-stage work and separately
 authorized WP13 optimization remain outside WP11. WP11's [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15),
 including current-source rebuilt-browser and full ignored runtime coverage.
 

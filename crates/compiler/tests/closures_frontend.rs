@@ -16,6 +16,245 @@ fn closure(
 }
 
 #[test]
+fn expression_placeholder_outside_an_owned_region_reports_its_token_span() {
+    let source = "fn main() { /* λ */ _ + 1; }";
+    let start = source.find("_ +").unwrap();
+    let error = Compiler::new().analyze(source).unwrap_err();
+
+    assert_eq!(
+        error,
+        CompileError::Semantic(SemanticError::InvalidPlaceholder {
+            span: was_compiler::tokens::Span::new(start, start + 1),
+        })
+    );
+}
+
+#[test]
+fn direct_placeholder_operators_create_distinct_concrete_callable_parameters() {
+    let source = "fn main() -> number {
+        let add = (_ + _);
+        let negate = !_;
+        return add(2, 3);
+    }";
+    let program = Compiler::new().analyze(source).unwrap();
+    let add = closure(&program, 0, 0);
+    assert_eq!(
+        add.params.iter().map(|p| p.ty).collect::<Vec<_>>(),
+        [Type::Number; 2]
+    );
+    assert_ne!(add.params[0].id, add.params[1].id);
+    assert_eq!(closure(&program, 0, 1).params[0].ty, Type::Bool);
+    assert_eq!(
+        add.span,
+        was_compiler::tokens::Span::new(
+            source.find("(_ + _)").unwrap(),
+            source.find("(_ + _)").unwrap() + "(_ + _)".len(),
+        )
+    );
+    let source = "fn main() { /* λ */ let f = /* 😀 */ ((_ + _)) /* trailing */ ; }";
+    let program = Compiler::new().analyze(source).unwrap();
+    let f = closure(&program, 0, 0);
+    let start = source.find("((_ + _))").unwrap();
+    assert_eq!(f.span, was_compiler::tokens::Span::new(start, start + 9));
+    assert_eq!(f.body_span, f.span);
+    for (parameter, (start, _)) in f.params.iter().zip(source.match_indices('_')) {
+        assert_eq!(
+            parameter.span,
+            was_compiler::tokens::Span::new(start, start + 1)
+        );
+    }
+}
+
+#[test]
+fn placeholder_formals_and_scalar_equality_supply_only_region_local_constraints() {
+    let source = r#"fn consume(flag: bool, text: string = "default") -> bool { return flag; }
+        fn main() -> bool {
+            let unary = (x: bool) => x;
+            let explicit = consume(text: _, flag: _);
+            let lexical = unary(_);
+            let equal = _ == "ready";
+            return explicit("ready", lexical(equal("ready")));
+        }"#;
+    let program = Compiler::new().analyze(source).unwrap();
+    assert_eq!(
+        closure(&program, 1, 1)
+            .params
+            .iter()
+            .map(|p| p.ty)
+            .collect::<Vec<_>>(),
+        [Type::String, Type::Bool],
+    );
+    assert_eq!(closure(&program, 1, 2).params[0].ty, Type::Bool);
+    assert_eq!(closure(&program, 1, 3).params[0].ty, Type::String);
+
+    let program = Compiler::new()
+        .analyze(
+            "fn consume(flags: bool[], words: string[], numbers: number[], progression: range) {}
+         fn main() { let apply = consume(_, _, _, _); }",
+        )
+        .unwrap();
+    assert_eq!(
+        closure(&program, 1, 0)
+            .params
+            .iter()
+            .map(|p| p.ty)
+            .collect::<Vec<_>>(),
+        [
+            Type::Array(was_compiler::ArrayElementType::Bool),
+            Type::Array(was_compiler::ArrayElementType::String),
+            Type::Array(was_compiler::ArrayElementType::Number),
+            Type::Range,
+        ]
+    );
+}
+
+#[test]
+fn placeholder_conflicts_precede_ambiguity_and_retain_original_utf8_spans() {
+    use was_compiler::tokens::Span;
+    let source = "fn main() { /* λ */ let bad = { _; _ + true }; }";
+    assert!(matches!(
+        semantic_error(source),
+        SemanticError::ConflictingPlaceholderConstraints {
+            expected: Type::Number,
+            found: Type::Bool,
+            ..
+        }
+    ));
+    for expression in ["_ == _", "len(_)", "_"] {
+        let source = format!("fn main() {{ /* λ */ let ambiguous = {expression}; }}");
+        let start = source.find(expression).unwrap() + expression.find('_').unwrap();
+        assert_eq!(
+            semantic_error(&source),
+            SemanticError::CannotInferPlaceholderParameter {
+                span: Span::new(start, start + 1),
+            },
+        );
+    }
+    // A call cannot determine the declaration's parameter types retroactively.
+    assert!(matches!(
+        semantic_error("fn main() { let equal = _ == _; equal(1, 2); }"),
+        SemanticError::CannotInferPlaceholderParameter { .. }
+    ));
+    let source = "fn main() { let f = { _ + true; !_ + 1 }; }";
+    let start = source.find("_ + true;").unwrap();
+    assert_eq!(
+        semantic_error(source),
+        SemanticError::ConflictingPlaceholderConstraints {
+            expected: Type::Number,
+            found: Type::Bool,
+            span: Span::new(start, start + "_ + true;".len()),
+        },
+    );
+}
+
+#[test]
+fn placeholder_regions_keep_hygienic_ids_capture_ownership_and_independent_returns() {
+    use was_compiler::typed_ast::{BindingOwner, CallableId, FunctionId};
+    let source = "fn main() -> number {
+        let _temp = 10;
+        let explicit = () => 1;
+        let add = _ + _temp;
+        let update = { _temp += _; return _ + 1; };
+        return update(add(2), explicit());
+    }";
+    let program = Compiler::new().analyze(source).unwrap();
+    let add = closure(&program, 0, 2);
+    assert_eq!(add.id, CallableId(1));
+    assert_eq!(add.owner, BindingOwner::Function(FunctionId(0)));
+    assert_eq!(add.captures.len(), 1);
+    let update = closure(&program, 0, 3);
+    assert_eq!(update.id, CallableId(2));
+    assert_eq!(update.params.len(), 2);
+    assert_eq!(update.captures, add.captures);
+    assert_eq!(update.return_type, Type::Number);
+    let bytes = Compiler::new().compile(&program).unwrap();
+    wasmparser::Validator::new().validate_all(&bytes).unwrap();
+}
+
+#[test]
+fn placeholder_regions_reject_unreachable_only_evidence_and_deferred_compositions() {
+    for source in [
+        "fn main() { let f = { return 1; _ + 1 }; }",
+        "fn main() { let f = _ == { return 1; true }; }",
+        "fn main() { let f = if _ { 1 } else { 2 }; }",
+        "fn main() { let f = [_ + 1]; }",
+        "fn main() { let f = { let x = _; x + 1 }; }",
+    ] {
+        assert!(
+            matches!(
+                semantic_error(source),
+                SemanticError::CannotInferPlaceholderParameter { .. }
+            ),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        semantic_error("fn main() { let f = _ + missing; }"),
+        SemanticError::UndefinedVariable { .. },
+    ));
+    // Potentially reachable short-circuit operands remain evidence, even when
+    // the left operand happens to be a constant.
+    let program = Compiler::new()
+        .analyze("fn main() { let f = false && !_; f(true); }")
+        .unwrap();
+    assert_eq!(closure(&program, 0, 0).params[0].ty, Type::Bool);
+    let program = Compiler::new()
+        .analyze("fn main() { let f = _ + { return 1; 0 }; }")
+        .unwrap();
+    assert_eq!(closure(&program, 0, 0).params[0].ty, Type::Number);
+}
+
+#[test]
+fn placeholder_values_wildcards_underscore_prefixes_and_write_rejections_remain_distinct() {
+    for body in ["return _;", "_ + 1;", "let x = 0; x = _;"] {
+        assert!(
+            matches!(
+                semantic_error(&format!("fn main() {{ {body} }}")),
+                SemanticError::InvalidPlaceholder { .. }
+            ),
+            "{body}"
+        );
+    }
+    for body in [
+        "let f = _ + 1; let alias = f;",
+        "let f = _ + 1; f = 2;",
+        "let f = _ + 1; return f;",
+    ] {
+        assert!(
+            matches!(
+                semantic_error(&format!("fn main() {{ {body} }}")),
+                SemanticError::InvalidCallableValueUse { .. }
+            ),
+            "{body}"
+        );
+    }
+    for body in ["_ = 1;", "_ += 1;", "let _ = 1;"] {
+        assert!(
+            matches!(
+                Compiler::new().analyze(&format!("fn main() {{ {body} }}")),
+                Err(CompileError::Parse(_))
+            ),
+            "{body}"
+        );
+    }
+    let program = Compiler::new()
+        .analyze("fn main() { let _temp = 3; let f = _temp + 1; match f { _ => 0 }; }")
+        .unwrap();
+    assert!(matches!(
+        program.functions[0].body[1].kind,
+        TypedStatementKind::Let { .. }
+    ));
+    assert!(matches!(
+        semantic_error("fn main() { for x in [1] { let f = _ + { x += 1; 0 }; } }"),
+        SemanticError::ReadOnlyVariable { .. },
+    ));
+    assert!(matches!(
+        semantic_error("fn main() { loop { let f = { _ + 1; break; }; break; } }"),
+        SemanticError::BreakOutsideLoop { .. },
+    ));
+}
+
+#[test]
 fn deeply_nested_context_free_declarations_preserve_results_owners_and_dependencies() {
     use std::time::{Duration, Instant};
     use was_compiler::typed_ast::{BindingOwner, CallableId, FunctionId, TypedClosureBody};

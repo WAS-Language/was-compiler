@@ -77,6 +77,9 @@ pub enum Expr {
     Bool(bool),
 
     Identifier(String),
+    Placeholder {
+        span: Span,
+    },
 
     Unary {
         op: UnaryOp,
@@ -212,6 +215,7 @@ pub enum StatementKind {
         name_span: Span,
         ty: Option<Type>,
         value: Expr,
+        value_span: Span,
     },
 
     Assignment {

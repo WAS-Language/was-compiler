@@ -67,6 +67,11 @@
                            <ws> "=" <ws> <expression>
                            <ws> ";"
 
+# #45 admits expression-position _ in local callable initializers. Each owned
+# occurrence is a distinct parameter; direct exact constraints must select its
+# concrete type. Match-pattern _ remains a wildcard, and _temp remains a name.
+# Local/collection propagation, full nested/control composition and immediate
+# stages remain deferred; see docs/wp12-placeholder-development.md.
 
 <assignment> ::= <identifier> <ws> "=" <ws> <expression> <ws> ";"
                | <array_access> <ws> "=" <ws> <expression> <ws> ";"
@@ -291,6 +296,7 @@
 <primary_expression> ::= <number_literal>
                        | <string_literal>
                        | <boolean_literal>
+                       | "_"
                        | <identifier>
                        | <array_literal>
                        | <value_block>
@@ -311,7 +317,8 @@
 
 # WP11 accepts lambdas only as unannotated local callable initializers.
 # Parentheses are transparent; invocation is identifier-led and positional only.
-# Callable bindings cannot be values, aliases, assignment targets or pipeline stages.
+# Callable bindings cannot be values, aliases or assignment targets. Known lexical
+# callable pipeline stages are supported by #44.
 # Parameters and loop/return contexts belong to the lambda, not its creator.
 # Ancestor parameters/ordinary lets share original typed mutable bindings, including
 # ordinary and numeric compound writes. Range/array for bindings remain read-only,
@@ -322,7 +329,8 @@
 # A bare final loop in a lambda's braced body remains a statement loop, so
 # () => { loop {} } has a Void signature; parenthesize a value-loop tail there.
 # No result annotations, defaults, contracts or immediate invocation are added.
-# No first-class callables, placeholder/callable pipeline stages (WP12), reclamation
+# #45 adds directly constrained placeholder locals, not complete WP12 inference.
+# No first-class callables, immediate pipeline stages, reclamation
 # or optimization (WP13) are added. WP11 is implemented; release gates passed on
 # 2026-10-15. Evidence:
 # docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15.

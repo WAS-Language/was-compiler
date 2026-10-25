@@ -5,8 +5,72 @@
 The user accepted interview decisions Q1–Q25 and confirmed the complete shared
 understanding in Q26. WP11's release satisfied the predecessor gate. Explicit
 authorization for issue #44 implemented known lexical callable pipeline stages;
-integrated WP12 release validation remains pending. Placeholder local declarations
-and immediate stages have not been implemented or authorized.
+integrated WP12 release validation remains pending. Issue #45 implements the
+direct-constraint local-declaration milestone described below. Immediate stages,
+local/collection propagation (#46), and full control-flow/nesting composition
+(#47) remain deferred. This is not full WP12 release evidence.
+
+### Implemented direct-constraint milestone (#45)
+
+Local initializers such as `let add = (_ + _);`, `let negate = !_;`,
+`let same = _ == "ready";`, and `let apply = consume(_);` synthesize ordinary
+direct local callables. Each owned occurrence supplies a distinct parameter in
+source order. Concrete named/host/lexical formals constrain written arguments;
+named/default calls retain their existing binding rules. Callers and pipeline
+inputs never choose a declaration's signature. `len(_)`, `_`, and `_ == _`
+remain ambiguous.
+
+The private `semantic/placeholders.rs` boundary collects direct numeric/logical,
+scalar-equality, range-operand and resolved-formal constraints. Straight-line
+blocks support existing captures, ordinary/compound writes, expression statements,
+and returns. Count unreachable occurrences, but use only reachable evidence;
+potentially reachable short-circuit operands contribute. Resolve names and call
+eligibility before reporting collected conflicts, then ambiguity. Fully concrete
+parameters enter the existing closure checker before capture analysis. Raw-node
+identity binds placeholder reads directly to fresh owner-local IDs, without
+manufactured source names, AST cloning or backend placeholder nodes.
+
+`StatementKind::Let.value_span` and `Expr::Placeholder { span }` are implemented
+raw-AST migrations. Explicit and synthesized helpers share source-preorder
+`CallableId`s. Existing typed closure/call shapes and the memory ABI are unchanged.
+Placeholder-callable value uses receive `InvalidCallableValueUse`; unchanged
+explicit-lambda programs retain their historical diagnostics.
+
+This milestone deliberately rejects unresolved complex regions with
+`CannotInferPlaceholderParameter`, rather than guessing a signature. Inferred-local
+relationships, collection propagation, branch/match/value-loop/pipeline expressions
+inside a placeholder body, and nested callable composition inside that body await
+#46/#47. Ordinary code surrounding a placeholder declaration may use these features,
+including iteration captures, explicit enclosing lambdas, and known lexical
+pipeline stages. Immediate stages still await their separate milestone. The
+remaining sections describe the final design, not all current capabilities.
+
+#### #45 validation and remaining gate
+
+The implementation passed:
+
+- The ticket's focused frontend/lowering, explicitly executed closure/pipeline
+  runtime, core adapter, and CLI adapter commands.
+- `cargo check --offline --workspace --all-targets`.
+- `cargo test --offline` and `cargo test --offline -- --include-ignored`
+  (compiler/CLI default members, including native Node execution; not browser).
+- `cargo clippy --offline --all-targets -- -D warnings`.
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`.
+- `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings`.
+- Edited-file formatting and `git diff --check`.
+
+The current-source browser rebuild was attempted with the documented
+`wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline`.
+Rust compilation succeeded, but packaging stopped because local `wasm-bindgen`
+tooling was unavailable (the lockfile requires version `0.2.129`). No tooling was
+installed. Browser parity cases were extended and typechecked, but neither those
+ignored tests nor `node tests/browser.cjs pkg` ran against stale bindings.
+Rebuild and run them after supplying compatible tooling; full workspace
+include-ignored/browser validation and WP12 release readiness remain pending.
+
+Self-review against #45 and the repository standards corrected unreachable
+equality evidence and conflict ordering when fallback source spans overlap.
+The added regressions pass. This was a self-review, not independent agent review.
 
 WP12 covers placeholder local declarations, known lexical callable pipeline
 stages, and immediate parenthesized typed-lambda/placeholder stages. It does not

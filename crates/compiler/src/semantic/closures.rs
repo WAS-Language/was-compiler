@@ -5,6 +5,13 @@ pub(super) struct CallableBinding {
     pub(super) id: CallableId,
     pub(super) params: Vec<Type>,
     pub(super) return_type: Type,
+    pub(super) origin: CallableOrigin,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum CallableOrigin {
+    Explicit,
+    Placeholder,
 }
 
 pub(super) struct CaptureContext {
@@ -24,6 +31,61 @@ pub(super) enum LexicalBinding {
     Callable(CallableBinding),
 }
 
+/// Both forms borrow their original body. Synthesized parameters have no lexical
+/// spelling: placeholder reads resolve by raw-node identity, not a source name.
+#[derive(Clone, Copy)]
+pub(super) enum ClosureSource<'a> {
+    Explicit(&'a Lambda),
+    Placeholder {
+        expression: &'a Expr,
+        span: Span,
+        params: &'a [placeholders::Parameter],
+    },
+}
+
+#[derive(Clone, Copy)]
+enum Body<'a> {
+    Expression(&'a Expr),
+    Block(&'a ValueBlock),
+}
+
+impl<'a> ClosureSource<'a> {
+    fn identity(self) -> usize {
+        match self {
+            Self::Explicit(lambda) => std::ptr::from_ref(lambda).addr(),
+            Self::Placeholder { expression, .. } => std::ptr::from_ref(expression).addr(),
+        }
+    }
+
+    fn span(self) -> Span {
+        match self {
+            Self::Explicit(lambda) => lambda.span,
+            Self::Placeholder { span, .. } => span,
+        }
+    }
+
+    fn body_span(self) -> Span {
+        match self {
+            Self::Explicit(lambda) => lambda.body_span,
+            Self::Placeholder { span, .. } => span,
+        }
+    }
+
+    fn body(self) -> Body<'a> {
+        match self {
+            Self::Explicit(lambda) => match &lambda.body {
+                LambdaBody::Expression(expr) => Body::Expression(expr),
+                LambdaBody::Block(block) => Body::Block(block),
+            },
+            Self::Placeholder {
+                expression: Expr::Block(block),
+                ..
+            } => Body::Block(block),
+            Self::Placeholder { expression, .. } => Body::Expression(expression),
+        }
+    }
+}
+
 impl SemanticAnalyzer {
     pub(super) fn lookup_binding(&self, name: &str) -> Option<&LexicalBinding> {
         self.scopes.iter().rev().find_map(|scope| scope.get(name))
@@ -36,6 +98,11 @@ impl SemanticAnalyzer {
         usage: BindingUse,
     ) -> Result<(), SemanticError> {
         match self.lookup_binding(name) {
+            Some(LexicalBinding::Callable(callable))
+                if callable.origin == CallableOrigin::Placeholder =>
+            {
+                Err(SemanticError::InvalidCallableValueUse { span })
+            }
             Some(LexicalBinding::Callable(_)) => Err(SemanticError::InvalidClosure {
                 reason: match usage {
                     BindingUse::Write => "a local callable binding cannot be reassigned",
@@ -92,6 +159,7 @@ impl SemanticAnalyzer {
         &mut self,
         closure: &TypedClosure,
         span: Span,
+        origin: CallableOrigin,
     ) -> Result<(), SemanticError> {
         let scope = self
             .scopes
@@ -109,6 +177,7 @@ impl SemanticAnalyzer {
                 id: closure.id,
                 params: closure.params.iter().map(|param| param.ty).collect(),
                 return_type: closure.return_type,
+                origin,
             }),
         );
         Ok(())
@@ -172,9 +241,9 @@ impl SemanticAnalyzer {
         &mut self,
         name: &str,
         name_span: Span,
-        lambda: &Lambda,
+        lambda: ClosureSource<'_>,
     ) -> Result<TypedClosure, SemanticError> {
-        let identity = std::ptr::from_ref(lambda).addr();
+        let identity = lambda.identity();
         let id = self.callable_ids[&identity];
         let owner = self.owner.expect("closure declarations have an owner");
         let next_variable = self.next_variable_id;
@@ -239,30 +308,35 @@ impl SemanticAnalyzer {
             body,
             captures,
             dependencies,
-            span: lambda.span,
-            body_span: lambda.body_span,
+            span: lambda.span(),
+            body_span: lambda.body_span(),
         })
     }
 
-    fn infer_closure_result(&mut self, lambda: &Lambda) -> Result<Type, SemanticError> {
+    fn infer_closure_result(&mut self, lambda: ClosureSource<'_>) -> Result<Type, SemanticError> {
         let (_, _, result, flow) = self.analyze_closure_body(lambda, ReturnContext::Infer)?;
         let returned = flow.return_type().map_err(|(expected, found)| {
             SemanticError::IncompatibleInferredReturns {
                 expected,
                 found,
-                span: lambda.body_span,
+                span: lambda.body_span(),
             }
         })?;
-        let has_value_return = inference::closure_has_value_return(lambda);
-        let no_tail = matches!(&lambda.body, LambdaBody::Block(block) if block.tail.is_none());
+        let has_value_return = match lambda {
+            ClosureSource::Explicit(lambda) => inference::closure_has_value_return(lambda),
+            ClosureSource::Placeholder { expression, .. } => {
+                inference::expression_has_value_return(expression, lambda.body_span())
+            }
+        };
+        let no_tail = matches!(lambda.body(), Body::Block(block) if block.tail.is_none());
         if no_tail && flow.can_fall_through() && returned.is_some_and(|ty| ty != Type::Void) {
             return Err(SemanticError::MissingReturn {
                 name: "<closure>".into(),
-                span: lambda.body_span,
+                span: lambda.body_span(),
             });
         }
         let result = if let Some(returned) = returned {
-            self.join_results(returned.into(), result, lambda.body_span)?
+            self.join_results(returned.into(), result, lambda.body_span())?
         } else {
             result
         };
@@ -271,62 +345,94 @@ impl SemanticAnalyzer {
             ExprResult::Void if !has_value_return => Ok(Type::Void),
             ExprResult::Never if no_tail && !has_value_return => Ok(Type::Void),
             _ => Err(SemanticError::CannotInferClosureResult {
-                span: lambda.body_span,
+                span: lambda.body_span(),
             }),
         }
     }
 
     fn analyze_closure_body(
         &mut self,
-        lambda: &Lambda,
+        lambda: ClosureSource<'_>,
         context: ReturnContext,
     ) -> Result<(Vec<TypedParam>, TypedClosureBody, ExprResult, Flow), SemanticError> {
         self.next_variable_id = 0;
         self.next_loop_id = 0;
         self.scopes.push(HashMap::new());
+        self.placeholder_bindings.push(HashMap::new());
         let result = (|| {
-            let mut params = Vec::with_capacity(lambda.params.len());
-            for param in &lambda.params {
-                self.check_variable_type(&param.name, param.ty, param.span)?;
-                if param.default.is_some() {
-                    return Err(SemanticError::InvalidClosure {
-                        reason: "closure parameters cannot have defaults",
+            let mut params = Vec::new();
+            if let ClosureSource::Explicit(lambda) = lambda {
+                params.reserve(lambda.params.len());
+                for param in &lambda.params {
+                    self.check_variable_type(&param.name, param.ty, param.span)?;
+                    if param.default.is_some() {
+                        return Err(SemanticError::InvalidClosure {
+                            reason: "closure parameters cannot have defaults",
+                            span: param.span,
+                        });
+                    }
+                    let id = self.declare_variable(
+                        &param.name,
+                        param.ty,
+                        BindingMutability::Mutable,
+                        param.span,
+                    )?;
+                    params.push(TypedParam {
+                        id,
+                        name: param.name.clone(),
+                        ty: param.ty,
                         span: param.span,
                     });
                 }
-                let id = self.declare_variable(
-                    &param.name,
-                    param.ty,
-                    BindingMutability::Mutable,
-                    param.span,
-                )?;
-                params.push(TypedParam {
-                    id,
-                    name: param.name.clone(),
-                    ty: param.ty,
-                    span: param.span,
-                });
+            } else if let ClosureSource::Placeholder {
+                params: anonymous, ..
+            } = lambda
+            {
+                params.reserve(anonymous.len());
+                for param in anonymous {
+                    let id = VariableId(self.next_variable_id);
+                    self.next_variable_id += 1;
+                    self.placeholder_bindings
+                        .last_mut()
+                        .expect("body context is active")
+                        .insert(
+                            param.identity,
+                            VariableBinding {
+                                owner: self.owner,
+                                id,
+                                ty: param.ty,
+                                mutability: BindingMutability::ReadOnly,
+                            },
+                        );
+                    params.push(TypedParam {
+                        id,
+                        name: "<placeholder>".into(),
+                        ty: param.ty,
+                        span: param.span,
+                    });
+                }
             }
-            let (body, ty, flow) = match &lambda.body {
-                LambdaBody::Expression(expr) => {
-                    let (expr, flow) = self.analyze_expr(expr, lambda.body_span, context)?;
+            let (body, ty, flow) = match lambda.body() {
+                Body::Expression(expr) => {
+                    let (expr, flow) = self.analyze_expr(expr, lambda.body_span(), context)?;
                     if let ReturnContext::Known(expected) = context {
-                        self.expect_type(expected, expr.ty, lambda.body_span)?;
+                        self.expect_type(expected, expr.ty, lambda.body_span())?;
                     }
                     let ty = expr.ty;
                     (TypedClosureBody::Expression(Box::new(expr)), ty, flow)
                 }
-                LambdaBody::Block(block) => {
+                Body::Block(block) => {
                     let (body, ty, flow) =
                         self.analyze_value_block(block, context, ExprContext::Value)?;
                     if let (ReturnContext::Known(expected), Some(tail)) = (context, &body.tail) {
-                        self.expect_type(expected, tail.ty, lambda.body_span)?;
+                        self.expect_type(expected, tail.ty, lambda.body_span())?;
                     }
                     (TypedClosureBody::Block(body), ty, flow)
                 }
             };
             Ok((params, body, ty, flow))
         })();
+        self.placeholder_bindings.pop();
         self.scopes.pop();
         self.loops.clear();
         result

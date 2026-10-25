@@ -62,6 +62,41 @@ fn run(source: &str, selected: &[&str], assertions: &str) {
 
 #[test]
 #[ignore = "requires Node.js on PATH"]
+fn placeholder_callables_defer_bodies_share_captures_and_evaluate_arguments_once() {
+    run(
+        "fn main() -> number {
+            let state = 10;
+            let update = { state += _; mark(state); state + _ };
+            mark(0);
+            let first = mark(2) |> update(mark(3));
+            state = 100;
+            let second = update(mark(4), mark(5));
+            return first + second;
+        }
+        fn iteration() -> number {
+            let total = 0;
+            for x in 1..=3 {
+                let read = x + _;
+                total += read(10);
+            }
+            return total;
+        }
+        fn trap() -> number {
+            let values = [];
+            let f = mark(_) + _;
+            return f(mark(1), values[0]);
+        }",
+        &["main", "iteration", "trap"],
+        "assert.equal(e.main(), 124);
+         assert.deepEqual(events.splice(0), [0, 2, 3, 12, 4, 5, 104]);
+         assert.equal(e.iteration(), 36);
+         assert.throws(() => e.trap(), WebAssembly.RuntimeError);
+         assert.deepEqual(events.splice(0), [1]);",
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js on PATH"]
 fn recursive_creators_keep_original_cells_and_nested_live_dependencies_per_invocation() {
     run(
         r#"

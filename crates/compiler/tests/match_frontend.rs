@@ -428,7 +428,6 @@ fn match_and_wildcard_are_reserved_only_as_exact_source_names() {
             format!("fn f({name}: number) {{}}"),
             format!("fn f() {{ let {name} = 1; }}"),
             format!("fn f() {{ for {name} in [] {{}} }}"),
-            format!("fn f() {{ {name}; }}"),
         ] {
             assert!(
                 Parser::new(&Lexer::new(&source).tokenize())
@@ -445,6 +444,19 @@ fn match_and_wildcard_are_reserved_only_as_exact_source_names() {
         host.register("_temp", name, name, vec![], Type::Void)
             .unwrap();
     }
+    // WP12 admits expression-position `_`, not a value identifier. An unowned
+    // occurrence now receives the focused semantic error instead of a parse error.
+    assert!(matches!(
+        Compiler::new().analyze("fn f() { _; }"),
+        Err(CompileError::Semantic(
+            SemanticError::InvalidPlaceholder { .. }
+        ))
+    ));
+    assert!(
+        Parser::new(&Lexer::new("fn f() { match; }").tokenize())
+            .parse_program()
+            .is_err()
+    );
     Compiler::new()
         .analyze("fn _temp(match_more: number) { let _value = match_more; return _value; }")
         .unwrap();

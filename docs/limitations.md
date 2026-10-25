@@ -62,7 +62,9 @@ Nested read-only range/array captures and transitive live callable contexts comp
 with captured compounds and invocation-local lifetime behavior (#34). WP11 is
 implemented; #35's full native/browser [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15).
 Issue #44 implements known lexical callable pipeline stages; integrated release
-validation remains pending. WP12 placeholder locals/immediate stages remain deferred,
+validation remains pending. #45 implements
+[directly constrained placeholder locals](wp12-placeholder-development.md#implemented-direct-constraint-milestone-45);
+remaining WP12 inference/composition and immediate stages remain deferred,
 and WP13 requires separate authorization.
 See [the #14 contract](result-inference-development.md#issue-14-acyclic-chains-and-diamonds) and the
 [named/default interface](named-call-interface.md) for migration and the
@@ -98,11 +100,14 @@ for complete WP10 support.
 
 ### Local callable and shared-capture restrictions (WP11)
 
-Only lambda-initialized local bindings and direct positional calls are supported.
+Lambda-initialized and #45 directly constrained placeholder local bindings support
+direct positional calls.
 Parentheses around initializers are transparent. Callables cannot be used as
 values, aliased, reassigned, given value-type annotations, passed or returned.
 Immediate invocation, named/default closure parameters, closure contracts/result
-annotations and placeholders are rejected. Issue #44 adds direct lexical callable
+annotations are rejected. Placeholder local inference is limited to the
+[#45 milestone](wp12-placeholder-development.md#implemented-direct-constraint-milestone-45),
+not full region-local propagation or control-flow composition. Issue #44 adds direct lexical callable
 pipeline stages with positional-only written arguments; see
 [the pipeline interface](named-call-interface.md).
 Closures may call ordinary named functions with their existing defaults and contracts.
@@ -361,8 +366,9 @@ captures (validation passed). Nested read-only range/array captures and transiti
 live callable contexts compose with captured compounds and invocation-local lifetime
 behavior. Full WP11 [release gates passed on 2026-10-15](local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
 under #35. Issue #44 implements known lexical callable pipeline stages; integrated
-release validation remains pending. WP12 placeholder locals/immediate stages remain
-deferred.
+release validation remains pending. #45 adds the
+[direct-constraint placeholder-local milestone](wp12-placeholder-development.md#implemented-direct-constraint-milestone-45),
+not full WP12 inference/composition or immediate stages.
 
 - Scrutinees that complete must be number/bool/string, not arrays, ranges or Void.
   Patterns are wildcard, exact scalar literals, numeric comparisons and constant

@@ -4,6 +4,84 @@ use wasmparser::{Operator, Parser, Payload, Validator};
 fn span() -> Span {
     Span::new(31, 57)
 }
+
+#[test]
+fn synthesized_placeholder_parameters_lower_to_direct_unexported_helpers() {
+    let source = "fn main() -> number { let difference = _ - _; return difference(9, 4); }";
+    let mut compiler = Compiler::new();
+    let program = compiler.analyze(source).unwrap();
+    let mut enabled_bytes = None;
+    for level in [
+        was_compiler::OptimizationLevel::None,
+        was_compiler::OptimizationLevel::Basic,
+        was_compiler::OptimizationLevel::Standard,
+        was_compiler::OptimizationLevel::Aggressive,
+    ] {
+        compiler.set_optimization_level(level);
+        assert_eq!(compiler.analyze(source).unwrap(), program);
+        let bytes = compiler.compile(&program).unwrap();
+        assert_eq!(compiler.compile_source(source).unwrap(), bytes);
+        assert!(
+            operators(&bytes, 0)
+                .iter()
+                .any(|op| matches!(op, Operator::Call { function_index: 1 }))
+        );
+        let helper = operators(&bytes, 1);
+        assert!(matches!(
+            helper.as_slice(),
+            [
+                Operator::LocalGet { local_index: 0 },
+                Operator::LocalGet { local_index: 1 },
+                Operator::F64Sub,
+                Operator::End,
+            ]
+        ));
+        for payload in Parser::new(0).parse_all(&bytes) {
+            match payload.unwrap() {
+                Payload::MemorySection(_)
+                | Payload::GlobalSection(_)
+                | Payload::DataSection(_)
+                | Payload::TableSection(_) => {
+                    panic!("capture-free placeholder callable gained runtime storage")
+                }
+                Payload::ExportSection(exports) => assert_eq!(
+                    exports
+                        .into_iter()
+                        .map(|e| e.unwrap().name)
+                        .collect::<Vec<_>>(),
+                    ["main"],
+                ),
+                _ => {}
+            }
+        }
+        if level != was_compiler::OptimizationLevel::None {
+            assert_eq!(*enabled_bytes.get_or_insert_with(|| bytes.clone()), bytes);
+        }
+    }
+}
+
+#[test]
+fn synthesized_metadata_stays_checked_even_for_an_unused_declaration() {
+    let compiler = Compiler::new();
+    let program = compiler
+        .analyze("fn main() { let n = 3; let f = _ + n; }")
+        .unwrap();
+    for forgery in 0..4 {
+        let mut forged = program.clone();
+        let TypedStatementKind::Closure(closure) = &mut forged.functions[0].body[1].kind else {
+            panic!("expected synthesized closure");
+        };
+        match forgery {
+            0 => closure.owner = BindingOwner::Closure(closure.id),
+            1 => closure.captures.clear(),
+            2 => closure.params[0].ty = Type::Bool,
+            3 => closure.params.push(closure.params[0].clone()),
+            _ => unreachable!(),
+        }
+        assert!(compiler.compile(&forged).is_err(), "forgery {forgery}");
+    }
+}
+
 fn number(value: &str) -> TypedExpr {
     TypedExpr {
         kind: TypedExprKind::Number(value.into()),

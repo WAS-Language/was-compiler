@@ -184,7 +184,7 @@ fn recursive_members(graph: &[Vec<Call>]) -> Vec<bool> {
         .collect()
 }
 
-pub(super) fn discover_lambdas(program: &Program) -> Vec<&Lambda> {
+pub(super) fn discover_callables(program: &Program) -> Vec<usize> {
     let mut walker = LexicalWalker::new(|_, _| None);
     for function in &program.functions {
         walker.function(function);
@@ -202,6 +202,13 @@ pub(super) fn closure_has_value_return(lambda: &Lambda) -> bool {
     walker.has_value_return
 }
 
+pub(super) fn expression_has_value_return(expression: &Expr, span: Span) -> bool {
+    let mut walker = LexicalWalker::new(|_, _| None);
+    walker.scopes.push(HashSet::new());
+    walker.expr(expression, span);
+    walker.has_value_return
+}
+
 pub(super) fn has_value_return(function: &Function) -> bool {
     let mut walker = LexicalWalker::new(|_, _| None);
 
@@ -216,7 +223,7 @@ struct LexicalWalker<'a, F> {
     scopes: Vec<HashSet<&'a str>>,
     call: F,
     has_value_return: bool,
-    lambdas: Vec<&'a Lambda>,
+    lambdas: Vec<usize>,
 }
 
 impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
@@ -247,7 +254,15 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
 
             match &statement.kind {
                 StatementKind::Let { name, value, .. } => {
+                    let saved_return = self.has_value_return;
+                    let synthesized = super::placeholders::has_owned(value);
+                    if synthesized {
+                        self.lambdas.push(std::ptr::from_ref(value).addr());
+                    }
                     self.expr(value, span);
+                    if synthesized {
+                        self.has_value_return = saved_return;
+                    }
                     self.scopes
                         .last_mut()
                         .expect("block has a lexical scope")
@@ -321,7 +336,11 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
 
     fn expr(&mut self, expr: &'a Expr, span: Span) {
         match expr {
-            Expr::Number(_) | Expr::String(_) | Expr::Bool(_) | Expr::Identifier(_) => {}
+            Expr::Number(_)
+            | Expr::String(_)
+            | Expr::Bool(_)
+            | Expr::Identifier(_)
+            | Expr::Placeholder { .. } => {}
             Expr::Unary { expr, .. } => self.expr(expr, span),
             Expr::Binary { left, right, .. }
             | Expr::Index {
@@ -385,7 +404,7 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
                 }
             }
             Expr::Lambda(lambda) => {
-                self.lambdas.push(lambda);
+                self.lambdas.push(std::ptr::from_ref(lambda).addr());
                 let has_value_return = self.has_value_return;
                 self.scopes.push(
                     lambda

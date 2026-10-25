@@ -211,21 +211,20 @@ impl SemanticAnalyzer {
         self.analyze_call_bindings(name, args, span, return_type, None)
     }
 
-    fn analyze_call_bindings(
-        &mut self,
+    pub(super) fn map_call_arguments(
+        &self,
         name: &str,
         args: &[CallArgument],
         span: Span,
-        return_type: ReturnContext,
-        injection: Option<(TypedExpr, Span, Flow)>,
-    ) -> Result<(TypedExpr, Flow), SemanticError> {
+        injected: bool,
+    ) -> Result<Vec<usize>, SemanticError> {
         let signature = &self.functions[name];
         let mut written_to_formal = Vec::with_capacity(args.len());
         let mut supplied = vec![false; signature.params.len()];
         let mut named = false;
         let mut positional = 0;
 
-        if injection.is_some() {
+        if injected {
             supplied[0] = true;
             positional = 1;
         }
@@ -286,6 +285,19 @@ impl SemanticAnalyzer {
             });
         }
 
+        Ok(written_to_formal)
+    }
+
+    fn analyze_call_bindings(
+        &mut self,
+        name: &str,
+        args: &[CallArgument],
+        span: Span,
+        return_type: ReturnContext,
+        injection: Option<(TypedExpr, Span, Flow)>,
+    ) -> Result<(TypedExpr, Flow), SemanticError> {
+        let written_to_formal = self.map_call_arguments(name, args, span, injection.is_some())?;
+        let signature = &self.functions[name];
         let reference = signature.reference;
         let result_type = signature.return_type;
         let formal_count = signature.params.len();
@@ -329,7 +341,7 @@ impl SemanticAnalyzer {
         }
 
         for formal in 0..formal_count {
-            if supplied[formal] {
+            if mapping[formal].is_some() {
                 continue;
             }
 

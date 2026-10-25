@@ -250,7 +250,9 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
 
         self.expect(TokenKind::Equal)?;
 
+        let value_start = self.current_span();
         let value = self.parse_expression()?;
+        let value_span = self.span_since(value_start.start());
 
         self.expect(TokenKind::Semicolon)?;
 
@@ -259,6 +261,7 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
             name_span,
             ty,
             value,
+            value_span,
         })
     }
 
@@ -856,6 +859,9 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
             Some(TokenKind::StringLiteral(value)) => Expr::String(value.clone()),
             Some(TokenKind::True) => Expr::Bool(true),
             Some(TokenKind::False) => Expr::Bool(false),
+            Some(TokenKind::Wildcard) => Expr::Placeholder {
+                span: self.current_span(),
+            },
 
             Some(TokenKind::Identifier(_)) => {
                 let start = self.current_span().start();
@@ -1332,6 +1338,7 @@ mod tests {
                 name_span: Span::new(24, 26),
                 ty: Some(Type::Array(crate::ast::ArrayElementType::Number)),
                 value: Expr::Array(vec![number("1"), number("2")]),
+                value_span: Span::new(39, 45),
             }
         );
         assert_eq!(
@@ -1504,6 +1511,7 @@ mod tests {
                     name_span: Span::new(33, 34),
                     ty: None,
                     value: number("1"),
+                    value_span: Span::new(37, 38),
                 },
             ),
             (
@@ -1513,6 +1521,7 @@ mod tests {
                     name_span: Span::new(44, 48),
                     ty: Some(Type::Bool),
                     value: Expr::Bool(true),
+                    value_span: Span::new(57, 61),
                 },
             ),
             (
@@ -1522,6 +1531,7 @@ mod tests {
                     name_span: Span::new(67, 71),
                     ty: None,
                     value: Expr::String("é".into()),
+                    value_span: Span::new(74, 78),
                 },
             ),
             (
@@ -1531,6 +1541,7 @@ mod tests {
                     name_span: Span::new(84, 90),
                     ty: None,
                     value: Expr::Array(vec![]),
+                    value_span: Span::new(93, 95),
                 },
             ),
         ];

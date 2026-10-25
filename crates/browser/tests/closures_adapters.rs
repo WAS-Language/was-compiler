@@ -20,9 +20,10 @@ fn main() -> number {
     let wrapper = () => { let nested = () => first(mark(2)); nested() };
     let sink = () => { mark(3); return; };
     let state = 0;
+    let plus = _ + _ + state;
     let increment = () => { state = state + 1; };
     let invoke = () => { let nested = () => increment(); nested() };
-    invoke(); sink(); return wrapper() + state;
+    invoke(); sink(); return wrapper() |> plus(0);
 }
 fn text() -> string {
     let original = "hé😀";
@@ -77,9 +78,25 @@ enum ErrorKind {
     Named,
     MissingReturn,
     ReadOnly,
+    PlaceholderAmbiguity,
+    PlaceholderConflict,
+    PlaceholderOutside,
+    CallableValue,
 }
 
 const ERRORS: &[(&str, &str, ErrorKind)] = &[
+    ("let f = len(_);", "_", ErrorKind::PlaceholderAmbiguity),
+    (
+        "let f = _ + true;",
+        "_ + true",
+        ErrorKind::PlaceholderConflict,
+    ),
+    ("_ + 1;", "_", ErrorKind::PlaceholderOutside),
+    (
+        "let f = _ + 1; let alias = f;",
+        "let alias = f;",
+        ErrorKind::CallableValue,
+    ),
     (
         "for x in 1..=2 { let outer = () => { for y in [3] { let read = () => x + y; let f = () => { let leaf = () => { return; x %= 2; }; leaf() }; } }; }",
         "x %= 2;",
@@ -163,6 +180,20 @@ fn expected_diagnostic(source: &str, origin: &str, kind: &ErrorKind) -> String {
             name == "<closure>"
         }
         (ErrorKind::ReadOnly, SemanticError::ReadOnlyVariable { name, .. }) => name == "x",
+        (
+            ErrorKind::PlaceholderAmbiguity,
+            SemanticError::CannotInferPlaceholderParameter { .. },
+        )
+        | (ErrorKind::PlaceholderOutside, SemanticError::InvalidPlaceholder { .. })
+        | (ErrorKind::CallableValue, SemanticError::InvalidCallableValueUse { .. }) => true,
+        (
+            ErrorKind::PlaceholderConflict,
+            SemanticError::ConflictingPlaceholderConstraints {
+                expected: Type::Number,
+                found: Type::Bool,
+                ..
+            },
+        ) => true,
         _ => false,
     };
     assert!(matches, "expected {kind:?}, got {error:?}");

@@ -47,8 +47,10 @@ positional written arguments. They reuse the checked normalized direct-call and
 helper lifecycle; they add no named/default closure parameters or callable values.
 The #44 implementation is committed; integrated release validation, including
 rebuilt-browser parity, remains pending. See [the interface](local-callable-interface.md)
-for WP11 support and historical subset evidence. Placeholder locals and immediate
-stages remain deferred; WP13 requires separate authorization.
+for WP11 support and historical subset evidence. #45 adds
+[directly constrained placeholder locals](wp12-placeholder-development.md#implemented-direct-constraint-milestone-45).
+Remaining placeholder inference/composition and immediate stages remain deferred;
+WP13 requires separate authorization.
 
 ### Typed-array interaction (#37)
 

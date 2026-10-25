@@ -24,10 +24,29 @@ mod closures;
 use closures::{BindingUse, LexicalBinding};
 mod defaults;
 mod inference;
+mod placeholders;
 mod pure_expression;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum SemanticError {
+    #[error("Placeholder is outside a placeholder region at {span:?}")]
+    InvalidPlaceholder { span: Span },
+
+    #[error("Callable values are not supported at {span:?}")]
+    InvalidCallableValueUse { span: Span },
+
+    #[error("Cannot infer a concrete type for placeholder parameter at {span:?}")]
+    CannotInferPlaceholderParameter { span: Span },
+
+    #[error(
+        "Conflicting placeholder constraints: expected {expected:?}, found {found:?} at {span:?}"
+    )]
+    ConflictingPlaceholderConstraints {
+        expected: Type,
+        found: Type,
+        span: Span,
+    },
+
     #[error("invalid closure: {reason}")]
     InvalidClosure { reason: &'static str, span: Span },
 
@@ -197,7 +216,11 @@ pub enum SemanticError {
 impl SemanticError {
     pub fn span(&self) -> Option<Span> {
         match self {
-            Self::InvalidClosure { span, .. }
+            Self::InvalidPlaceholder { span }
+            | Self::InvalidCallableValueUse { span }
+            | Self::CannotInferPlaceholderParameter { span }
+            | Self::ConflictingPlaceholderConstraints { span, .. }
+            | Self::InvalidClosure { span, .. }
             | Self::CannotInferClosureResult { span }
             | Self::InvalidPipeline { span, .. }
             | Self::InvalidMatch { span, .. }
@@ -308,6 +331,7 @@ pub struct SemanticAnalyzer {
     closure_results: HashMap<usize, Type>,
     dependencies: Vec<(CallableId, Vec<CallableId>)>,
     capture_contexts: Vec<closures::CaptureContext>,
+    placeholder_bindings: Vec<HashMap<usize, VariableBinding>>,
     next_variable_id: usize,
     loops: Vec<LoopContext>,
     next_loop_id: usize,
@@ -329,14 +353,15 @@ impl SemanticAnalyzer {
     pub fn analyze(&mut self, program: &Program) -> Result<TypedProgram, SemanticError> {
         // Addresses identify borrowed raw nodes only during this analysis. Their
         // assigned IDs come from source traversal, never address or inference order.
-        self.callable_ids = inference::discover_lambdas(program)
+        self.callable_ids = inference::discover_callables(program)
             .into_iter()
             .enumerate()
-            .map(|(index, lambda)| (std::ptr::from_ref(lambda).addr(), CallableId(index)))
+            .map(|(index, identity)| (identity, CallableId(index)))
             .collect();
         self.closure_results.clear();
         self.dependencies.clear();
         self.capture_contexts.clear();
+        self.placeholder_bindings.clear();
         self.functions.clear();
         self.scopes.clear();
         self.next_variable_id = 0;
@@ -594,16 +619,37 @@ impl SemanticAnalyzer {
                 name_span,
                 ty,
                 value,
+                value_span,
             } => {
-                if let Expr::Lambda(lambda) = value {
+                let placeholder = placeholders::has_owned(value);
+                if placeholder || matches!(value, Expr::Lambda(_)) {
                     if ty.is_some() {
                         return Err(SemanticError::InvalidClosure {
                             reason: "a local callable binding cannot have a value type annotation",
                             span: *name_span,
                         });
                     }
-                    let closure = self.analyze_closure(name, *name_span, lambda)?;
-                    self.declare_callable(&closure, span)?;
+                    let params = if placeholder {
+                        self.infer_placeholder_parameters(value, *value_span)?
+                    } else {
+                        Vec::new()
+                    };
+                    let (source, origin) = match value {
+                        Expr::Lambda(lambda) => (
+                            closures::ClosureSource::Explicit(lambda),
+                            closures::CallableOrigin::Explicit,
+                        ),
+                        _ => (
+                            closures::ClosureSource::Placeholder {
+                                expression: value,
+                                span: *value_span,
+                                params: &params,
+                            },
+                            closures::CallableOrigin::Placeholder,
+                        ),
+                    };
+                    let closure = self.analyze_closure(name, *name_span, source)?;
+                    self.declare_callable(&closure, span, origin)?;
                     return Ok((
                         TypedStatement {
                             kind: TypedStatementKind::Closure(closure),
@@ -896,6 +942,15 @@ impl SemanticAnalyzer {
             }
 
             StatementKind::Return(value) => {
+                if self
+                    .placeholder_bindings
+                    .last()
+                    .is_none_or(HashMap::is_empty)
+                    && let Some(value) = value
+                    && let Some(span) = placeholders::first_owned_span(value)
+                {
+                    return Err(SemanticError::InvalidPlaceholder { span });
+                }
                 if let Some(Expr::Lambda(lambda)) = value {
                     return Err(SemanticError::InvalidClosure {
                         reason: "a closure must initialize a local callable binding",
@@ -1207,6 +1262,19 @@ impl SemanticAnalyzer {
             Expr::Number(value) => (TypedExprKind::Number(value.clone()), Type::Number.into()),
             Expr::String(value) => (TypedExprKind::String(value.clone()), Type::String.into()),
             Expr::Bool(value) => (TypedExprKind::Bool(*value), Type::Bool.into()),
+            Expr::Placeholder { span } => {
+                let binding = self
+                    .placeholder_bindings
+                    .last()
+                    .and_then(|bindings| bindings.get(&std::ptr::from_ref(expr).addr()));
+                let Some(binding) = binding else {
+                    return Err(SemanticError::InvalidPlaceholder { span: *span });
+                };
+                (
+                    self.binding_expression(*binding, "<placeholder>"),
+                    binding.ty.into(),
+                )
+            }
 
             Expr::Identifier(name) => {
                 self.check_value_binding(name, span, BindingUse::Read)?;

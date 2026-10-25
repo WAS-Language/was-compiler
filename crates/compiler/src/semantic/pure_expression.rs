@@ -50,6 +50,9 @@ impl SemanticAnalyzer {
                 context.check_number(literal, span)?;
             }
             Expr::String(_) | Expr::Bool(_) => {}
+            Expr::Placeholder { .. } => {
+                return Err(invalid("placeholders are not allowed"));
+            }
             Expr::Identifier(name) => {
                 if self.lookup_variable(name).is_none() {
                     return Err(SemanticError::UndefinedVariable {
