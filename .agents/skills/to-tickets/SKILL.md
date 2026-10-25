@@ -16,9 +16,9 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Work from whatever is already in the conversation context. If the user passes a reference (a spec path, an issue number or URL) as an argument, fetch it and read its full body and comments.
 
-### 2. Explore the codebase (optional)
+### 2. Verify implementation context
 
-If you have not already explored the codebase, do so to understand the current state of the code. Ticket titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
+Read [Implementation handoff](../implementation-handoff.md). Reuse exploration already in context, verifying the paths and symbols needed for each slice against the current code. Ticket titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
 
 Look for opportunities to prefactor the code to make the implementation easier. "Make the change easy, then make the easy change."
 
@@ -46,6 +46,8 @@ Present the proposed breakdown as a numbered list. For each ticket, show:
 - **Title**: short descriptive name
 - **Blocked by**: which other tickets (if any) must complete first
 - **What it delivers**: the end-to-end behaviour this ticket makes work
+- **Implementation anchors**: main files and test entry points for this slice
+- **Suggested model and thinking effort**: with a brief cost/complexity rationale
 
 Ask the user:
 
@@ -57,7 +59,7 @@ Iterate until the user approves the breakdown.
 
 ### 5. Publish the tickets to the configured tracker
 
-Publish the approved tickets. **How** depends on the tracker `/setup-matt-pocock-skills` configured; the tickets are the same either way, only the shape of the blocking edges changes:
+Apply the handoff guide's completion gate to each approved ticket, including its own implementation map and model recommendation rather than inheriting the parent's model choice. Publish the approved tickets. **How** depends on the tracker `/setup-matt-pocock-skills` configured; the tickets are the same either way, only the shape of the blocking edges changes:
 
 - **Local files** → write one file per ticket under `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01` in dependency order (blockers first). Each file's "Blocked by" lists the numbers/titles it depends on. Use the per-ticket file template below: one ticket per file, never a single combined file.
 - **A real issue tracker (GitHub, Linear, …)** → publish one issue per ticket in dependency order (blockers first) so each ticket's blocking edges can reference real identifiers. Use the platform's native blocking relationship where it has one; otherwise set each ticket's "Blocked by" to the blocking issues. If the source was an existing issue, make each ticket its sub-issue (tracker doc's operation). Apply the `ready-for-agent` triage label unless instructed otherwise; the tickets are agent-grabbable by construction.
@@ -79,6 +81,14 @@ Do NOT close or modify any parent issue.
 - [ ] Acceptance criterion 1
 - [ ] Acceptance criterion 2
 
+## Implementation handoff
+
+- **Main files:** path/symbol → responsibility and expected change.
+- **Read first:** instructions, contracts, ADR sections, and blocker outputs.
+- **Test anchors and validation:** test paths/cases, exact commands, expected outcomes.
+- **Direction and open questions:** settled constraints and any implementation blockers.
+- **Suggested model / Thinking effort / Rationale / Escalation trigger.**
+
 </local-ticket-template>
 
 <issue-template>
@@ -96,10 +106,18 @@ The end-to-end behaviour this ticket makes work, from the user's perspective, no
 - [ ] Criterion 1
 - [ ] Criterion 2
 
+## Implementation handoff
+
+- **Main files:** path/symbol → responsibility and expected change.
+- **Read first:** instructions, contracts, ADR sections, and blocker outputs.
+- **Test anchors and validation:** test paths/cases, exact commands, expected outcomes.
+- **Direction and open questions:** settled constraints and any implementation blockers.
+- **Suggested model / Thinking effort / Rationale / Escalation trigger.**
+
 ## Blocked by
 
 - A reference to each blocking ticket, or "None (can start immediately)". Omit this section when blockers were set as native edges.
 
 </issue-template>
 
-In either form, avoid specific file paths or code snippets: they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
+In either form, include verified file paths and symbol anchors in the handoff; keep behaviour and acceptance criteria independent of today's file layout. Include code only when a prototype snippet encodes a decision more precisely than prose can (state machine, reducer, schema, type shape). Note its prototype origin and trim it to the decision-rich parts.

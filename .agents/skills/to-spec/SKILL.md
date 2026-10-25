@@ -10,13 +10,13 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 ## Process
 
-1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching.
+1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching. Read [Implementation handoff](../implementation-handoff.md) and gather its implementation map and model recommendation from the discussed or grilled decisions and the current code.
 
 2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
 Check with the user that these seams match their expectations.
 
-3. Write the spec using the template below, then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
+3. Write the spec using the template below. Apply the handoff guide's completion gate before publishing it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
 
 <spec-template>
 
@@ -52,9 +52,20 @@ A list of implementation decisions that were made. This can include:
 - API contracts
 - Specific interactions
 
-Do NOT include specific file paths or code snippets. They may end up being outdated very quickly.
+Keep implementation decisions at the contract level; put verified file paths and symbol anchors in the Implementation Handoff below.
 
 Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
+
+## Implementation Handoff
+
+Follow [Implementation handoff](../implementation-handoff.md). Include the concrete
+content in the published spec so the implementer does not need this skill file:
+
+- **Main files:** path/symbol → responsibility and expected change.
+- **Read first:** instructions, contracts, ADR sections, and prerequisites.
+- **Test anchors and validation:** test paths/cases, exact commands, expected outcomes.
+- **Direction and open questions:** settled constraints and any implementation blockers.
+- **Suggested model / Thinking effort / Rationale / Escalation trigger.**
 
 ## Testing Decisions
 
