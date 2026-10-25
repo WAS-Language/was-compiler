@@ -558,7 +558,7 @@ Following separate implementation authorization, delivery remains ordered:
 1. Known lexical callable pipeline stages (#44 implemented; release validation pending).
 2. Placeholder inference and local declarations (#45–#47 implemented; milestone evidence above).
 3. Immediate stages (#48 implemented; validation ongoing).
-4. Integrated release validation (pending).
+4. Integrated release validation: gates passed on 2026-10-25; see [the integrated evidence](wp12-release-validation-2026-10-25.md). This records validation, not separate release acceptance or landing authorization.
 
 Each milestone preserves the final agreed semantics. Extend existing closure and
 pipeline suites at their source, forged-input, decoded-lowering, runtime and
@@ -580,7 +580,8 @@ adapter seams. Include:
   runtime/browser suites under the documented offline validation workflow.
 
 Default Cargo success is not release evidence for ignored runtime/browser cases.
-No full WP12 release success is claimed by this document. The completed design has
-final shared-understanding confirmation; #44 and #45–#48 implement the ordered
-language milestones. Integrated release evidence is pending and must be recorded
-separately from their historical subset validation.
+The completed design has final shared-understanding confirmation; #44 and #45–#48
+implement the ordered language milestones. Integrated validation passed on
+2026-10-25; see the [separate evidence record](wp12-release-validation-2026-10-25.md).
+This validation record does not independently authorize release acceptance, merging,
+or landing; the ticket's explicit authorization boundary remains in force.

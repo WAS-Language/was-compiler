@@ -1280,10 +1280,12 @@ default change. Remaining #38 work and general WP13 need separate authorization.
 
 ### WP12 — Placeholder sugar and closure pipeline stages (spec §§11–12)
 
-**Status:** Language milestones implemented through #48; integrated WP12 release
-validation remains pending. #44 implements known lexical callable stages; #45–#47
-implement placeholder locals, exact local/collection constraints, control flow and
-nested regions. #48 implements immediate unary typed-lambda and placeholder stages.
+**Status:** Language milestones implemented through #48; integrated WP12 validation
+gates passed on 2026-10-25. This is validation evidence, not separate release
+acceptance or landing authorization. #44 implements known lexical callable stages;
+#45–#47 implement placeholder locals, exact local/collection constraints, control
+flow and nested regions. #48 implements immediate unary typed-lambda and placeholder
+stages. See [the integrated evidence](wp12-release-validation-2026-10-25.md).
 
 The [WP12 design handoff](wp12-placeholder-development.md) records accepted
 interview answers Q1–Q25 and final shared-understanding confirmation in Q26.
@@ -1309,8 +1311,11 @@ before creating the stage environment; eager original capture promotion is
 unchanged. This adds no first-class callables, general postfix invocation, ABI
 or second IR. See [#48 contracts and migration](wp12-placeholder-development.md#implemented-immediate-stage-milestone-48).
 
-**Pending evidence:** #48 validation is ongoing; record results and integrated
-WP12 release evidence in the handoff when available.
+**Integrated validation:** The documented native, portable-Wasm, fresh-browser,
+full ignored workspace, browser adapter and strict lint gates passed on 2026-10-25.
+See the [integrated evidence record](wp12-release-validation-2026-10-25.md) for
+commands, totals, source provenance and scope. Validation does not itself authorize
+release acceptance or landing.
 
 **Entry:** WP11. Abstract each permitted placeholder region before final capture
 analysis; each `_` is a distinct left-to-right parameter. Generate hygienic symbols,
