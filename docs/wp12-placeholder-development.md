@@ -95,7 +95,7 @@ type or a second intermediate representation:
   intermediate representation.
 - Every synthesized callable uses the existing `TypedClosure` declaration and
   `TypedExprKind::LexicalCall`/`TypedNormalizedCall` direct-call forms. The local
-  local declaration owns its helper body. For immediate stages, extend the
+  declaration owns its helper body. For immediate stages, extend the
   existing `TypedNormalizedCall` with `immediate_closure: Option<TypedClosure>`;
   it is `Some` only for a synthesized immediate stage, and the normalized
   call's existing direct `call` invokes that helper. The `TypedClosure` is
@@ -111,8 +111,11 @@ type or a second intermediate representation:
   binding identities are fresh, hygienic IDs in their existing owner-local
   namespaces; they must not collide with source declarations or depend on
   spellings such as `_0`. The required `TypedClosure.name` for an immediate
-  stage is the non-source label `"<pipeline stage>"`; it is not a lexical name
-  and is never resolved. Its `name_span` is the original full stage span.
+  stage is the non-source label `"<pipeline stage>"`. This fills the existing
+  string field without creating a source identifier: angle brackets are not
+  valid in source names, and this label is never used for lexical lookup or
+  diagnostics. Diagnostics use the original source spans. Its `name_span` is
+  the original full stage span.
 - Preserve original source locations through abstraction: placeholder parameter
   identity retains its `_` token span; for local placeholder initializers the
   synthesized closure `span` and `body_span` are the new exact initializer
