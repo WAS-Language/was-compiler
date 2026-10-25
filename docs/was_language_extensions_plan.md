@@ -1288,10 +1288,12 @@ interview answers Q1–Q25 and final shared-understanding confirmation in Q26.
 It freezes the raw-AST migration, synthesized callable ownership and hygienic
 identity rules, original source spans, checked normalized pipeline injection,
 concrete diagnostic variants/messages, deterministic constraint/error ordering,
-region-local inference, capture allocation order, and ordered delivery. It is
-not implementation authorization or release evidence. Ticket #43 authorizes
-this contract/documentation work only; implementation and landing retain
-separate authorization gates.
+region-local inference, capture allocation order, and ordered delivery. The
+handoff defines the exact raw stage-target enum and source-span fields, including
+initializer and immediate-stage body provenance; immediate helpers are owned by
+the existing normalized call. It is not implementation authorization or release
+evidence. Ticket #43 authorizes this contract/documentation work only;
+implementation and landing retain separate authorization gates.
 
 **Entry:** WP11. Abstract each permitted placeholder region before final capture
 analysis; each `_` is a distinct left-to-right parameter. Generate hygienic symbols,

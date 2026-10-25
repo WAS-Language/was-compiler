@@ -65,13 +65,27 @@ type or a second intermediate representation:
 - Add `Expr::Placeholder { span: Span }` for an expression-position `_`. Its span
   is exactly the original UTF-8 byte range of that token. Match-pattern `_`
   remains `MatchPatternKind::Wildcard`, not an expression placeholder.
-- Change `PipelineStage` from a name-only target to a target enum, for example
-  `PipelineStageTarget::{Named(String), Immediate(Expr)}`, while retaining
-  `args: Vec<CallArgument>` and the full stage `span`. Existing named stages keep
-  their target and argument representation. Immediate targets retain their
-  parentheses and original expression tree; they have no written argument
-  suffix. A syntactically immediate target must be an explicit lambda or a
-  placeholder-bearing expression, not an arbitrary parenthesized value.
+- Add `value_span: Span` to raw `StatementKind::Let`, covering exactly the
+  initializer expression, including its written grouping parentheses when
+  present. This retains the initializer's original source range independently
+  of the wider declaration `Statement.span`.
+- Replace `PipelineStage.name: String` with
+  `PipelineStage.target: PipelineStageTarget`, defined exactly as:
+
+  ```rust
+  pub enum PipelineStageTarget {
+      Named(String),
+      Immediate { expression: Expr, expression_span: Span },
+  }
+  ```
+
+  Keep `args: Vec<CallArgument>` and the full stage `span`. Existing named
+  stages retain their target and argument representation. Immediate targets
+  retain the original expression and its exact UTF-8 byte span (excluding the
+  stage's surrounding grouping parentheses); they require an empty `args`
+  vector. Only a parenthesized explicit lambda or placeholder-bearing
+  expression is an eligible immediate target, not an arbitrary parenthesized
+  value.
 - A local initializer containing an owned placeholder remains a raw expression
   with placeholder nodes until region constraints have selected concrete
   parameter types. Semantic analysis then synthesizes the callable directly into
@@ -81,17 +95,31 @@ type or a second intermediate representation:
   intermediate representation.
 - Every synthesized callable uses the existing `TypedClosure` declaration and
   `TypedExprKind::LexicalCall`/`TypedNormalizedCall` direct-call forms. The local
-  declaration owns its helper body. Program-wide `CallableId`s follow the
-  existing source-depth-first preorder, including synthesized helpers, with
-  deterministic traversal of pipeline input before stages and stage contents in
-  source order. Synthesized parameter and binding identities are fresh, hygienic
-  IDs in their existing owner-local namespaces; they must not collide with source
-  declarations or depend on spellings such as `_0`.
+  local declaration owns its helper body. For immediate stages, extend the
+  existing `TypedNormalizedCall` with `immediate_closure: Option<TypedClosure>`;
+  it is `Some` only for a synthesized immediate stage, and the normalized
+  call's existing direct `call` invokes that helper. The `TypedClosure` is
+  owned by that normalized stage and its `owner` is the lexical owner containing
+  the pipeline expression. Check/cache its body through the existing closure
+  lifecycle. Evaluate and validate the injected input before creating that
+  stage's environment; then create the environment and make the direct helper
+  call. This attaches helper ownership to the existing normalized call, without
+  adding a pipeline node, another IR, or a runtime callable value.
+- Program-wide `CallableId`s follow the existing source-depth-first preorder,
+  including synthesized helpers, with deterministic traversal of pipeline input
+  before stages and stage contents in source order. Synthesized parameter and
+  binding identities are fresh, hygienic IDs in their existing owner-local
+  namespaces; they must not collide with source declarations or depend on
+  spellings such as `_0`. The required `TypedClosure.name` for an immediate
+  stage is the non-source label `"<pipeline stage>"`; it is not a lexical name
+  and is never resolved. Its `name_span` is the original full stage span.
 - Preserve original source locations through abstraction: placeholder parameter
-  identity retains its `_` token span; the synthesized lambda/declaration retains
-  the initializer or immediate stage span and body span; each stage retains its
-  original full stage span. Do not manufacture source locations from normalized
-  typed calls.
+  identity retains its `_` token span; for local placeholder initializers the
+  synthesized closure `span` and `body_span` are the new exact initializer
+  `value_span`; for immediate stages they are the target's exact
+  `expression_span`. Each stage retains its original full stage span. Explicit
+  lambdas continue to use their existing lambda/body spans. Do not manufacture
+  source locations from normalized typed calls.
 - Lower pipeline injection by reusing WP10's existing checked normalized-call
   representation. The preceding pipeline input is the unique first
   `PipelineInput` binding mapped to formal 0; written bindings follow in source
@@ -258,7 +286,7 @@ Representative acceptance/rejection contract:
 | Source shape | Result |
 | --- | --- |
 | `let add = _ + _;` | Accept; two distinct `number` parameters. |
-| `let inner = _ + 1; let outer = { inner(_) };` | Accept; nested regions have independent parameters. |
+| `let outer = { let inner = _ + 1; inner(_) };` | Accept; nested regions have independent parameters. |
 | `10 |> (_ * 2)` | Accept; one-parameter immediate stage, reusing input injection. |
 | `10 |> (_ + _)` or `10 |> (() => 42)` | `InvalidPipeline` at the stage: immediate arity message above. |
 | `10 |> (42)` | `InvalidPipeline` at the stage: target message above. |
