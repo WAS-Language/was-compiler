@@ -116,16 +116,16 @@ fn forged_lexical_stages_require_injection_and_reject_defaults() {
 }
 
 fn assert_invalid_reason_at_every_level(program: &TypedProgram, reason: &'static str) {
-    let matches_reason = |result: Result<Vec<u8>, CodegenError>| matches!(result, Err(CodegenError::InvalidNormalizedCall { reason: actual, .. }) if actual == reason);
-    assert!(matches_reason(codegen::compile(program)), "{reason}");
-    for level in LEVELS {
-        let mut compiler = Compiler::new();
-        compiler.set_optimization_level(level);
-        assert!(
-            matches_reason(compiler.compile(program)),
-            "{reason} at {level:?}"
-        );
-    }
+    let expected = codegen::compile(program).unwrap_err();
+    let CodegenError::InvalidNormalizedCall {
+        reason: actual,
+        span,
+    } = expected
+    else {
+        panic!("expected InvalidNormalizedCall, found {expected:?}");
+    };
+    assert_eq!(actual, reason);
+    assert_invalid(program, reason, span);
 }
 
 #[test]
