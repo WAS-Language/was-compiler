@@ -22,11 +22,118 @@ impl SemanticAnalyzer {
         for (index, stage) in stages.iter().enumerate() {
             let name = &stage.name;
             let span = stage.span;
-            if matches!(self.lookup_binding(name), Some(LexicalBinding::Callable(_))) {
-                return Err(SemanticError::InvalidPipeline {
-                    message: "stages must name user-defined functions",
-                    span,
-                });
+            if let Some(binding) = self.lookup_binding(name).cloned() {
+                match binding {
+                    LexicalBinding::Callable(callable) => {
+                        if stage.args.iter().any(|arg| arg.name.is_some()) {
+                            let arg = stage.args.iter().find(|arg| arg.name.is_some()).unwrap();
+                            return Err(SemanticError::NamedArgumentsNotSupported {
+                                name: "<closure>".into(),
+                                span: arg.span,
+                            });
+                        }
+                        let supplied = stage.args.len() + 1;
+                        if supplied != callable.params.len() {
+                            return Err(SemanticError::ArgumentCountMismatch {
+                                name: "<closure>".into(),
+                                expected: callable.params.len(),
+                                found: supplied,
+                                span,
+                            });
+                        }
+                        self.register_callable_dependency(callable.id);
+                        let mut bindings = Vec::with_capacity(callable.params.len());
+                        let mut formal_to_binding = Vec::with_capacity(callable.params.len());
+                        let mut stage_flow = flow;
+                        let expected = callable.params[0];
+                        self.expect_type(expected, value.ty, prefix_span)?;
+                        let id = VariableId(self.next_variable_id);
+                        self.next_variable_id += 1;
+                        bindings.push(TypedCallBinding {
+                            id,
+                            ty: expected,
+                            value,
+                            origin: CallBindingOrigin::PipelineInput,
+                            span: prefix_span,
+                        });
+                        formal_to_binding.push(id);
+                        for (argument, (arg, expected)) in stage
+                            .args
+                            .iter()
+                            .zip(callable.params.iter().skip(1))
+                            .enumerate()
+                        {
+                            let (value, next) = self.analyze_expected(
+                                &arg.value,
+                                arg.span,
+                                return_type,
+                                Some(*expected),
+                            )?;
+                            self.expect_type(*expected, value.ty, arg.span)?;
+                            stage_flow = stage_flow.then(next);
+                            let id = VariableId(self.next_variable_id);
+                            self.next_variable_id += 1;
+                            bindings.push(TypedCallBinding {
+                                id,
+                                ty: *expected,
+                                value,
+                                origin: CallBindingOrigin::Explicit { argument },
+                                span: arg.span,
+                            });
+                            formal_to_binding.push(id);
+                        }
+                        let args = formal_to_binding
+                            .iter()
+                            .zip(&callable.params)
+                            .map(|(id, ty)| TypedExpr {
+                                kind: TypedExprKind::Identifier {
+                                    id: *id,
+                                    name: String::new(),
+                                },
+                                ty: (*ty).into(),
+                            })
+                            .collect();
+                        let result_type = callable.return_type;
+                        let call = TypedExpr {
+                            kind: TypedExprKind::LexicalCall {
+                                callable: callable.id,
+                                args,
+                                span,
+                            },
+                            ty: result_type.into(),
+                        };
+                        let stage_value = TypedExpr {
+                            kind: TypedExprKind::NormalizedCall(TypedNormalizedCall {
+                                bindings,
+                                formal_to_binding,
+                                call: Box::new(call),
+                            }),
+                            ty: Self::completion_result(result_type.into(), stage_flow),
+                        };
+                        if result_type == Type::Void && index + 1 != stages.len() {
+                            return Err(SemanticError::InvalidPipeline {
+                                message: "a nonfinal stage cannot return void",
+                                span,
+                            });
+                        }
+                        if result_type == Type::Void && context != ExprContext::Discard {
+                            return Err(SemanticError::InvalidPipeline {
+                                message: "a final void stage requires a discarded result",
+                                span,
+                            });
+                        }
+                        value = stage_value;
+                        flow = stage_flow;
+                        prefix_span = Span::new(input_span.start(), span.end());
+                        continue;
+                    }
+                    LexicalBinding::Value(_) => {
+                        return Err(SemanticError::NotCallable {
+                            name: name.clone(),
+                            span,
+                        });
+                    }
+                }
             }
             if self.lookup_variable(name).is_some() {
                 return Err(SemanticError::NotCallable {

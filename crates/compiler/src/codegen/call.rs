@@ -94,24 +94,47 @@ pub(super) fn emit_normalized(
     span: Span,
 ) -> Result<(Flow, ExprResult), CodegenError> {
     let invalid = |reason| CodegenError::InvalidNormalizedCall { reason, span };
-    let TypedExprKind::Call {
-        func: reference @ FunctionRef::User(_),
-        name,
-        args,
-    } = &sequence.call.kind
-    else {
-        return Err(invalid("final expression must be a direct user call"));
+    let (params, return_type) = match &sequence.call.kind {
+        TypedExprKind::Call {
+            func: reference @ FunctionRef::User(_),
+            name,
+            args,
+        } => {
+            let target = body.target(*reference, span)?;
+            if name != &target.name {
+                return Err(invalid("final call name does not match its target"));
+            }
+            if args.len() != target.params.len() {
+                return Err(invalid("final call arity does not match its target"));
+            }
+            (target.params.clone(), target.return_type)
+        }
+        TypedExprKind::LexicalCall { callable, args, .. } => {
+            let plan = body.callable(*callable, span)?;
+            if args.len() != plan.declaration.params.len() {
+                return Err(invalid("final call arity does not match its target"));
+            }
+            (
+                plan.declaration
+                    .params
+                    .iter()
+                    .map(|param| param.ty)
+                    .collect(),
+                plan.declaration.return_type,
+            )
+        }
+        _ => return Err(invalid("final expression must be a direct user call")),
     };
-    let target = body.target(*reference, span)?;
-    if name != &target.name {
-        return Err(invalid("final call name does not match its target"));
-    }
-    if sequence.call.ty != ExprResult::from(target.return_type) {
+    let args = match &sequence.call.kind {
+        TypedExprKind::Call { args, .. } | TypedExprKind::LexicalCall { args, .. } => args,
+        _ => unreachable!(),
+    };
+    if sequence.call.ty != ExprResult::from(return_type) {
         return Err(invalid("final call result does not match its signature"));
     }
-    if sequence.bindings.len() != target.params.len()
-        || sequence.formal_to_binding.len() != target.params.len()
-        || args.len() != target.params.len()
+    if sequence.bindings.len() != params.len()
+        || sequence.formal_to_binding.len() != params.len()
+        || args.len() != params.len()
     {
         return Err(invalid(
             "binding, mapping and argument counts must match the signature",
@@ -163,12 +186,7 @@ pub(super) fn emit_normalized(
         }
     }
     let mut mapped = HashSet::with_capacity(sequence.bindings.len());
-    for ((id, arg), formal) in sequence
-        .formal_to_binding
-        .iter()
-        .zip(args)
-        .zip(&target.params)
-    {
+    for ((id, arg), formal) in sequence.formal_to_binding.iter().zip(args).zip(&params) {
         let Some(binding) = bindings.get(id) else {
             return Err(invalid("formal mapping must own every referenced binding"));
         };
@@ -216,7 +234,7 @@ pub(super) fn emit_normalized(
         }
         flow = flow.then(body.emit_expr(&sequence.call, span)?);
         let result = if flow.can_fall_through() {
-            target.return_type.into()
+            return_type.into()
         } else {
             ExprResult::Never
         };

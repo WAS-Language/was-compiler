@@ -2,9 +2,9 @@ use super::*;
 
 #[derive(Clone)]
 pub(super) struct CallableBinding {
-    id: CallableId,
-    params: Vec<Type>,
-    return_type: Type,
+    pub(super) id: CallableId,
+    pub(super) params: Vec<Type>,
+    pub(super) return_type: Type,
 }
 
 pub(super) struct CaptureContext {
@@ -137,11 +137,7 @@ impl SemanticAnalyzer {
         }
         // Nested declarations preserve earlier external dependencies in every
         // intervening helper, but not dependencies on that helper's own children.
-        for (owner, dependencies) in &mut self.dependencies {
-            if callable.id.0 < owner.0 && !dependencies.contains(&callable.id) {
-                dependencies.push(callable.id);
-            }
-        }
+        self.register_callable_dependency(callable.id);
         let mut arguments = Vec::with_capacity(args.len());
         let mut flow = Flow::FALLTHROUGH;
         for (arg, expected) in args.iter().zip(&callable.params) {
@@ -162,6 +158,14 @@ impl SemanticAnalyzer {
             },
             flow,
         ))
+    }
+
+    pub(super) fn register_callable_dependency(&mut self, callable: CallableId) {
+        for (owner, dependencies) in &mut self.dependencies {
+            if callable.0 < owner.0 && !dependencies.contains(&callable) {
+                dependencies.push(callable);
+            }
+        }
     }
 
     pub(super) fn analyze_closure(

@@ -15,6 +15,45 @@ const LEVELS: [OptimizationLevel; 4] = [
     OptimizationLevel::Aggressive,
 ];
 
+#[test]
+fn lexical_pipeline_stage_lowers_to_a_valid_direct_helper_call() {
+    let mut compiler = Compiler::new();
+    compiler.set_exports(ExportOptions::Only(vec!["main".into()]));
+    let program = compiler
+        .analyze(
+            "fn main() -> number { let add = (a: number, b: number) => a + b; return 1 |> add(2); }",
+        )
+        .unwrap();
+    let bytes = compiler.compile(&program).unwrap();
+    Validator::new().validate_all(&bytes).unwrap();
+
+    let mut body_calls = Vec::new();
+    let mut function_count = 0;
+    for payload in Parser::new(0).parse_all(&bytes) {
+        match payload.unwrap() {
+            Payload::FunctionSection(reader) => function_count = reader.count(),
+            Payload::CodeSectionEntry(body) => {
+                let calls = body
+                    .get_operators_reader()
+                    .unwrap()
+                    .into_iter()
+                    .filter_map(|operator| match operator.unwrap() {
+                        Operator::Call { function_index } => Some(function_index),
+                        Operator::CallIndirect { .. } => panic!("lexical calls are direct"),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                body_calls.push(calls);
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(function_count, 2);
+    assert_eq!(body_calls.len(), 2);
+    assert_eq!(body_calls[0], [1]);
+    assert!(body_calls[1].is_empty());
+}
+
 fn compiler_at(level: OptimizationLevel) -> Compiler {
     let mut compiler = Compiler::new();
     compiler.set_optimization_level(level);

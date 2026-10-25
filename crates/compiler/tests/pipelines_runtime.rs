@@ -12,6 +12,25 @@ const LEVELS: [OptimizationLevel; 4] = [
     OptimizationLevel::Aggressive,
 ];
 
+#[test]
+#[ignore = "requires Node.js on PATH"]
+fn lexical_callable_pipeline_stages_keep_shared_captures_and_argument_order() {
+    run(
+        r#"
+        fn main() -> number {
+            let total = 0;
+            let add = (input: number, extra: number) => {
+                total += input;
+                total + extra
+            };
+            return 2 |> add(mark(3));
+        }
+        "#,
+        &["main"],
+        "assert.equal(e.main(), 5); assert.deepEqual(events.splice(0), [3]); assert.equal(e.main(), 5); assert.deepEqual(events.splice(0), [3]);",
+    );
+}
+
 fn compiler(selected: &[&str]) -> Compiler {
     let mut compiler = Compiler::new();
     compiler

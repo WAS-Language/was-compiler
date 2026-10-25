@@ -374,6 +374,11 @@ fn stage_eligibility_shadowing_and_void_restrictions_are_explicit() {
         .unwrap();
     Compiler::new()
         .compile_source(
+            "fn f() -> number { let add = (a: number, b: number) => a + b; return 1 |> add(2); }",
+        )
+        .unwrap();
+    Compiler::new()
+        .compile_source(
             "fn pair(a: number, b: number) { return a + b; } fn f() { return 1 |> pair(b: 2); }",
         )
         .unwrap();

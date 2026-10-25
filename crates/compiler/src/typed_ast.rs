@@ -231,7 +231,7 @@ pub struct TypedMatchArm {
     pub span: Span,
 }
 
-/// Ordered invocation-local storage followed by a canonical full-arity user call.
+/// Ordered invocation-local storage followed by a canonical full-arity direct call.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypedNormalizedCall {
     pub bindings: Vec<TypedCallBinding>,

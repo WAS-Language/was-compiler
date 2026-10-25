@@ -1302,17 +1302,16 @@ fn callables_obey_declaration_order_shadowing_scope_and_positional_signatures() 
 }
 
 #[test]
-fn closures_call_named_defaults_and_contracts_but_are_not_pipeline_stages() {
+fn closures_call_named_defaults_and_contracts_and_pipeline_stages() {
     Compiler::new().analyze("fn named(x: number, y: number = x + 1) -> number requires x > 0 { return y; } fn main() { let f = (x: number) => named(x: x); f(1); }").unwrap();
-    assert!(matches!(
-        semantic_error(
-            "fn f(x: number) -> number { return x; } fn main() { let f = (x: number) => x; 1 |> f; }"
-        ),
-        SemanticError::InvalidPipeline {
-            message: "stages must name user-defined functions",
-            ..
-        }
-    ));
+    Compiler::new()
+        .analyze("fn main() { let add = (x: number, y: number) => x + y; let z = 1 |> add(2); }")
+        .unwrap();
+    Compiler::new()
+        .analyze(
+            "fn main() { let inner = (x: number) => x + 1; let outer = (x: number) => x |> inner; let n = outer(2); }",
+        )
+        .unwrap();
     assert!(matches!(
         semantic_error("fn main(x: number = () => missing) {}"),
         SemanticError::InvalidDefaultExpression { .. }
