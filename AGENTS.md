@@ -12,6 +12,9 @@ execution engine. Host registration declares imports; it does not install callba
 
 - Read the affected implementation and tests before editing. Keep changes focused;
   preserve user work and do not stage or commit unless requested.
+- Use Conventional Commits for commit messages: `type(scope): imperative summary`.
+  Choose a standard type (`feat`, `fix`, `test`, `docs`, `refactor`, or `chore`),
+  keep the summary concise, and add a body only when it clarifies intent or impact.
 
 - Distinguish behavior-preserving refactors from language, ABI, and optimization
   changes. Do not introduce speculative frameworks, another IR, or dependencies.
