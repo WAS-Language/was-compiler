@@ -62,6 +62,48 @@ fn run(source: &str, selected: &[&str], assertions: &str) {
 
 #[test]
 #[ignore = "requires Node.js on PATH"]
+fn placeholder_control_flow_nesting_and_live_iteration_dependencies_compose() {
+    run(
+        "fn main() -> number {
+            let state = 0;
+            let bump = { state += _; mark(state); state };
+            let outer = {
+                let n = _;
+                n + 0;
+                let total = 0;
+                for x in 1..=2 {
+                    let inner = {
+                        let delta = _;
+                        delta + 0;
+                        let leaf = () => bump(delta + x);
+                        match n > 0 { true => leaf(), false => 0 }
+                    };
+                    total += loop { break n |> inner; };
+                }
+                while false { total += 1000; }
+                if n > 0 { total } else { 0 }
+            };
+            mark(0);
+            let first = outer(mark(2));
+            state = 10;
+            return first + outer(1);
+        }
+        fn earlier() -> number {
+            let f = mark(_) + { return 7; 0 };
+            return f(mark(3));
+        }
+        fn skipped() -> bool { let f = false && !_; return f(true); }",
+        &["main", "earlier", "skipped"],
+        "assert.equal(e.main(), 37);
+         assert.deepEqual(events.splice(0), [0, 2, 3, 7, 12, 15]);
+         assert.equal(e.earlier(), 7);
+         assert.deepEqual(events.splice(0), [3, 3]);
+         assert.equal(e.skipped(), 0);",
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js on PATH"]
 fn placeholder_locals_preserve_array_aliases_checked_places_and_typed_elements() {
     run(
         r#"fn numeric() -> number {

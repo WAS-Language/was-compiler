@@ -6,6 +6,122 @@ fn span() -> Span {
 }
 
 #[test]
+fn nested_placeholder_helpers_keep_direct_calls_and_checked_owner_boundaries() {
+    let source = "fn main() -> number {
+        let outer = { let inner = loop { break _ + 1; }; inner(_) };
+        return outer(2);
+    }";
+    let mut compiler = Compiler::new();
+    let program = compiler.analyze(source).unwrap();
+    let mut enabled = None;
+    for level in [
+        was_compiler::OptimizationLevel::None,
+        was_compiler::OptimizationLevel::Basic,
+        was_compiler::OptimizationLevel::Standard,
+        was_compiler::OptimizationLevel::Aggressive,
+    ] {
+        compiler.set_optimization_level(level);
+        assert_eq!(compiler.analyze(source).unwrap(), program);
+        let bytes = compiler.compile(&program).unwrap();
+        Validator::new().validate_all(&bytes).unwrap();
+        assert_eq!(compiler.compile(&program).unwrap(), bytes);
+        assert_eq!(compiler.compile_source(source).unwrap(), bytes);
+        assert!(
+            operators(&bytes, 0)
+                .iter()
+                .any(|op| matches!(op, Operator::Call { function_index: 1 }))
+        );
+        assert!(
+            operators(&bytes, 1)
+                .iter()
+                .any(|op| matches!(op, Operator::Call { function_index: 2 }))
+        );
+        let inner = operators(&bytes, 2);
+        assert!(inner.iter().any(|op| matches!(
+            op,
+            Operator::Block {
+                blockty: wasmparser::BlockType::Type(wasmparser::ValType::F64)
+            }
+        )));
+        assert!(
+            inner
+                .iter()
+                .any(|op| matches!(op, Operator::Br { relative_depth: 1 }))
+        );
+        if level != was_compiler::OptimizationLevel::None {
+            assert_eq!(*enabled.get_or_insert_with(|| bytes.clone()), bytes);
+        }
+    }
+    for forgery in 0..3 {
+        let mut forged = program.clone();
+        let TypedStatementKind::Closure(outer) = &mut forged.functions[0].body[0].kind else {
+            unreachable!()
+        };
+        let TypedClosureBody::Block(body) = &mut outer.body else {
+            unreachable!()
+        };
+        let TypedStatementKind::Closure(inner) = &mut body.statements[0].kind else {
+            unreachable!()
+        };
+        match forgery {
+            0 => inner.owner = BindingOwner::Function(FunctionId(0)),
+            1 => inner.params[0].ty = Type::Bool,
+            2 => {
+                let TypedClosureBody::Expression(expression) = &mut inner.body else {
+                    unreachable!()
+                };
+                let TypedExprKind::Loop { body, .. } = &mut expression.kind else {
+                    unreachable!()
+                };
+                let TypedStatementKind::BreakValue { target, .. } = &mut body[0].kind else {
+                    unreachable!()
+                };
+                *target = LoopId(900);
+            }
+            _ => unreachable!(),
+        }
+        assert!(compiler.compile(&forged).is_err(), "forgery {forgery}");
+    }
+}
+
+#[test]
+fn synthesized_nested_iteration_captures_keep_original_read_only_provenance() {
+    let compiler = Compiler::new();
+    let source = "fn main() -> number {
+        let outer = {
+            let n = _; n + 0;
+            let total = 0;
+            for x in [1] { let leaf = x + _; total += leaf(n); }
+            total
+        };
+        return outer(2);
+    }";
+    let program = compiler.analyze(source).unwrap();
+    Validator::new()
+        .validate_all(&compiler.compile(&program).unwrap())
+        .unwrap();
+    let mut forged = program;
+    let TypedStatementKind::Closure(outer) = &mut forged.functions[0].body[0].kind else {
+        unreachable!()
+    };
+    let TypedClosureBody::Block(block) = &mut outer.body else {
+        unreachable!()
+    };
+    let TypedStatementKind::For { variable, body, .. } = &mut block.statements[3].kind else {
+        unreachable!()
+    };
+    let TypedStatementKind::Closure(leaf) = &mut body[0].kind else {
+        unreachable!()
+    };
+    assert_eq!(leaf.captures.len(), 1);
+    assert_eq!(leaf.captures[0].owner, BindingOwner::Closure(outer.id));
+    assert_eq!(leaf.captures[0].variable, *variable);
+    assert_eq!(leaf.captures[0].mutability, CaptureMutability::ReadOnly);
+    leaf.captures[0].mutability = CaptureMutability::Mutable;
+    assert!(compiler.compile(&forged).is_err());
+}
+
+#[test]
 fn propagated_collection_parameters_remain_concrete_and_independently_checked() {
     use was_compiler::{ArrayElementType, OptimizationLevel};
     let source = "fn main() -> bool {

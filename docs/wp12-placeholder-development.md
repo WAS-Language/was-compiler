@@ -7,8 +7,8 @@ understanding in Q26. WP11's release satisfied the predecessor gate. Explicit
 authorization for issue #44 implemented known lexical callable pipeline stages;
 integrated WP12 release validation remains pending. Issue #45 implements the
 direct-constraint local-declaration milestone described below. Issue #46 extends
-that solver with local/collection propagation and basic value-if joins. Immediate
-stages and full control-flow/nesting composition (#47) remain deferred.
+that solver with local/collection propagation and basic value-if joins. Issue #47
+implements control-flow/nested-region composition. Immediate stages remain deferred.
 This is not full WP12 release evidence.
 
 ### Implemented direct-constraint milestone (#45)
@@ -136,6 +136,67 @@ stages, and immediate parenthesized typed-lambda/placeholder stages. It does not
 add first-class callable values, aliases, callable arguments/results, general
 immediate invocation, partial application, collection intrinsics, pipeline fusion,
 reclamation, or general WP13 optimization.
+
+### Implemented control-flow and nesting milestone (#47)
+
+Placeholder bodies now compose with statement branches, matches, while/for loops,
+value matches/loops, pipelines and nested explicit/placeholder local callables.
+Structural discovery counts every owned occurrence independently of completion;
+the constraint collector uses the existing conservative `Flow` rules. Earlier
+reachable evidence survives later divergence, potentially reachable short-circuit
+operands contribute, and skipped/unreachable children still receive ordinary
+concrete checking after inference.
+
+The private graph distinguishes bidirectional exact relationships inside a region
+from one-way signature/capture evidence between regions. Nested callable signatures
+are published only after their own parameters and referenced captured types are
+concrete. A finite region-local dependency schedule publishes each signature once;
+it never rewalks bodies to guess reachability or iterates named/whole-program
+inference. Circular cases without independent evidence remain ambiguous. Captured
+uses and callers cannot choose an enclosing or nested declaration's parameter types.
+Delayed constraints retain original use provenance for conflict ordering/spans.
+
+For iteration, a numeric yielded value alone cannot choose between `range` and
+`number[]`; boolean/string yields uniquely select their supported array types.
+Explicit lambdas stop placeholder ownership. Nested placeholder initializers own
+their own parameters, except the approved bare-initializer rule above. Initializers
+with only nested placeholders remain ordinary values.
+
+No typed-AST, callable ABI, backend validator, numeric representation or pipeline
+injection representation changes are introduced. Concrete parameters still enter
+the ordinary closure checker, preserving owner-local returns/loops, result inference
+and Never-only restrictions. Immediate stages and integrated WP12 release validation
+remain separate work.
+
+#### #47 validation and review
+
+Passed offline:
+
+- The ticket's pipeline/closure frontend and lowering targets, explicitly executed
+  runtime targets, core pipeline adapter and CLI pipeline/closure adapter targets.
+- `cargo test --offline -p was-compiler --test inference --test typed_arrays --test typed_arrays_lowering --test typed_arrays_runtime -- --include-ignored`.
+- `cargo check --offline --workspace --all-targets`.
+- `cargo test --offline`: 1,120 passed, 200 ignored, none failed across 70 targets.
+- `cargo test --offline -- --include-ignored`: 1,320 passed, none failed/ignored
+  across 70 targets (compiler/CLI default members, not browser).
+- `cargo clippy --offline --all-targets -- -D warnings`.
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`.
+- `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings`.
+- Edited-file Rust formatting and `git diff --check`.
+
+The documented offline `wasm-pack` rebuild was attempted. Rust compilation
+succeeded, but packaging failed because compatible local `wasm-bindgen` tooling
+was unavailable (the lockfile requires `0.2.129`). No tooling was installed.
+Browser parity cases were extended and typechecked, but their ignored execution,
+`node tests/browser.cjs pkg` and full workspace include-ignored validation were
+not run against stale bindings. Rebuild and execute those gates when tooling is
+available; this remains milestone evidence, not full WP12 release completion.
+
+Standards/spec self-review corrected delayed-conflict source provenance and
+deterministic propagation through lookup-backed capture scopes; focused
+regressions cover both. The two-axis checklist was applied locally, without
+independent subagents. A possible follow-up is consolidating the ordinary-call
+and pipeline signature lookup branches; it is not needed for this milestone.
 
 ## Regions and binding (Q1–Q2, Q6–Q7, Q9–Q12, Q15, Q18)
 

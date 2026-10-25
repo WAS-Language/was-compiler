@@ -4,6 +4,219 @@ use was_compiler::typed_ast::TypedStatementKind;
 use was_compiler::{Compiler, Type};
 
 #[test]
+fn nested_placeholder_regions_resolve_independently_before_outer_calls() {
+    for body in [
+        "{ let inner = _ + 1; inner(_) }",
+        "{ let inner = (n: number) => n + 1; inner(_) }",
+        "{ let x = _; x + 1; let inner = _ + x; inner(2) }",
+        "{ let x = _; let inner = _ + x; x + 1; inner(2) }",
+        "{ let x = _; let inner = () => x; x + 1; inner() }",
+        "{ let inner = { let deeper = _ + 1; deeper(_) }; inner(_) }",
+    ] {
+        let source = format!("fn main() {{ let outer = {body}; outer(3); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        assert_eq!(closure(&program, 0, 0).params[0].ty, Type::Number);
+        let bytes = Compiler::new().compile(&program).unwrap();
+        wasmparser::Validator::new().validate_all(&bytes).unwrap();
+    }
+}
+
+#[test]
+fn placeholder_bodies_compose_with_resolved_pipeline_stages() {
+    let source = "fn add(x: number, y: number = 1) -> number { return x + y; }
+        fn main() -> number {
+            let f = { let twice = _ * 2; _ |> twice |> add(y: 3) };
+            return f(4);
+        }";
+    let program = Compiler::new().analyze(source).unwrap();
+    assert_eq!(closure(&program, 1, 0).params[0].ty, Type::Number);
+    let bytes = Compiler::new().compile(&program).unwrap();
+    wasmparser::Validator::new().validate_all(&bytes).unwrap();
+}
+
+#[test]
+fn placeholder_return_joins_retain_earlier_reachable_evidence() {
+    for body in [
+        "{ let x = _; if true { return x; } return 1; }",
+        "{ let x = _; if true { return x; } 1 }",
+        "{ let x = _; loop { if true { break x; } break 1; } }",
+    ] {
+        let source = format!("fn main() {{ let f = {body}; }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        assert_eq!(closure(&program, 0, 0).params[0].ty, Type::Number);
+    }
+}
+
+#[test]
+fn placeholder_iteration_does_not_choose_between_numeric_arrays_and_ranges() {
+    let source = "fn main() { let f = { for item in _ { item + 1; } 0 }; }";
+    assert!(matches!(
+        semantic_error(source),
+        SemanticError::CannotInferPlaceholderParameter { .. }
+    ));
+    for (body, expected) in [
+        (
+            "{ let items = _; for item in items { !item; } 0 }",
+            Type::Array(was_compiler::ArrayElementType::Bool),
+        ),
+        (
+            "{ let items = _; for item in items { item + 1; } 1 in items }",
+            Type::Range,
+        ),
+    ] {
+        let source = format!("fn main() {{ let f = {body}; }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        assert_eq!(closure(&program, 0, 0).params[0].ty, expected);
+    }
+}
+
+#[test]
+fn nested_placeholder_evidence_never_flows_back_from_callers_or_captured_uses() {
+    for body in [
+        "{ let x = _; let inner = () => x + 1; inner() }",
+        "{ let inner = _ == _; inner(1, 2); _ + 1 }",
+        "{ let x = _; let inner = () => x; inner() + 1 }",
+        "{ let x = _; let inner = () => { x + 1; x }; x == inner() }",
+        "{ let x = _; let inner = () => x; return 1; x + 1 }",
+    ] {
+        let source = format!("fn main() {{ let outer = {body}; }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::CannotInferPlaceholderParameter { .. }
+            ),
+            "{body}"
+        );
+    }
+    let source = "fn main() { let outer = { let inner = () => _ + 1; _ + 1 }; }";
+    let start = source.find("_ + 1").unwrap();
+    assert_eq!(
+        semantic_error(source),
+        SemanticError::InvalidPlaceholder {
+            span: was_compiler::tokens::Span::new(start, start + 1),
+        }
+    );
+    assert!(matches!(
+        semantic_error("fn main() { let f = { _ + 1; loop {} } ; }"),
+        SemanticError::CannotInferClosureResult { .. }
+    ));
+    assert!(matches!(
+        semantic_error("fn main() { let f = { let x = _; x + 1; return x; !x }; }"),
+        SemanticError::TypeMismatch { .. }
+    ));
+}
+
+#[test]
+fn nested_callable_array_results_keep_independent_literal_fallback() {
+    for body in [
+        "{ let inner = () => []; _ == inner() }",
+        "{ let inner = { _ + 1; [] }; _ == inner(1) }",
+    ] {
+        let source = format!("fn main() {{ let outer = {body}; }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        assert_eq!(
+            closure(&program, 0, 0).params[0].ty,
+            Type::Array(was_compiler::ArrayElementType::Number)
+        );
+    }
+}
+
+#[test]
+fn delayed_nested_formals_keep_the_original_conflicting_use_span() {
+    let source = "fn main() { let outer = { let inner = _ + 1; let x = _; inner(x); !x; 1 }; }";
+    let start = source.find("!x").unwrap();
+    let SemanticError::ConflictingPlaceholderConstraints { span, .. } = semantic_error(source)
+    else {
+        panic!("expected conflicting uses");
+    };
+    assert_eq!(span, was_compiler::tokens::Span::new(start, start + 3));
+}
+
+#[test]
+fn nested_signature_conflicts_are_deterministic_for_multiple_argument_edges() {
+    let source = "fn main() {
+        let outer = {
+            let inner = { let a = _; let b = _; a + 1; !b; 1 };
+            let x = _;
+            inner(x, x);
+            1
+        };
+    }";
+    let start = source.find("x, x").unwrap() + 3;
+    let mut previous = None;
+    for _ in 0..32 {
+        let error = semantic_error(source);
+        assert_eq!(
+            error.span(),
+            Some(was_compiler::tokens::Span::new(start, start + 1))
+        );
+        let message = error.to_string();
+        assert_eq!(previous.get_or_insert_with(|| message.clone()), &message);
+    }
+}
+
+#[test]
+fn synthesized_nested_helpers_preserve_transfer_and_iteration_write_boundaries() {
+    assert!(matches!(
+        semantic_error("fn main() { loop { let f = { _ + 1; break; }; break; } }"),
+        SemanticError::BreakOutsideLoop { .. }
+    ));
+    assert!(matches!(
+        semantic_error(
+            "fn main() { for x in [1] { let f = { _ + 1; let inner = () => { x += 1; }; inner() }; } }"
+        ),
+        SemanticError::ReadOnlyVariable { .. }
+    ));
+    let program = Compiler::new()
+        .analyze(
+            "fn main() {
+        let f = { let x = _; x + 1; if true { let x = true; !x; } x };
+    }",
+        )
+        .unwrap();
+    assert_eq!(closure(&program, 0, 0).params[0].ty, Type::Number);
+}
+
+#[test]
+fn placeholder_control_flow_collects_only_structurally_reachable_evidence() {
+    for body in [
+        "match _ { true => 1, false => 2 }",
+        "{ let x = _; match true { true => x, false => 1 } }",
+        "loop { break _ + 1; }",
+        "{ let x = _; let y = loop { if true { break x; } break 1; }; y }",
+        "{ let x = _; if true { x += 1; } else { x = 2; } x }",
+        "{ let x = _; while false { x += 1; } x }",
+        "{ let x = _; for n in 0..2 { x += n; } x }",
+        "{ let x = _; match true { true => { x += 1; }, false => {} } x }",
+    ] {
+        let source = format!("fn main() {{ let f = {body}; }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        let expected = if body.starts_with("match _") {
+            Type::Bool
+        } else {
+            Type::Number
+        };
+        assert_eq!(closure(&program, 0, 0).params[0].ty, expected, "{body}");
+        let bytes = Compiler::new().compile(&program).unwrap();
+        wasmparser::Validator::new().validate_all(&bytes).unwrap();
+    }
+    for body in [
+        "{ let x = _; loop { continue; x + 1; } }",
+        "{ let x = _; while { return 1; true } { x + 1; } }",
+        "{ let x = _; match { return 1; true } { true => x + 1, false => 2 } }",
+    ] {
+        let source = format!("fn main() {{ let f = {body}; }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::CannotInferPlaceholderParameter { .. }
+            ),
+            "{body}"
+        );
+    }
+}
+
+#[test]
 fn placeholder_constraints_propagate_through_ordinary_locals() {
     let source = "fn main() -> number {
         let increment = { let x = (_); let alias = x; alias += 1; x };
@@ -350,11 +563,10 @@ fn placeholder_regions_keep_hygienic_ids_capture_ownership_and_independent_retur
 }
 
 #[test]
-fn placeholder_regions_reject_unreachable_only_evidence_and_deferred_compositions() {
+fn placeholder_regions_reject_unreachable_only_evidence() {
     for source in [
         "fn main() { let f = { return 1; _ + 1 }; }",
         "fn main() { let f = _ == { return 1; true }; }",
-        "fn main() { let f = loop { break _ + 1; }; }",
     ] {
         assert!(
             matches!(

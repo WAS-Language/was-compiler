@@ -218,8 +218,19 @@ region; compound placeholder initializers still declare independent callables.
 Concrete formal argument types also supply constraints. These declarations reuse
 direct helpers and shared captures; bodies run only when invoked. `_ == _` and
 `len(_)` remain ambiguous, and callers do not infer parameter types. This is a
-partial WP12 milestone, not complete inference or release readiness; see the
-[implemented boundary and deferred composition](docs/wp12-placeholder-development.md#implemented-localcollection-milestone-46).
+partial WP12 milestone, not release readiness. Issue #47 adds control-flow and
+nested-region composition:
+
+```text
+let choose = match _ { true => 1, false => 2 };
+let outer = { let inner = _ + 1; loop { break inner(_); } };
+```
+
+Parameters are counted structurally, but only reachable constraint sites select
+types. Nested callables have independent return/loop contexts, and unresolved
+circular captures do not infer signatures. See the
+[implemented boundary](docs/wp12-placeholder-development.md#implemented-control-flow-and-nesting-milestone-47);
+immediate pipeline stages remain deferred.
 
 <a id="typed-arrays-37-core-implemented-release-validation-pending"></a>
 
@@ -303,8 +314,8 @@ Callables cannot be aliased, reassigned, annotated with a value type, passed,
 returned or used as values. Immediate invocation, closure defaults/contracts/result
 annotations are not supported. Issue #44 separately adds known
 lexical callable pipeline stages with positional-only arguments; integrated release
-validation remains pending. #45/#46 add the placeholder local/collection subset
-described above. Remaining WP12 inference/immediate-stage work and separately
+validation remains pending. #45–#47 add placeholder locals, collections,
+control flow and nested regions as described above. WP12 immediate-stage work and separately
 authorized WP13 optimization remain outside WP11. WP11's [release gates passed on 2026-10-15](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15),
 including current-source rebuilt-browser and full ignored runtime coverage.
 
