@@ -1,13 +1,15 @@
 # WAS Compiler — Memory, Numeric Representation, and Optimization Roadmap
 
-**Status:** Proposed technical plan (not an implementation specification)  
-**Updated:** October 25, 2026  
+**Status:** Proposed technical plan; M0 implemented and validated (later milestones remain proposals)
+
+**Updated:** October 26, 2026
+
 **Version:** 2.0 — Goose-informed memory strategy  
 **Repository:** https://github.com/LuanRoger/was-compiler  
 **Scope:** Stabilize runtime values and memory management; introduce conservative escape/lifetime analysis and temporary regions; add safe reclamation for shared heap objects and resizable arrays; preserve practical immutable string operations; introduce `i32`/`f64` specialization and an optional Binaryen pipeline.  
 **Explicitly deferred:** Multi-file modules, package management, additional execution targets, the Component Model, and a native-code backend.
 
-> **Evidence boundary.** The “Current state” section summarizes the repository's public `main` branch and the previously conducted architecture review. Implementation proposals, hypothetical examples, and acceptance criteria are not claims about existing functionality. Paths and behavior should be revalidated against the branch used when each milestone begins. No tests were executed as part of preparing this plan.
+> **Evidence boundary.** The “Current state” section summarizes the repository's public `main` branch and the previously conducted architecture review. Implementation proposals, hypothetical examples, and acceptance criteria are not claims about existing functionality. Paths and behavior should be revalidated against the branch used when each milestone begins. No tests were executed during the original plan preparation; subsequent M0 implementation and validation evidence is linked in §4.
 
 ---
 
@@ -97,35 +99,190 @@ Dead arrays, ranges, closure environments, and superseded buffers do not automat
 
 **Goal:** Define the behavioral contract before changing the representation.
 
-### Decisions to formalize
+### M0 interview decisions (2026-10-26)
+
+The user confirmed the consolidated scope and authorized M0 implementation on
+2026-10-26. M0 is implemented with [recorded coverage, measurements and passing
+validation](m0-memory-baseline.md). These decisions do not authorize implementation
+of later milestones; future-feature constraints below remain proposals.
+
+- **M0 scope:** documentation, focused regression tests and test-only measurement
+  support. Preserve current language behavior, emitted ABI, allocation policy and
+  adapters. No escape analysis, reclamation, capacity fields or numeric-policy
+  changes. Future resize/string-operation contracts remain explicitly proposed.
+- **Collection direction:** M4 proposes resizing the existing `number[]`, `bool[]`
+  and `string[]` types, not adding a separate growable-list type. Resizing through
+  one alias would change the same collection observed by all aliases. Existing
+  arrays remain fixed-length until that feature is implemented. Future operation
+  syntax remains deferred; the proposed iteration interaction is defined below.
+- **Raw-host compatibility:** preserve existing instance-lifetime storage and raw
+  handle-retention rights without retroactive root-registration, release or
+  nonretention obligations. A compliant host's retained handle remains valid
+  after a guest trap and during later calls. Future reclamation must respect this
+  contract or use an explicitly separate opt-in ownership protocol; return or
+  trap alone cannot invalidate retained handles.
+- **Validity is not ownership:** descriptor bounds/alignment checks do not prove
+  allocation provenance or authorize freeing, relocation or resizing. Compliant
+  raw descriptors remain accepted unchanged. Explicit Node encoding copies into
+  guest storage, but current descriptors contain no ownership metadata. A future
+  management protocol must establish management rights separately; M0 adds none.
+- **Failure and effects:** a failed allocation does not advance the allocator
+  cursor or corrupt existing descriptors. Completed writes, host effects and
+  earlier successful allocations survive traps; there is no operation-wide
+  rollback. Future resize replacement-allocation failure must leave the old
+  descriptor/storage valid, without rolling back prior argument effects.
+- **Proposed string operations:** require immutable result contents without
+  modifying existing strings, not fresh allocation or distinct physical identity
+  on every invocation. Unchanged/already available results may reuse storage.
+  Allocation and failure rules remain operation-specific future decisions.
+- **Measurement boundary:** use existing test-only measurements, with initial/final
+  pages on fresh unmarked runs and aligned bump consumption on separate marked
+  runs, correcting marker overhead. Pages are capacity, not live bytes. General
+  allocation counts and peak live bytes remain unavailable unless independently
+  measured; never infer them from page growth. No new production counters,
+  exports or allocator behavior are authorized.
+- **Proposed resize/iteration semantics:** capture the handle and initial length
+  once; read current elements by checked index, without an element snapshot or
+  cached payload pointer. Appends beyond the initial length are not visited. If
+  shrinking invalidates a subsequent index, that read traps rather than ending
+  iteration early. Any future shifting removal affects subsequent indexed reads;
+  there is no exactly-once guarantee for original elements.
+- **Proposed pointer contract:** descriptor handles remain stable across resize,
+  but payload addresses need not. Hosts must reacquire payload addresses after
+  calls/reentrant callbacks that may resize, separately from refreshing JavaScript
+  views after memory growth. M0 adds no pinning API and does not weaken current
+  fixed-storage lifetime guarantees. Future lowering must preserve pre-RHS checked
+  assignment-place semantics: moving storage must not invalidate or silently
+  retarget an outstanding checked write.
+- **Contract revision:** identify the existing memory/ownership contract as
+  revision 1 in a dated compatibility section of `memory-abi.md`. This is a
+  documentation revision, not a new binary ABI, version export, descriptor tag or
+  runtime negotiation mechanism. Keep future features outside the implemented
+  revision's guarantees.
+- **Acceptance evidence:** map contracts to existing tests and add focused coverage
+  only for gaps, including retained `bool[]` and `string[]` through reentry, caught
+  traps and actual growth. Require fresh offline fast/full validation, ignored
+  runtime cases and current-source rebuilt-browser evidence, plus separate
+  page/consumption records with workload/tool-version provenance. Missing tools
+  leave gates pending; historical results and default Cargo success alone do not
+  close M0. Preserve compatibility fixtures; proposals for unimplemented features
+  do not require executable feature tests in M0.
+
+### Contract summary (existing guarantees versus future proposals)
 
 | Topic | Proposed decision | Reason |
 |---|---|---|
 | Array assignment | Reference semantics: `b = a` refers to the same array object | Matches current behavior. |
-| Array growth | Descriptor/handle stable; backing payload may move | Lets aliases observe resize. |
-| Array iteration | Capture the initial length; read current elements by index; define removal behavior explicitly | Avoid indefinite loops after `push`. |
+| Array growth | Proposed: descriptor/handle stable; backing payload may move | Lets aliases observe resize; not implemented by M0. |
+| Array iteration | Initial length and live checked reads; proposed shrinking traps at an invalid next index | Appends do not extend iteration; no element snapshot. |
 | Array bounds | Checked access; invalid indices trap | Matches the existing checked model. |
 | String assignment | Immutable value/handle semantics | Prevent accidental mutation of shared literals. |
-| String edits | Return a newly allocated string | Keeps literal interning safe. |
-| Host-originated arrays | Choose between owning/copying and explicitly borrowed storage | Safe resize requires clear ownership. |
-| Raw memory addresses | Do not expose a public stable payload pointer across resizes unless pinned | Prevent dangling offsets. |
-| Allocation failure | Trap with no corruption of live descriptors; define partial-effect policy | Enables predictable diagnostics and testing. |
+| String edits | Proposed immutable results; fresh allocation is not mandatory | Keeps shared strings safe without requiring allocation for unchanged results. |
+| Host-originated arrays | Preserve raw acceptance; validity does not establish management rights | Future resize/reclamation needs a separately specified management protocol. |
+| Raw memory addresses | Proposed: reacquire payload addresses after possible resize; no pinning API in M0 | Distinct from JavaScript view refresh after growth. |
+| Allocation failure | Failed allocation leaves cursor unchanged; completed effects remain | Preserve live descriptors without promising transactional rollback. |
 | Reentrancy | Recursive and host-reentrant invocations must not share mutable scratch unsafely | Necessary for closure correctness. |
 
 ### Deliverables
 
-- A short versioned **memory/ownership contract**, updating `docs/memory-abi.md`.
-- A regression suite covering existing strings, typed arrays, captures, exports, traps, and memory growth.
-- A test harness recording memory pages, allocation counts, and peak live or reserved bytes where instrumentation is available.
+- A short **memory/ownership contract revision 1**, updating `docs/memory-abi.md`
+  with a dated compatibility section and no binary ABI or runtime-version changes.
+- A contract-to-test coverage map for existing strings, typed arrays, captures,
+  exports, traps and memory growth; reuse current suites and add focused tests for
+  uncovered guarantees, including integrated bool/string-array retention scenarios.
+- Test-only measurements of memory pages and aligned bump consumption on separate
+  runs using existing support; explicitly mark allocation counts and peak live
+  bytes unavailable unless independently measured. Do not add production telemetry.
 - An explicit policy for compatibility with existing Node/browser marshaling.
 
-**Exit gate:** Existing tests pass unchanged; newly documented semantics have focused tests; any intentionally breaking ABI change is labeled and coordinated with host adapters.
+**Exit gate:** Existing tests pass without weakening assertions or regenerating
+compatibility fixtures; uncovered implemented guarantees receive focused tests.
+Complete the offline fast/full validation in [validation.md](validation.md), with
+ignored runtime cases and a current-source browser rebuild, and record separate
+page/consumption measurements with workload/tool-version provenance. Missing
+prerequisites leave gates pending. No language, binary ABI, allocator or adapter
+behavior changes are permitted in M0; future-feature proposals remain labeled and
+are not claims of tested functionality. The 2026-10-26 implementation meets this
+M0 gate; see the [evidence record](m0-memory-baseline.md#validation-2026-10-26).
 
 ---
 
 ## 5. Milestone M1 — Conservative escape and lifetime analysis
 
 **Goal:** Identify provably temporary objects before changing the allocator. The analysis must remain conservative, with the current heap as a sound fallback.
+
+### M1 interview decisions (2026-10-26; confirmed)
+
+The user confirmed the consolidated M1 contract on 2026-10-26, completing the
+interview. The decisions below define the agreed scope; implementation of M1
+still requires explicit authorization. They do not authorize reclamation in M2.
+
+- **Analysis only:** internal classification and classification tests, without
+  changes to allocation, emitted Wasm bytes, ABI, language, numeric presets or
+  adapter behavior. Require identical bytes with and without the analysis.
+- **Separate concepts:** distinguish allocation origin, escape-analysis results
+  and future storage decisions. A temporary candidate still uses the existing
+  monotonic heap. The illustrative `StorageClass` below is not an approved M1
+  interface, and `ManagedHeap` does not describe a new implemented allocator.
+- **Initial positive slice:** local `number[]` and `bool[]` allocations consumed
+  within straight-line code in their allocating function, without branches,
+  loops, calls, captures or returned handles. String arrays, ranges, capture cells
+  and environments are outside the initial positive set. Aliases and other
+  interactions require later proof decisions; excluded cases receive conservative
+  classification tests rather than speculative positive proofs.
+- **Host observation barrier:** a host call during a candidate's lifetime blocks
+  the initial positive proof even without handle arguments/results. Exported
+  memory and possible reentry preclude equating absent handle arguments with
+  absent observation. Add no host purity, nonretention or nonreentrancy promises.
+- **Invocation-wide proof boundary:** require the entire allocating function body
+  to satisfy the supported subset, rather than finding eligible fragments or
+  computing last uses. Calls, branches, loops and callable declarations block
+  the initial positive proof even when apparently unreachable. Candidate status
+  bounds lifetime by the invocation; it selects no early reclamation point.
+- **Single-binding origins:** positive candidates are array literals bound
+  directly to one ordinary `let`, without copying their handle to another binding
+  or reassigning that binding. Reads, `len` and checked element writes are allowed
+  in principle; exact supported expression forms remain to be settled. Local
+  aliases and handle reassignment are unproven, not necessarily escaping.
+- **Distinct outcomes:** separate temporary candidates, identified escape paths
+  (including returned handles and passage to potentially retaining hosts), and
+  unproven cases outside the supported analysis. Record conservative reasons;
+  identified escape and unproven cases both retain current storage. These are
+  analysis results, not source-language types or proof of actual host retention.
+- **Private borrowed metadata:** keep facts internal and associated with the
+  borrowed typed tree. Add no public AST fields, allocation/expression IDs or
+  ownership annotations. Exact metadata representation remains a technical design
+  detail. Preserve independent backend validation of mutable/forged typed input;
+  caller-supplied annotations cannot authorize temporary storage.
+- **Closed positive-operation set:** admit scalar literals, scalar parameters and
+  ordinary number/bool locals; directly let-bound number/bool array literals;
+  scalar arithmetic, comparisons and unary operators; element reads, builtin
+  `len`, checked element assignments and numeric element compounds; and scalar
+  or bare returns. Element expressions and indices must themselves satisfy the
+  supported subset. Block expressions, if/match, loops, short-circuit operators,
+  calls other than builtin `len`, and other handle uses remain outside the initial
+  positive proof. Unknown forms default to unproven, never implicit acceptance.
+  Test each admitted operation; widening this set requires an explicit decision.
+- **Traps do not imply escape or reclamation permission:** candidate proofs need
+  not establish trap freedom or normal completion. Preserve completed effects and
+  earlier allocations after traps. M2 must separately establish safe reclamation
+  across traps, reentry and suspended invocations; candidate status alone is not
+  sufficient proof for cleanup or cursor restoration.
+- **Explicit analysis, no production consumer:** exercise the internal component
+  explicitly in tests, without enabling it by default in compilation or tying it
+  to optimization presets. Code emission does not consume its classifications.
+  Verify identical emitted bytes for the same borrowed tree before and after
+  analysis, separately within each optimization preset. Storage-selection
+  integration is deferred to M2.
+- **M1 acceptance:** positive coverage for both array types and every supported
+  operation; conservative cases for direct/indirect returns, aliases, reassignment,
+  captures, internal calls, recursion, hosts, reentry and control flow; trap and
+  forged-typed-tree cases without weakening backend checks; deterministic facts,
+  checkable reasons and per-preset byte identity. Require fresh offline fast/full
+  validation from `validation.md`, including ignored runtime cases and a
+  current-source browser rebuild. Missing prerequisites leave gates pending.
+  No page-count, allocation-consumption or execution-time improvement is required:
+  M1 changes no storage. These are planned gates, not completed validation evidence.
 
 ### Core design
 
@@ -335,7 +492,7 @@ The exact syntax and `pop` return behavior (particularly for empty arrays) requi
 
 ### Recommended semantics
 
-Keep `string` immutable. Operations such as concatenation and replacement return a new string. Reassignment updates a binding, not the bytes owned by the prior string value.
+Keep `string` immutable. Operations such as concatenation and replacement return an immutable result without changing existing strings; unchanged or already available results may reuse storage rather than requiring fresh allocation. Reassignment updates a binding, not the bytes owned by the prior string value.
 
 ```text
 let message = "hello";

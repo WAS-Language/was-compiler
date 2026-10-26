@@ -5,6 +5,12 @@ and local closures. Proposed extensions remain distinct from implemented languag
 
 ## Language
 
+**Temporary candidate**:
+An allocation proven to have a bounded lifetime within its allocating invocation,
+without publishing its contents' storage for later use. Candidate status alone
+neither changes storage nor authorizes reclamation.
+_Avoid_: Temporary region allocation, managed heap object
+
 **Number**:
 The language's single numeric type, with IEEE-754 binary64 semantics, including
 fractional values, signed zero, infinities, and NaN. Integer-valued numbers do not
@@ -12,13 +18,15 @@ form a separate language type.
 _Avoid_: Inferred integer type, integer-looking type
 
 **Array**:
-A fixed-length, mutable collection whose elements share one type. Assignment and
-parameter passing share the collection rather than copying its elements.
+A mutable collection whose elements share one type; assignment and parameter
+passing share the collection rather than copying its elements. Arrays currently
+have fixed length; the memory roadmap proposes extending them with resizing.
 _Avoid_: List, growable list
 
-**Growable list**:
-A proposed collection whose length can change after creation, distinct from an array.
-Growable lists are not currently supported.
+**Resizable array**:
+A proposed extension of arrays whose length can change while all aliases continue
+to refer to the same collection. Resizing is not currently supported.
+_Avoid_: Growable list, separate list type
 
 **Pure expression**:
 An expression admitted by the WAS default/contract whitelist that performs no writes

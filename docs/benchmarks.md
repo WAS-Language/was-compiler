@@ -91,7 +91,7 @@ all four optimization levels, decoded export/memory contracts, and no imports or
 start effects. Execution checks independent, worked result/allocation expectations.
 No private compiler instrumentation or testing-only production abstraction is used.
 
-Seventeen bounded cases cover:
+The original seventeen bounded cases cover:
 
 - `construct_{0,1,7,8,9}`: 128 fresh literals, including empty arrays and lengths
   around an eight-element boundary. Numeric payloads remain eight bytes per element.
@@ -202,6 +202,23 @@ Boolean/string-array measurements belong to their later implementation milestone
 No reclaimed/live-byte, RSS, browser execution, dynamic-string construction, host
 marshaling, or performance-budget claims are made by this synthetic baseline.
 
+## Memory roadmap M0 — 2026-10-26 contract baseline
+
+This is distinct from issue #37's historical M0 above. The current generator adds
+`construct_bool_3` and `construct_string_3`, for **19** bounded cases, without
+changing the original 17 cases or their independent expectations. Each new case
+constructs 128 three-element arrays and returns 384; aligned reservations are
+`128 * align8(8 + 3) = 2,048` bytes for bools and
+`128 * align8(8 + 3 * 4) = 3,072` bytes for strings. String literals are static;
+these measurements do not include dynamic string construction or host marshaling.
+
+The same separate marker/capacity commands above were rerun on current source.
+[The contract baseline](m0-memory-baseline.md#memory-measurements) records results,
+provenance and limitations. Pages measure capacity and markers measure aligned
+bump consumption, not live bytes. General allocation counts and peak live bytes
+are unavailable; no production telemetry was added. Historical timing records
+remain unchanged; this milestone makes no performance or reclamation claim.
+
 ## Issue #37 M4: comparative measurements and optimization handoff
 
 The M4 measurement portion is recorded in
@@ -212,9 +229,18 @@ this measurement task.
 
 ### Reproduction and isolation
 
-Run from the repository root, offline with cached Rust dependencies, Node.js 24+
-(and Python for the optional stdlib-only recorder). Choose a **new, empty** output
-directory; the recorder refuses to overwrite evidence:
+For **historical issue #37 M4 reproduction**, run in a separate checkout of
+`1c062d607d5225c6401e7f8aca555c09da3c4ffb`, with the original CRLF input files
+matching the recorded SHA-256 values. That revision contains the 17-case corpus
+and recorder; all six guarded input hashes were verified against it. The recorder
+intentionally rejects today's expanded 19-case corpus and is not the current
+memory-roadmap M0 recording workflow; use the separate marker/capacity commands
+above for that workflow. Do not change the recorder's hashes/count or historical
+records to accommodate new cases.
+
+From that historical checkout's repository root, use offline cached Rust
+dependencies, Node.js 24+ (and Python for the optional stdlib-only recorder).
+Choose a **new, empty** output directory; the recorder refuses to overwrite evidence:
 
 ```sh
 python tests/support/record_memory_m4.py docs/benchmarks/NEW-M4-RUN
@@ -230,7 +256,8 @@ command has a 120-second subprocess bound; each Rust→Node call retains the
 existing support helper's 60-second deadline. It generates comparisons without
 fetching anything, changing working-tree sources, or adding profiling exports.
 
-Direct commands (all exact invocations are also in the raw records):
+Historical direct commands at that same revision (exact invocations are also
+in the raw records):
 
 ```sh
 # Original M0 target and timing contract, unchanged; repeat timing command twice.

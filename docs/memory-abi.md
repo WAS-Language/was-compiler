@@ -7,6 +7,39 @@ and registered host-function parameters/results. Language types remain distinct
 in semantic analysis even though all lower to `i32`; descriptors have no runtime
 type tag. Hosts must supply the type declared in their registration.
 
+## Contract revision 1 — 2026-10-26
+
+Revision 1 names the existing memory/ownership contract; it does not change the
+binary ABI or add a descriptor tag, version export or negotiation mechanism.
+The [M0 coverage and validation record](m0-memory-baseline.md) maps these
+implemented guarantees to regression tests and current-source adapter evidence.
+
+- **Lifetime and sharing:** arrays have fixed length and shared mutable elements;
+  strings are immutable. Published static/allocated values remain valid until
+  instance disposal, including handles retained by a compliant raw host during a
+  callback that later traps. Calls, returns and traps impose no new root,
+  nonretention or release obligations. General heap rewind is not permitted.
+- **Validity is not ownership:** structural descriptor checks establish neither
+  allocation provenance nor permission to free, relocate or resize storage. Raw
+  descriptors may reference separately allocated payloads. They remain accepted
+  under the existing host obligations; no owning/borrowed flag is added.
+- **Failure is not rollback:** a failed allocation leaves the allocator cursor
+  unchanged and existing descriptors intact. Earlier successful allocations,
+  writes and host effects remain. Recursive/reentrant invocations retain distinct
+  live cells/environments, including when a callback catches an inner trap.
+- **Adapters:** raw calls exchange instance-local handles. Explicit Node
+  `createAbi.encode`/`decode` use copies, not borrowed native arrays; they do not
+  grant new management rights. Hosts refresh JavaScript views after possible
+  growth, including inside reentrant callbacks. The browser package compiles
+  source to raw Wasm; it adds no automatic guest-value marshaling or ownership
+  transfer. See [runtime integration](runtime-integration.md).
+
+Resizable arrays, payload relocation/reclamation and string-edit operations are
+not implemented by revision 1. Their agreed future constraints live in
+[the memory roadmap's M0 decisions](was_compiler_memory_and_optimization_roadmap.md#4-milestone-m0--semantics-and-regression-baseline),
+not in this implemented contract. A future management protocol must establish
+management rights separately and respect existing raw-host retention guarantees.
+
 ## Local callables and shared captures (WP11)
 
 Context-free helpers use direct calls with only explicit parameters. Their declarations

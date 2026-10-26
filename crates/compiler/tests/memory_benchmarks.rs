@@ -34,7 +34,7 @@ fn execute(mode: &str) {
     );
     assert!(output.status.success(), "{output:?}");
     println!("{}", String::from_utf8_lossy(&output.stdout));
-    assert!(String::from_utf8_lossy(&output.stdout).contains("all 17 memory workloads passed"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("all 19 memory workloads passed"));
 }
 
 #[test]

@@ -33,7 +33,8 @@ execution engine. Host registration declares imports; it does not install callba
 | Reference | Responsibility |
 | --- | --- |
 | [Compilation roadmap](docs/compilation-roadmap.md) | Architecture, milestones, acceptance criteria |
-| [Memory ABI](docs/memory-abi.md) | Authoritative descriptor, allocation, ownership, and host contract |
+| [Memory ABI](docs/memory-abi.md) | Authoritative descriptor, allocation, ownership, and host contract (revision 1) |
+| [Memory M0 baseline](docs/m0-memory-baseline.md) | Contract-to-test map, measurement limits and release evidence; read before changing retention or reclamation |
 | [Typed arrays #37](docs/typed-arrays.md) | Contextual typing, Rust migration, consumed validation, adapter copy contract and final release evidence |
 | [Integer specialization #38/#39/#40/#41](docs/integer-specialization.md) | Proof/local eligibility, comparison/negation contracts, preset parity, correctness evidence and pending release decision |
 | [Limitations](docs/limitations.md) | Implemented restrictions versus possible alternatives |

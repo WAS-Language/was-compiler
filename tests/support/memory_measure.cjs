@@ -16,6 +16,7 @@ console.log(JSON.stringify({
 
 // Worked M0 expectations: [result per main, aligned bytes consumed per main].
 // Numeric arrays reserve 8 descriptor bytes + 8 per element; empty reserves 8.
+// Bool triples reserve align8(8 + 3) = 16; string triples align8(8 + 3*4) = 24.
 // Shared cells/environment slots each reserve 8. Static strings consume no bump.
 const expected = {
     construct_0: [0, 1024],
@@ -23,6 +24,8 @@ const expected = {
     construct_7: [896, 8192],
     construct_8: [1024, 9216],
     construct_9: [1152, 10240],
+    construct_bool_3: [384, 2048],
+    construct_string_3: [384, 3072],
     page_crossing: [8192, 131072],
     alias_index_replace: [1536, 32],
     iteration_live_alias: [1792, 40],
@@ -107,4 +110,4 @@ if (mode === 'marker' || mode === 'verify') {
     console.log(JSON.stringify({ rawAllocationRequests: [0, 1, 7, 8, 9],
         alignedReservations: [8, 8, 8, 8, 16], offsets }));
 }
-console.log('all 17 memory workloads passed');
+console.log('all 19 memory workloads passed');

@@ -148,6 +148,193 @@ fn construction_captures_reentry_and_traps_keep_completed_effects() {
 
 #[test]
 #[ignore = "requires Node.js"]
+fn raw_host_retained_typed_arrays_survive_recursive_reentry_traps_and_rhs_growth() {
+    use was_compiler::ArrayElementType;
+
+    let mut compiler = Compiler::new();
+    compiler
+        .register_host_function("effect", "env", "effect", vec![Type::Number], Type::Void)
+        .unwrap();
+    compiler
+        .register_host_function(
+            "retain",
+            "env",
+            "retain",
+            vec![
+                Type::Number,
+                Type::Array(ArrayElementType::Bool),
+                Type::Array(ArrayElementType::String),
+            ],
+            Type::Void,
+        )
+        .unwrap();
+
+    run_with_compiler(
+        compiler,
+        r#"
+        fn create(seed: number, depth: number, fail: bool, text: string) -> number {
+            let flags = [false, false, false];
+            let texts = ["before", text, "pending"];
+            let prepare = () => { flags[0] = true; texts[0] = text; seed += 1; };
+            let outer = (parameter: number) => {
+                let local = parameter;
+                let leaf = () => {
+                    local += 1;
+                    prepare();
+                    retain(seed, flags, texts);
+                    flags[1] = { effect(seed); true };
+                    texts[2] = { effect(seed + 100); text };
+                    if depth > 0 { create(seed + 10, depth - 1, false, text); }
+                    if fail { flags[99]; }
+                    flags[2] = true;
+                    seed + local
+                };
+                leaf()
+            };
+            return outer(10);
+        }
+        fn update(flags: bool[], texts: string[], text: string) {
+            let change = () => { flags[0] = false; texts[0] = text; effect(700); };
+            let outer = () => { let leaf = () => change(); leaf(); };
+            outer();
+        }
+        fn flag(flags: bool[], i: number) -> bool { return flags[i]; }
+        fn text(texts: string[], i: number) -> string { return texts[i]; }
+        fn check(flags: bool[], texts: string[], value: string) -> bool {
+            let read = () => flags[1] && texts[2] == value;
+            let outer = () => { let leaf = () => read(); leaf() };
+            return outer();
+        }
+        fn echo(value: string) -> string {
+            let outer = () => { let leaf = () => value; leaf() };
+            return outer();
+        }
+        "#,
+        r#"
+        const assert = require('node:assert/strict');
+        const events = [], retained = [], growthLengths = [];
+        let failedAllocationMarker, reentries = 0, outerResumes = 0;
+        let primary, other, kept;
+        const view = () => new DataView(e.memory.buffer);
+        const word = p => view().getUint32(p, true);
+        const put = (p, x) => view().setUint32(p, x, true);
+        const stringBytes = h => Array.from(new Uint8Array(e.memory.buffer, word(h), word(h + 4)));
+        function hostString(bytes) {
+            const h = e.__alloc(8) >>> 0;
+            const p = e.__alloc(bytes.length) >>> 0;
+            put(h, p); put(h + 4, bytes.length);
+            new Uint8Array(e.memory.buffer, p, bytes.length).set(bytes);
+            return h;
+        }
+        function grow() {
+            const previous = e.memory.buffer;
+            const length = previous.byteLength;
+            const stale = new DataView(previous);
+            e.__alloc(length + 65536);
+            assert.ok(e.memory.buffer.byteLength > length);
+            assert.notEqual(e.memory.buffer, previous);
+            assert.equal(previous.byteLength, 0);
+            assert.throws(() => stale.getUint32(0, true), TypeError);
+            growthLengths.push(e.memory.buffer.byteLength);
+        }
+        const e = new WebAssembly.Instance(
+            new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{
+                retain:(id, flags, texts) => {
+                    flags >>>= 0; texts >>>= 0;
+                    retained.push({id, flags, texts, flagsData:word(flags), textsData:word(texts)});
+                },
+                effect:n => {
+                    events.push(n);
+                    if (n === 2) {
+                        assert.equal(++reentries, 1);
+                        const suspended = retained[0];
+                        assert.equal(e.flag(suspended.flags, 1), 0);
+                        assert.equal(e.create(20, 1, 0, other), 32);
+                        assert.throws(() => e.create(40, 0, 1, other), WebAssembly.RuntimeError);
+                        // Retained inside the trapped invocation, not returned to the host.
+                        assert.equal(e.flag(retained[3].flags, 1), 1);
+                        assert.equal(e.flag(retained[3].flags, 2), 0);
+                        kept = hostString([107,101,112,116,0,195,169]);
+                        const beforeFailure = e.memory.buffer;
+                        assert.throws(() => e.update(retained[1].flags, retained[1].texts, kept),
+                            WebAssembly.RuntimeError);
+                        assert.equal(e.memory.buffer, beforeFailure);
+                        // No guest allocation intervenes after the failed raw allocation.
+                        assert.equal(e.__alloc(8) >>> 0, failedAllocationMarker + 8);
+                        assert.equal(e.flag(retained[1].flags, 0), 0);
+                        assert.equal(e.text(retained[1].texts, 0) >>> 0, kept);
+                        grow();
+                        // The suspended bool assignment has not stored yet.
+                        assert.equal(e.flag(suspended.flags, 1), 0);
+                    } else if (n === 102) {
+                        assert.equal(++outerResumes, 1);
+                        const suspended = retained[0];
+                        assert.equal(e.flag(suspended.flags, 1), 1);
+                        assert.deepEqual(stringBytes(e.text(suspended.texts, 2)),
+                            [112,101,110,100,105,110,103]);
+                        assert.equal(e.create(60, 0, 0, primary), 72);
+                        grow();
+                        // The string-array destination is still pending across reentry/growth.
+                        assert.deepEqual(stringBytes(e.text(suspended.texts, 2)),
+                            [112,101,110,100,105,110,103]);
+                    } else if (n === 700) {
+                        failedAllocationMarker = e.__alloc(8) >>> 0;
+                        e.__alloc(0xfffffff8);
+                        assert.fail('oversized host allocation must trap');
+                    }
+                }
+            }}
+        ).exports;
+        // Independent UTF-8 bytes for "hé😀", "ß", and later "kept\0é".
+        const primaryBytes = [104,195,169,240,159,152,128], otherBytes = [195,159];
+        primary = hostString(primaryBytes);
+        other = hostString(otherBytes);
+        assert.equal(e.create(1, 0, 0, primary), 13);
+        assert.equal(reentries, 1); assert.equal(outerResumes, 1);
+        assert.equal(growthLengths.length, 2);
+        assert.ok(growthLengths[1] > growthLengths[0]);
+        assert.deepEqual(events.splice(0), [2,21,121,32,132,41,141,700,102,61,161]);
+        assert.deepEqual(retained.map(r => r.id), [2,21,32,41,61]);
+
+        // New calls after both traps and growth must leave every old allocation live.
+        assert.equal(e.create(80, 0, 0, other), 92);
+        assert.deepEqual(events.splice(0), [81,181]);
+        assert.equal(new Set(retained.flatMap(r => [r.flags, r.texts])).size, 12);
+        const expectedFlags = [[1,1,1], [0,1,1], [1,1,1], [1,1,0], [1,1,1], [1,1,1]];
+        const expectedHandles = [
+            [primary,primary,primary], [kept,other,other], [other,other,other],
+            [other,other,other], [primary,primary,primary], [other,other,other]
+        ];
+        const expectedBytes = [
+            [primaryBytes,primaryBytes,primaryBytes], [[107,101,112,116,0,195,169],otherBytes,otherBytes],
+            [otherBytes,otherBytes,otherBytes], [otherBytes,otherBytes,otherBytes],
+            [primaryBytes,primaryBytes,primaryBytes], [otherBytes,otherBytes,otherBytes]
+        ];
+        for (let i = 0; i < retained.length; i++) {
+            const r = retained[i];
+            assert.equal(word(r.flags), r.flagsData); assert.equal(word(r.flags + 4), 3);
+            assert.equal(word(r.texts), r.textsData); assert.equal(word(r.texts + 4), 3);
+            assert.deepEqual(Array.from(new Uint8Array(e.memory.buffer, r.flagsData, 3)), expectedFlags[i]);
+            assert.deepEqual([0,1,2].map(j => e.flag(r.flags, j)), expectedFlags[i]);
+            // Check four-byte slots independently of the guest's checked reads.
+            assert.deepEqual([0,1,2].map(j => word(r.textsData + 4*j)), expectedHandles[i]);
+            assert.deepEqual([0,1,2].map(j => e.text(r.texts, j) >>> 0), expectedHandles[i]);
+            assert.deepEqual(expectedHandles[i].map(stringBytes), expectedBytes[i]);
+            assert.equal(e.check(r.flags, r.texts, expectedHandles[i][2]), 1);
+        }
+        for (const [handle, bytes] of [[primary,primaryBytes], [other,otherBytes],
+            [kept,[107,101,112,116,0,195,169]]]) {
+            assert.equal(e.echo(handle) >>> 0, handle);
+            assert.deepEqual(stringBytes(handle), bytes);
+        }
+        assert.deepEqual(events, []);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
 fn string_handles_are_lazy_and_equality_compares_contents() {
     run(
         r#"

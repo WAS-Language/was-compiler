@@ -1,0 +1,29 @@
+{
+  "utc": "2026-10-26T15:24:17.427Z",
+  "baseRevision": "c295129e3aa4b8bda7ba1a9f20647fde24329bdb",
+  "worktree": "Uncommitted M0 docs/tests/support changes; no production source changes",
+  "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.0\nLLVM version: 22.1.8",
+  "cargo": "cargo 1.98.0 (797e8a9bc 2026-08-05)\nrelease: 1.98.0\ncommit-hash: 797e8a9bca276c1c9f9f738d2a20f484fa4eea9d\ncommit-date: 2026-08-05\nhost: x86_64-pc-windows-msvc\nlibgit2: 1.9.4 (sys:0.21.0 vendored)\nlibcurl: 8.21.0-DEV (sys:0.4.90+curl-8.21.0 vendored ssl:Schannel)\nos: Windows 10.0.26300 (Windows 11 CoreSingleLanguage) [64-bit]",
+  "node": "v24.12.0",
+  "v8": "13.6.233.17-node.37",
+  "wasmPack": "wasm-pack 0.15.0",
+  "targets": "wasm32-unknown-unknown\nx86_64-pc-windows-msvc",
+  "commands": {
+    "marker": "cargo test --offline -p was-compiler --test memory_benchmarks record_memory_markers -- --ignored --exact --nocapture --test-threads=1",
+    "capacity": "cargo test --offline -p was-compiler --test memory_benchmarks record_memory_capacity -- --ignored --exact --nocapture --test-threads=1"
+  },
+  "measurementExitCodes": {
+    "marker": 0,
+    "capacity": 0
+  },
+  "sha256": {
+    "Cargo.lock": "289d616165fd28cbeb26ca242b935142b91faedbc0d99d3d73d440ad402026aa",
+    "tests/support/memory_corpus.rs": "11412a9fa731d656d9657956966eeeaa14b7724e7255435a388a2d6f2b3aaba1",
+    "tests/support/memory_measure.cjs": "b3942570f60f10080f7316946f0875d96da48026232c66ebe9a30c2d890ea28d",
+    "crates/compiler/tests/memory_benchmarks.rs": "c5f3057e8bebeddabce72dbe8db9127aca2a71396adb73d3abd8fc95b7438699",
+    "crates/compiler/tests/typed_arrays_runtime.rs": "99d8ada712f4262fb6ed5ba2e33878a91d49d473bb90e32af024c2a5ba7389c4",
+    "runtime/abi.cjs": "e9009f554be9f9a154911c2034b7c11d986559c2ecc82913ffa0a656bc1bd9d0",
+    "pkg/was_compiler.js": "32021468012c062c9d5c47e303f58d7fe6dab4e0492067624dc64fdc521bce25",
+    "pkg/was_compiler_bg.wasm": "9f0e11bbebf0dfdd93fa37f8eb866569fc9b5c3906cf9be2294eecdec44816fa"
+  }
+}

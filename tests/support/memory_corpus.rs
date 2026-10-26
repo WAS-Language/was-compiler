@@ -21,6 +21,15 @@ pub fn cases() -> Vec<Case> {
             source: repeated("", &format!("let a = [{elements}]; total += len(a);"), 128),
         });
     }
+    for (name, literal) in [
+        ("construct_bool_3", "[true,false,true]"),
+        ("construct_string_3", "[\"left\",\"é\",\"left\"]"),
+    ] {
+        cases.push(Case {
+            name: name.into(),
+            source: repeated("", &format!("let a = {literal}; total += len(a);"), 128),
+        });
+    }
     cases.push(Case {
         name: "page_crossing".into(),
         source: repeated("", "let a = [1]; total += a[0];", 8192),
