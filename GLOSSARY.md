@@ -11,6 +11,12 @@ without publishing its contents' storage for later use. Candidate status alone
 neither changes storage nor authorizes reclamation.
 _Avoid_: Temporary region allocation, managed heap object
 
+**Temporary region allocation**:
+A proposed allocation whose storage lifetime is governed by a temporary region
+rather than instance-long retention. Unlike a temporary candidate, it denotes
+an actual storage choice, not merely a lifetime proof.
+_Avoid_: Temporary candidate, managed heap object
+
 **Number**:
 The language's single numeric type, with IEEE-754 binary64 semantics, including
 fractional values, signed zero, infinities, and NaN. Integer-valued numbers do not

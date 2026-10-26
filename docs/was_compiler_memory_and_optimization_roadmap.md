@@ -345,6 +345,133 @@ flowchart TD
 
 **Goal:** Reclaim groups of proven-dead allocations using allocation-region checkpoints, while preserving ordinary heap allocations and host-visible handles.
 
+### M2 interview decisions (2026-10-26; confirmed)
+
+The user confirmed the consolidated contract and four-ticket implementation
+breakdown on 2026-10-26, completing the interview and approving ticket publication.
+M2 remains unimplemented; no implementation work or public activation is performed
+by this confirmation. The illustrative region model and experiments below must
+be read subject to these narrower experimental boundaries.
+
+Approved implementation tickets (all initially `ready-for-agent`):
+
+1. [#54 — Prototype reusable temporary region allocations](https://github.com/WAS-Language/was-compiler/issues/54): no blockers.
+2. [#55 — Establish adversarial region isolation and failure guarantees](https://github.com/WAS-Language/was-compiler/issues/55): blocked by #54.
+3. [#56 — Measure successful reuse and trap quarantine](https://github.com/WAS-Language/was-compiler/issues/56): blocked by #54.
+4. [#57 — Validate and document the integrated region prototype](https://github.com/WAS-Language/was-compiler/issues/57): blocked by #55 and #56.
+
+Dependencies are native GitHub blocking links, not authorization for concurrent
+compiler planning or edits to shared files. No source parent issue was supplied.
+
+- **Private experimental path:** M2 is explicitly test-invoked, without a public
+  compiler option, CLI flag or browser setting. Existing compilation paths,
+  direct codegen entry points, numeric presets and adapters retain their behavior
+  and emitted bytes. Public activation requires a separate decision.
+- **Unchanged eligibility:** consume exactly M1's existing invocation-wide closed
+  positive subset for direct function-body let-bound number/bool-array literals.
+  Do not expand the proof to aliases, calls, branches, loops, captures, handle
+  reassignment or string arrays, including unreachable syntax. Repeated external
+  invocations can exercise reuse; excluded recursive/reentrant callers can test
+  isolation without becoming eligible. Independent checked lowering remains
+  authoritative for mutable/forged typed input.
+- **Separate experimental storage contract:** do not claim revision-1 raw-memory
+  compatibility for experimental temporaries. Discovering their addresses through
+  exported memory does not grant instance-long retention rights after successful
+  retirement; trapped blocks follow the quarantine policy below. Address reuse,
+  allocator-address observations, growth and exhaustion may differ under the
+  experimental contract. Ordinary
+  heap allocations and legitimately published handles retain existing rights;
+  descriptor checks are not weakened. Revision 1 remains unchanged for existing
+  paths. Temporary retirement and trap handling follow the decisions below.
+- **Exclusive backing blocks:** each eligible invocation obtains an exclusively
+  owned reusable block, isolated from ordinary heap storage. The existing checked
+  bump allocator may provision backing blocks, but ordinary allocations never use
+  their reserved interiors. Retirement makes a block available to later eligible
+  invocations; it never rewinds the global heap cursor. General heap free lists,
+  live-payload movement and M3 reclamation are outside M2.
+- **Invocation-wide retirement:** temporary storage remains valid throughout the
+  allocating invocation. It becomes reusable only on normal completion, after
+  computing any scalar return value. Simultaneously live literals have distinct
+  storage; there is no last-use reclamation or intra-invocation reuse.
+- **Trap quarantine:** a block acquired by an invocation that traps remains
+  unavailable for reuse for the rest of the instance's lifetime. Ordinary return
+  cleanup is not trap cleanup. Later calls use another available block or provision
+  new backing storage, without host-assisted cleanup or release of suspended
+  callers' live regions. Completed temporary writes remain intact after the trap.
+  Repeated traps may consume additional storage until allocation fails; bounded
+  reuse is a successful-invocation guarantee, not a trap-heavy-workload guarantee.
+  Trap recovery requires a separate design decision.
+- **Fixed capacity, lazy acquisition:** size a fixed-capacity block from the
+  eligible function's statically known literal requirements, acquiring it only
+  at the first executed temporary allocation. Do not grow the region or relocate
+  live payloads during the invocation. Each literal reserves its own distinct
+  slice and initializes its descriptor before evaluating its elements once,
+  left-to-right; reserving capacity does not execute later initializers. Full
+  reservation may fail or grow memory earlier than baseline allocation, including
+  before an element access that would otherwise trap. An early trap quarantines
+  the entire acquired block, not just the executed allocation prefix. These are
+  accepted experimental differences, not baseline allocation-failure parity.
+- **Conservative sizing:** include every candidate literal in the structural
+  inventory, including unreachable suffixes after returns, and sum individually
+  aligned footprints with checked arithmetic. Account separately for any block
+  management overhead. No executed literal means no acquired block. Unreachable
+  nodes remain independently backend-checked; tighter reservation sizing is
+  deferred. Unreachable literals may enlarge an acquired block.
+- **Unrepresentable-total fallback:** if the complete reservation cannot be
+  represented within supported memory32 allocation limits, select baseline
+  storage for the entire function. Record a deterministic private fallback reason;
+  do not introduce a compilation error or partial region allocation for that
+  function. Candidate classification alone does not require region storage.
+- **Per-function reuse:** each eligible function has one private reusable-block
+  slot, empty while an invocation owns its block. Take the cached block at the
+  first executed literal, or provision one if absent. Normal completion returns
+  the block; a trap leaves it quarantined and absent from the slot. Eligible
+  functions cannot call or reenter themselves; ineligible callers may recurse or
+  reenter around them. Retained reusable capacity is per exercised eligible
+  function. Cross-function pooling, size classes and eviction are deferred.
+- **Runtime provisioning failure:** a representable reservation that cannot be
+  provisioned traps immediately, without retrying ordinary per-literal allocation.
+  Failed provisioning preserves the ordinary allocator cursor and existing
+  storage. Successful acquisition followed by a trap quarantines the block.
+  Compile-time sizing fallback and runtime provisioning failure are distinct.
+- **One checked pipeline:** use a private `cfg(test)` compilation seam through
+  existing layout, checked body lowering and module assembly, not another emitter
+  or validator. Classification/storage metadata privately borrow the typed tree;
+  add no public AST fields, allocation IDs, options or dependencies. Experimental
+  consumers and supporting machinery stay out of production builds. Emit region
+  machinery only for explicitly experimental modules that select region storage.
+  Facts never authorize skipping validation or trusting forged annotations.
+- **Correctness gates:** test both array types, empty arrays, alignment boundaries,
+  distinct simultaneously live literals, full initialization on reuse, reads,
+  writes, every numeric element compound and early returns. Cover repeated normal
+  reuse, traps during initialization/access, repeated quarantine, success after
+  traps and no acquisition for entirely unreachable literals. Check ordinary heap
+  allocations and retained handles around eligible callees, recursive callers,
+  host reentry and caught inner traps; suspended live storage must not be reused.
+  Cover checked sizing, whole-function fallback, capped-memory provisioning failure
+  without allocator corruption and accepted front-loaded failure behavior. Require
+  forged-tree rejection, Wasm validation, independent decoded assertions and
+  bounded Node execution with independent expected results.
+- **Noninterference and integrated gates:** ordinary-path bytes and diagnostics
+  remain unchanged within each numeric preset. Experimental semantics match
+  except for agreed storage/resource differences; enabled presets retain byte
+  parity. Preserve fixtures and revision-1 retention tests. Require fresh offline
+  fast/full gates from `validation.md`, including ignored runtimes and rebuilt
+  browser checks. Adapter checks prove ordinary-path noninterference, not public
+  prototype activation. Missing prerequisites leave gates pending.
+- **Measured exit gate:** demonstrate bounded region backing consumption across
+  repeated successful invocations. After warm-up, successful calls reuse backing
+  storage without region-driven heap growth; interleaved eligible functions retain
+  at most their own reusable block each, apart from quarantined blocks. Trapping
+  calls visibly accumulate quarantined storage; the matched baseline continues
+  allocating for the successful workload. Record reserved pages, provisioned,
+  reused and quarantined backing bytes, allocation counts, module size and bounded
+  guest timing with explicit definitions and test-only instrumentation. Measure
+  capacity separately from allocator markers and timing separately from
+  instrumented runs, following `benchmarks.md`. No speedup is required; speedup
+  claims require repeated matched measurements. Unavailable measurements are not
+  inferred. This gate authorizes no release, default or public activation change.
+
 ### Region model
 
 ```text
