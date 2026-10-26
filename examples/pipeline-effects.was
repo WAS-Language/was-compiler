@@ -1,0 +1,19 @@
+// Defaults, local stages, and a final discarded void stage. Returns 15.
+fn scale(value: number, factor: number = 2) -> number {
+    return value * factor;
+}
+
+fn store(value: number, destination: number[]) -> void {
+    destination[0] = value;
+    return;
+}
+
+fn main() -> number {
+    let result = [0];
+    let offset = 3;
+    let add_offset = (value: number) => value + offset;
+
+    // A void stage is permitted last when the result is discarded.
+    6 |> scale |> add_offset |> store(destination: result);
+    return result[0];
+}

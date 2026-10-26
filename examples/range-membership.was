@@ -1,0 +1,19 @@
+// Ranges can be passed and returned internally. main returns 9.
+fn odd_numbers() -> range {
+    return 1..=5 by 2;
+}
+
+fn sum_range(values: range) -> number {
+    let total = 0;
+    for value in values { total += value; }
+    return total;
+}
+
+fn main() -> number {
+    let odds = odd_numbers();
+    let descending = 5..0 by -2;
+    if 3 in odds && !(2 in odds) && 1 in descending {
+        return sum_range(odds);
+    }
+    return 0;
+}

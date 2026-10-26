@@ -1,0 +1,30 @@
+// Statement loops, transfers, value loops, and scoped values. Returns 25.
+fn main() -> number {
+    let count = 0;
+    let total = 0;
+    while count < 5 {
+        count += 1;
+        if count == 2 { continue; }
+        total += count;
+    }
+
+    for value in 10..=1 by -2 {
+        if value == 6 { break; }
+        total += value;
+    }
+
+    loop {
+        total -= 1;
+        break;
+    }
+
+    let chosen = loop {
+        if total > 20 { break 3; }
+        break 0;
+    };
+    let adjustment = {
+        let total = 2; // This binding shadows, rather than changes, the outer one.
+        if chosen > 0 { total } else { 0 }
+    };
+    return total - chosen - adjustment;
+}

@@ -1,0 +1,18 @@
+// Each expression-position underscore is a separate parameter. Returns 25.
+fn main() -> number {
+    let subtract = _ - _;
+    let double = _ * 2;
+    let both = _ && _;
+    // Indexing constrains the anonymous input to number[].
+    let first = { let values: number[] = _; values[0] };
+
+    let result = subtract(10, 3) |> double;
+    if both(true, !false) {
+        result += first([5, 6]);
+    }
+
+    // Immediate stages are unary and parenthesized. Their input runs once.
+    return result
+        |> (_ + 1)
+        |> ((value: number) => value + 5);
+}

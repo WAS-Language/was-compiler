@@ -1,0 +1,27 @@
+// Numbers are f64, including fractions, infinities, NaN and signed zero.
+// main returns 9.
+fn main() -> number {
+    let value = 10;
+    value += 2;
+    value -= 3;
+    value *= 2;
+    value /= 4;
+    value %= 4;
+
+    let negative_remainder = -7 % 3; // -1: remainder follows the dividend.
+    let nan = 0 / 0;
+    let infinity = 1 / 0;
+    let negative_zero = -0;
+    let valid = value == 0.5 && negative_remainder == -1;
+    let specials = nan != nan && infinity > 100 && negative_zero == 0;
+    let text = "Unicode: café 世界 /* this is string content */";
+
+    // Short-circuiting avoids evaluating the division on this path.
+    let safe = true || 1 / 0 < 0;
+    /* Comments can span lines,
+       without changing the source expressions. */
+    if valid && specials && safe && text != "" {
+        return (3 + 2) * 2 - 1;
+    }
+    return 0;
+}

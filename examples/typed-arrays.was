@@ -1,0 +1,26 @@
+// Fixed-length arrays share mutable storage. main returns 12.
+fn main() -> number {
+    let numbers: number[] = [2, 4, 6];
+    let alias = numbers;
+    alias[0] += 3;
+
+    let flags: bool[] = [true, false, true];
+    flags[1] = !flags[1];
+    let words: string[] = ["hello", "世界"];
+    words[0] = "hi";
+
+    let score = 0;
+    for enabled in flags {
+        if enabled { score += 1; }
+    }
+    for word in words {
+        if word == "世界" { score += 1; }
+    }
+    if numbers == [5, 4, 6] && words != ["hello", "世界"] {
+        score += numbers[0];
+    }
+
+    // Empty literals can use an explicit element type.
+    let empty: string[] = [];
+    return score + len(numbers) + len(empty);
+}
