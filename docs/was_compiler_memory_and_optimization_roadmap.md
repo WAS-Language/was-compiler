@@ -211,11 +211,24 @@ M0 gate; see the [evidence record](m0-memory-baseline.md#validation-2026-10-26).
 
 **Goal:** Identify provably temporary objects before changing the allocator. The analysis must remain conservative, with the current heap as a sound fallback.
 
+**M1 status — 2026-10-26:** #50–#52 implement private `cfg(test)` classification
+and noninterference tests; #53's fresh offline fast/full gates passed, including
+all ignored native runtimes and current-source rebuilt-browser tests. The
+[implemented contract, test map and evidence](m1-lifetime-analysis.md) record
+1,392 native plus 13 browser tests passed, none failed/ignored in the full runs.
+Only direct function-body let-bound array literals are inventoried; the positive
+set is the closed number/bool-array subset below. There is no production or
+emission consumer. Classification selects no storage and changes no bytes, ABI,
+presets, allocator or host retention rights. M2, reclamation and managed-heap
+support remain unimplemented and unauthorized; no memory/performance improvement
+is claimed. Broader design examples and future proof obligations below are not
+implemented M1 interfaces.
+
 ### M1 interview decisions (2026-10-26; confirmed)
 
 The user confirmed the consolidated M1 contract on 2026-10-26, completing the
-interview. The decisions below define the agreed scope; implementation of M1
-still requires explicit authorization. They do not authorize reclamation in M2.
+interview. The decisions below define the agreed scope subsequently implemented
+under #50–#53. They do not authorize reclamation in M2.
 
 - **Analysis only:** internal classification and classification tests, without
   changes to allocation, emitted Wasm bytes, ABI, language, numeric presets or
@@ -282,7 +295,8 @@ still requires explicit authorization. They do not authorize reclamation in M2.
   validation from `validation.md`, including ignored runtime cases and a
   current-source browser rebuild. Missing prerequisites leave gates pending.
   No page-count, allocation-consumption or execution-time improvement is required:
-  M1 changes no storage. These are planned gates, not completed validation evidence.
+  M1 changes no storage. These were planned gates at interview time; #53's actual
+    completed results are linked in the M1 status above.
 
 ### Core design
 

@@ -1,0 +1,485 @@
+M1 integrated validation (#53), 2026-10-26
+Implementation revision: 4416e3d9684b0034e3230809b9ab3a760f245326
+Clean initial working tree; only documentation/evidence edits after validation.
+Repository root; sequential commands; exit 0 for each; no retries/timeouts.
+180-second tool bounds; fast clippy/core-wasm/architecture shared one bound.
+Tools: rustc 1.98.0 (88d9e12ae 2026-08-18); cargo 1.98.0 (797e8a9bc 2026-08-05);
+Node v24.12.0; wasm-pack 0.15.0; cached wasm-bindgen 0.2.129 verified by --version.
+Native x86_64-pc-windows-msvc; wasm32-unknown-unknown installed.
+wasm-bindgen absent from PATH; no-install wasm-pack resolution succeeded.
+See m1-lifetime-analysis.md for interpretation and future-feature boundaries.
+
+COMMAND: cargo test --offline
+EXIT: 0
+TRANSIENT LOG: target/m1-53-fast-test.log
+TOTAL passed/failed/ignored: (1184, 0, 208)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-034920b2707c5ee8.exe)
+test lifetime::conservative_tests::conservative_duplicate_root_ids_after_callable_barrier_are_inconsistent ... ok
+test lifetime::conservative_tests::conservative_duplicate_helper_ids_are_not_hidden_by_owner_boundary ... ok
+test lifetime::conservative_tests::conservative_handle_arguments_to_internal_calls_are_not_positive_proofs ... ok
+test lifetime::conservative_tests::conservative_helper_local_ids_do_not_alias_root_bindings ... ok
+test lifetime::conservative_tests::conservative_internal_call_blocks_caller_not_independent_callee ... ok
+test lifetime::conservative_tests::conservative_immediate_and_placeholder_stages_do_not_expand_positive_subset ... ok
+test lifetime::conservative_tests::conservative_lexical_calls_and_known_pipeline_stages_are_boundaries ... ok
+test lifetime::conservative_tests::conservative_nested_helpers_forward_original_capture_without_root_escape ... ok
+test lifetime::conservative_tests::conservative_sparse_binding_ids_preserve_candidate_origin ... ok
+test lifetime::conservative_tests::conservative_placeholder_declarations_remain_barriers_even_when_unused ... ok
+test lifetime::conservative_tests::conservative_named_and_default_calls_retain_call_boundary_reasons ... ok
+test lifetime::conservative_tests::conservative_recursive_calls_do_not_supply_interprocedural_lifetime_proofs ... ok
+test lifetime::conservative_tests::conservative_unused_helper_return_of_capture_is_not_root_return ... ok
+test lifetime::conservative_tests::conservative_sparse_captured_binding_keeps_original_owner_identity ... ok
+test lifetime::conservative_tests::conservative_unused_lexical_dependency_keeps_capture_storage_barrier ... ok
+test lifetime::runtime_tests::lifetime_aliases_across_user_calls_remain_conservative_and_shared ... ignored, requires Node.js
+test lifetime::runtime_tests::lifetime_candidates_can_trap_without_rolling_back_writes_or_allocations ... ignored, requires Node.js
+test lifetime::runtime_tests::lifetime_host_barrier_reentry_and_trap_preserve_distinct_live_arrays ... ignored, requires Node.js
+test lifetime::tests::lifetime_alias_return_is_an_identified_path_not_just_an_unknown_alias ... ok
+test lifetime::tests::lifetime_aliases_and_reassignments_are_not_automatic_escape_evidence ... ok
+test lifetime::tests::lifetime_contracts_and_handle_parameters_cannot_bypass_the_subset ... ok
+test lifetime::tests::lifetime_boolean_empty_and_nested_scalar_operations ... ok
+test lifetime::tests::lifetime_contracts_and_normalized_defaults_are_structurally_inspected ... ok
+test lifetime::tests::lifetime_fact_order_and_binding_identity_are_owner_local ... ok
+test lifetime::forged_tests::lifetime_forged_len_arity_precedes_hidden_malformed_arguments ... ok
+test lifetime::forged_tests::lifetime_forged_unreachable_and_skipped_nested_operands_remain_backend_checked ... ok
+test lifetime::forged_tests::lifetime_forged_short_circuit_operands_remain_backend_checked ... ok
+test lifetime::tests::lifetime_direct_numeric_literal_is_a_candidate ... ok
+test lifetime::tests::lifetime_host_observation_is_not_proof_of_actual_retention ... ok
+test lifetime::tests::lifetime_forged_annotations_remain_unproven_and_backend_checked ... ok
+test lifetime::tests::lifetime_host_barriers_are_invocation_wide_and_publication_is_only_potential ... ok
+test lifetime::tests::lifetime_reports_later_host_and_return_paths_after_unsupported_syntax ... ok
+test lifetime::tests::lifetime_returned_block_tail_preserves_an_identifiable_path ... ok
+test lifetime::tests::lifetime_reasons_distinguish_returns_reassignment_calls_and_control_flow ... ok
+test lifetime::tests::lifetime_scalar_writes_are_not_implicitly_added_to_the_closed_set ... ok
+test lifetime::tests::lifetime_each_scalar_operator_and_numeric_element_compound ... ok
+test lifetime::tests::lifetime_excluded_forms_block_the_entire_invocation_even_after_return ... ok
+test lifetime::tests::lifetime_nested_and_skipped_children_do_not_hide_host_paths ... ok
+test lifetime::tests::lifetime_analysis_preserves_bytes_and_tree_at_each_preset ... ok
+test lifetime::forged_tests::lifetime_forged_array_index_and_len_metadata_preserve_independent_errors ... ok
+test lifetime::noninterference_tests::lifetime_candidates_preserve_typed_widths_helpers_and_numeric_preset_lowering ... ok
+test lifetime::noninterference_tests::lifetime_excluded_programs_preserve_bytes_facts_and_tree_at_each_preset ... ok
+test result: ok. 473 passed; 0 failed; 37 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests\abi.rs (target\debug\deps\abi-f90d455710515dd3.exe)
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\array_equality.rs (target\debug\deps\array_equality-dba85ca74ebd87fb.exe)
+test result: ok. 5 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests\array_for_loops.rs (target\debug\deps\array_for_loops-923669bca34f163d.exe)
+test result: ok. 6 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running tests\benchmark_corpus.rs (target\debug\deps\benchmark_corpus-7a4e9de4d6e724bc.exe)
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.64s
+     Running tests\block_values.rs (target\debug\deps\block_values-27d99bf6f9898164.exe)
+test result: ok. 10 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests\closures_frontend.rs (target\debug\deps\closures_frontend-219ddc8874f28480.exe)
+test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+     Running tests\closures_lowering.rs (target\debug\deps\closures_lowering-7a7d6fe0d5ffc5b9.exe)
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+     Running tests\closures_runtime.rs (target\debug\deps\closures_runtime-f1784127c0f21a5f.exe)
+test result: ok. 0 passed; 0 failed; 30 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\comments.rs (target\debug\deps\comments-6ed1426c5fdc5ba5.exe)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\compound_assignment.rs (target\debug\deps\compound_assignment-e09f164e8ca1e69c.exe)
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\contracts_frontend.rs (target\debug\deps\contracts_frontend-c0470f3d3d68ace5.exe)
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\contracts_lowering.rs (target\debug\deps\contracts_lowering-4e176718fccc2a71.exe)
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\contracts_runtime.rs (target\debug\deps\contracts_runtime-af2e8b5e4daf8667.exe)
+test result: ok. 1 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\default_lowering.rs (target\debug\deps\default_lowering-e7798d553a734f73.exe)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\default_runtime.rs (target\debug\deps\default_runtime-c8c97b876a468533.exe)
+test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\diagnostics.rs (target\debug\deps\diagnostics-b65de3953f478171.exe)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\emitter.rs (target\debug\deps\emitter-b782ee0a1d7d9964.exe)
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests\for_frontend.rs (target\debug\deps\for_frontend-d59ad1d0636a416f.exe)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\for_loops.rs (target\debug\deps\for_loops-71d5de696f07d985.exe)
+test result: ok. 5 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.29s
+     Running tests\for_lowering.rs (target\debug\deps\for_lowering-3da7d9ea81464aec.exe)
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+     Running tests\inference.rs (target\debug\deps\inference-4c289b05b4404518.exe)
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests\integer_baselines.rs (target\debug\deps\integer_baselines-4601f7960c105387.exe)
+test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.54s
+     Running tests\integer_locals.rs (target\debug\deps\integer_locals-80ca7ea74a0c54fe.exe)
+test result: ok. 16 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running tests\integer_specialization.rs (target\debug\deps\integer_specialization-343a99df04f78817.exe)
+test result: ok. 11 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 1.04s
+     Running tests\loop_control.rs (target\debug\deps\loop_control-70fc7de453acc002.exe)
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\match_frontend.rs (target\debug\deps\match_frontend-d0a3b6dcee8aab27.exe)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\match_lowering.rs (target\debug\deps\match_lowering-33b5a8fe8e044acf.exe)
+test result: ok. 17 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\match_runtime.rs (target\debug\deps\match_runtime-2bc5ec58bc765d59.exe)
+test result: ok. 1 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\memory_benchmarks.rs (target\debug\deps\memory_benchmarks-e7c65e9a33bb6c74.exe)
+test result: ok. 1 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests\named_arguments.rs (target\debug\deps\named_arguments-fc19dbe740cfe514.exe)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\named_call_lowering.rs (target\debug\deps\named_call_lowering-688a606d446ea69d.exe)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\named_call_runtime.rs (target\debug\deps\named_call_runtime-34263dff6f90d5a4.exe)
+test result: ok. 1 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests\named_defaults.rs (target\debug\deps\named_defaults-a6733bd99a206e41.exe)
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\pipelines_adapters.rs (target\debug\deps\pipelines_adapters-0bfd59131cc481fa.exe)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running tests\pipelines_frontend.rs (target\debug\deps\pipelines_frontend-24f18a5b99562224.exe)
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\pipelines_lowering.rs (target\debug\deps\pipelines_lowering-fa0573057a801675.exe)
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests\pipelines_runtime.rs (target\debug\deps\pipelines_runtime-e25cd125f8ba0915.exe)
+test result: ok. 0 passed; 0 failed; 20 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\process.rs (target\debug\deps\process-2378e6c3fdc3b9e4.exe)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+     Running tests\range_frontend.rs (target\debug\deps\range_frontend-f519ab30f29c76b7.exe)
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\range_membership.rs (target\debug\deps\range_membership-c6e1aace0aa829cc.exe)
+test result: ok. 1 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests\ranges.rs (target\debug\deps\ranges-de171f7de7833c96.exe)
+test result: ok. 18 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.09s
+     Running tests\remainder.rs (target\debug\deps\remainder-43929c105a5654b2.exe)
+test result: ok. 10 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests\result_inference.rs (target\debug\deps\result_inference-26778ba27c4ed1d6.exe)
+test result: ok. 33 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\result_inference_adapters.rs (target\debug\deps\result_inference_adapters-131b6d0bfff1dd52.exe)
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\result_inference_chains.rs (target\debug\deps\result_inference_chains-64212dd85cb49300.exe)
+test result: ok. 8 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\result_inference_combined.rs (target\debug\deps\result_inference_combined-407a7b0e8f805cc7.exe)
+test result: ok. 5 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.09s
+     Running tests\result_inference_combined_checks.rs (target\debug\deps\result_inference_combined_checks-b0ec3d7129b77538.exe)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\result_inference_defaults.rs (target\debug\deps\result_inference_defaults-8703cd0afd289321.exe)
+test result: ok. 11 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests\runtime.rs (target\debug\deps\runtime-21a7054632071594.exe)
+test result: ok. 1 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\typed_array_marshaling.rs (target\debug\deps\typed_array_marshaling-76ef1697c717b9c8.exe)
+test result: ok. 0 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\typed_array_measurements.rs (target\debug\deps\typed_array_measurements-7894f37849fb212d.exe)
+test record_typed_array_capacity ... ignored, manual bounded M4 capacity measurement; requires Node.js
+test record_typed_array_guest_timing ... ignored, manual bounded M4 guest timing measurement; requires Node.js
+test record_typed_array_markers ... ignored, manual bounded M4 marker measurement; requires Node.js
+test typed_array_workloads_execute_with_independent_results_and_allocation_checks ... ignored, requires Node.js on PATH
+test bounded_typed_array_workloads_use_public_compile_and_normal_memory_exports ... ok
+test result: ok. 1 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.62s
+     Running tests\typed_arrays.rs (target\debug\deps\typed_arrays-b8043916a1978cc0.exe)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\typed_arrays_lowering.rs (target\debug\deps\typed_arrays_lowering-c1e0aea3264dc17b.exe)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\typed_arrays_runtime.rs (target\debug\deps\typed_arrays_runtime-082d45119539a9a7.exe)
+test raw_host_retained_typed_arrays_survive_recursive_reentry_traps_and_rhs_growth ... ignored, requires Node.js
+test result: ok. 0 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\value_loops.rs (target\debug\deps\value_loops-834fe4bafee1c6a4.exe)
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests\workspace_contract.rs (target\debug\deps\workspace_contract-bb1cbb72e70a594f.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests\wp5_interactions.rs (target\debug\deps\wp5_interactions-3791b0f1df300545.exe)
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running unittests src\main.rs (target\debug\deps\was_compiler-8b65c10f36655a38.exe)
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\abi.rs (target\debug\deps\abi-4dc1b3dd1d2467cb.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests\cli.rs (target\debug\deps\cli-6f65d3a9b3d1754e.exe)
+test result: ok. 50 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 10.04s
+     Running tests\closures_adapters.rs (target\debug\deps\closures_adapters-6eaf11e732e692df.exe)
+test result: ok. 3 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 4.52s
+     Running tests\contracts_adapters.rs (target\debug\deps\contracts_adapters-0e0743c8fdf07f31.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.79s
+     Running tests\diagnostics.rs (target\debug\deps\diagnostics-14eccc3e88597933.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests\match_adapters.rs (target\debug\deps\match_adapters-f95ca3d304b226e0.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+     Running tests\pipelines_adapters.rs (target\debug\deps\pipelines_adapters-09af83ecb5e54340.exe)
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.75s
+     Running tests\result_inference_adapters.rs (target\debug\deps\result_inference_adapters-c85e06ec842584d4.exe)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+     Running tests\result_inference_release.rs (target\debug\deps\result_inference_release-37f9a4a444ab31fd.exe)
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.21s
+     Running tests\typed_arrays_adapters.rs (target\debug\deps\typed_arrays_adapters-f10cd6d15dafcd91.exe)
+test cli_typed_arrays_execute_with_raw_host_layouts ... ignored, requires Node.js
+test cli_typed_array_diagnostics_match_core_without_touching_output ... ok
+test cli_typed_array_hosts_selected_exports_and_contextual_source_match_core ... ok
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.89s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+COMMAND: cargo clippy --offline --all-targets -- -D warnings
+EXIT: 0
+TRANSIENT LOG: target/m1-53-clippy.log
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.42s
+
+COMMAND: cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown
+EXIT: 0
+TRANSIENT LOG: target/m1-53-core-wasm.log
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.26s
+
+COMMAND: cargo test --offline -p was-compiler --test workspace_contract
+EXIT: 0
+TRANSIENT LOG: target/m1-53-architecture.log
+TOTAL passed/failed/ignored: (3, 0, 0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
+     Running tests\workspace_contract.rs (target\debug\deps\workspace_contract-6a7362cc7da017da.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+COMMAND: wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline
+EXIT: 0
+TRANSIENT LOG: target/m1-53-browser-build.log
+[INFO]: Checking for the Wasm target...
+[INFO]: Compiling to Wasm...
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+   Compiling was-compiler-browser v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\browser)
+    Finished `release` profile [optimized] target(s) in 22.10s
+[INFO]: Installing wasm-bindgen...
+[INFO]: Optional fields missing from Cargo.toml: 'description', 'repository', and 'license'. These are not necessary, but recommended
+[INFO]: :-) Done in 23.96s
+[INFO]: :-) Your wasm pkg is ready to publish at pkg.
+
+COMMAND: cargo test --offline -p was-compiler-browser --tests -- --include-ignored
+EXIT: 0
+TRANSIENT LOG: target/m1-53-browser-tests.log
+TOTAL passed/failed/ignored: (13, 0, 0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.27s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler_browser-e0e9aa7a8badd33c.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\browser.rs (target\debug\deps\browser-936da344a9192882.exe)
+test node_browser_compiler ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.33s
+     Running tests\closures_adapters.rs (target\debug\deps\closures_adapters-f98d3e71affd3456.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+     Running tests\contracts_adapters.rs (target\debug\deps\contracts_adapters-24ff2cadcce7f221.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+     Running tests\default_runtime.rs (target\debug\deps\default_runtime-a9ee6d1c05825854.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running tests\integer_specialization_adapters.rs (target\debug\deps\integer_specialization_adapters-7ed9170bfcbbd02b.exe)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.18s
+     Running tests\match_adapters.rs (target\debug\deps\match_adapters-2a32cd85a3110ca5.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+     Running tests\pipelines_adapters.rs (target\debug\deps\pipelines_adapters-79497d5c72a1f090.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.51s
+     Running tests\result_inference.rs (target\debug\deps\result_inference-c1c3852f3e776ac9.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests\result_inference_adapters.rs (target\debug\deps\result_inference_adapters-a1b49ef45aca3404.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests\typed_arrays_adapters.rs (target\debug\deps\typed_arrays_adapters-19eb93eebe46eadc.exe)
+test rebuilt_browser_typed_array_hosts_bytes_diagnostics_and_execution_match_core ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+COMMAND: cargo test --offline -- --include-ignored
+EXIT: 0
+TRANSIENT LOG: target/m1-53-full-test.log
+TOTAL passed/failed/ignored: (1392, 0, 0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-034920b2707c5ee8.exe)
+test lifetime::conservative_tests::conservative_duplicate_helper_ids_are_not_hidden_by_owner_boundary ... ok
+test lifetime::conservative_tests::conservative_duplicate_root_ids_after_callable_barrier_are_inconsistent ... ok
+test lifetime::conservative_tests::conservative_handle_arguments_to_internal_calls_are_not_positive_proofs ... ok
+test lifetime::conservative_tests::conservative_helper_local_ids_do_not_alias_root_bindings ... ok
+test lifetime::conservative_tests::conservative_immediate_and_placeholder_stages_do_not_expand_positive_subset ... ok
+test lifetime::conservative_tests::conservative_internal_call_blocks_caller_not_independent_callee ... ok
+test lifetime::conservative_tests::conservative_sparse_binding_ids_preserve_candidate_origin ... ok
+test lifetime::conservative_tests::conservative_sparse_captured_binding_keeps_original_owner_identity ... ok
+test lifetime::conservative_tests::conservative_lexical_calls_and_known_pipeline_stages_are_boundaries ... ok
+test lifetime::conservative_tests::conservative_nested_helpers_forward_original_capture_without_root_escape ... ok
+test lifetime::conservative_tests::conservative_recursive_calls_do_not_supply_interprocedural_lifetime_proofs ... ok
+test lifetime::conservative_tests::conservative_placeholder_declarations_remain_barriers_even_when_unused ... ok
+test lifetime::conservative_tests::conservative_unused_helper_return_of_capture_is_not_root_return ... ok
+test lifetime::conservative_tests::conservative_unused_lexical_dependency_keeps_capture_storage_barrier ... ok
+test lifetime::conservative_tests::conservative_named_and_default_calls_retain_call_boundary_reasons ... ok
+test lifetime::forged_tests::lifetime_forged_len_arity_precedes_hidden_malformed_arguments ... ok
+test lifetime::forged_tests::lifetime_forged_short_circuit_operands_remain_backend_checked ... ok
+test lifetime::forged_tests::lifetime_forged_unreachable_and_skipped_nested_operands_remain_backend_checked ... ok
+test lifetime::tests::lifetime_alias_return_is_an_identified_path_not_just_an_unknown_alias ... ok
+test lifetime::tests::lifetime_aliases_and_reassignments_are_not_automatic_escape_evidence ... ok
+test lifetime::tests::lifetime_boolean_empty_and_nested_scalar_operations ... ok
+test lifetime::forged_tests::lifetime_forged_array_index_and_len_metadata_preserve_independent_errors ... ok
+test lifetime::tests::lifetime_direct_numeric_literal_is_a_candidate ... ok
+test lifetime::tests::lifetime_contracts_and_handle_parameters_cannot_bypass_the_subset ... ok
+test lifetime::tests::lifetime_contracts_and_normalized_defaults_are_structurally_inspected ... ok
+test lifetime::tests::lifetime_analysis_preserves_bytes_and_tree_at_each_preset ... ok
+test lifetime::noninterference_tests::lifetime_candidates_preserve_typed_widths_helpers_and_numeric_preset_lowering ... ok
+test lifetime::tests::lifetime_each_scalar_operator_and_numeric_element_compound ... ok
+test lifetime::tests::lifetime_host_barriers_are_invocation_wide_and_publication_is_only_potential ... ok
+test lifetime::tests::lifetime_host_observation_is_not_proof_of_actual_retention ... ok
+test lifetime::tests::lifetime_fact_order_and_binding_identity_are_owner_local ... ok
+test lifetime::tests::lifetime_forged_annotations_remain_unproven_and_backend_checked ... ok
+test lifetime::tests::lifetime_excluded_forms_block_the_entire_invocation_even_after_return ... ok
+test lifetime::tests::lifetime_reasons_distinguish_returns_reassignment_calls_and_control_flow ... ok
+test lifetime::tests::lifetime_nested_and_skipped_children_do_not_hide_host_paths ... ok
+test lifetime::tests::lifetime_reports_later_host_and_return_paths_after_unsupported_syntax ... ok
+test lifetime::tests::lifetime_returned_block_tail_preserves_an_identifiable_path ... ok
+test lifetime::tests::lifetime_scalar_writes_are_not_implicitly_added_to_the_closed_set ... ok
+test lifetime::noninterference_tests::lifetime_excluded_programs_preserve_bytes_facts_and_tree_at_each_preset ... ok
+test lifetime::runtime_tests::lifetime_aliases_across_user_calls_remain_conservative_and_shared ... ok
+test lifetime::runtime_tests::lifetime_host_barrier_reentry_and_trap_preserve_distinct_live_arrays ... ok
+test lifetime::runtime_tests::lifetime_candidates_can_trap_without_rolling_back_writes_or_allocations ... ok
+test result: ok. 510 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.25s
+     Running tests\abi.rs (target\debug\deps\abi-f90d455710515dd3.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests\array_equality.rs (target\debug\deps\array_equality-dba85ca74ebd87fb.exe)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+     Running tests\array_for_loops.rs (target\debug\deps\array_for_loops-923669bca34f163d.exe)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s
+     Running tests\benchmark_corpus.rs (target\debug\deps\benchmark_corpus-7a4e9de4d6e724bc.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+     Running tests\block_values.rs (target\debug\deps\block_values-27d99bf6f9898164.exe)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+     Running tests\closures_frontend.rs (target\debug\deps\closures_frontend-219ddc8874f28480.exe)
+test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+     Running tests\closures_lowering.rs (target\debug\deps\closures_lowering-7a7d6fe0d5ffc5b9.exe)
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+     Running tests\closures_runtime.rs (target\debug\deps\closures_runtime-f1784127c0f21a5f.exe)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.14s
+     Running tests\comments.rs (target\debug\deps\comments-6ed1426c5fdc5ba5.exe)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\compound_assignment.rs (target\debug\deps\compound_assignment-e09f164e8ca1e69c.exe)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+     Running tests\contracts_frontend.rs (target\debug\deps\contracts_frontend-c0470f3d3d68ace5.exe)
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\contracts_lowering.rs (target\debug\deps\contracts_lowering-4e176718fccc2a71.exe)
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests\contracts_runtime.rs (target\debug\deps\contracts_runtime-af2e8b5e4daf8667.exe)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+     Running tests\default_lowering.rs (target\debug\deps\default_lowering-e7798d553a734f73.exe)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\default_runtime.rs (target\debug\deps\default_runtime-c8c97b876a468533.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.89s
+     Running tests\diagnostics.rs (target\debug\deps\diagnostics-b65de3953f478171.exe)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\emitter.rs (target\debug\deps\emitter-b782ee0a1d7d9964.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+     Running tests\for_frontend.rs (target\debug\deps\for_frontend-d59ad1d0636a416f.exe)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\for_loops.rs (target\debug\deps\for_loops-71d5de696f07d985.exe)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+     Running tests\for_lowering.rs (target\debug\deps\for_lowering-3da7d9ea81464aec.exe)
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+     Running tests\inference.rs (target\debug\deps\inference-4c289b05b4404518.exe)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+     Running tests\integer_baselines.rs (target\debug\deps\integer_baselines-4601f7960c105387.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+     Running tests\integer_locals.rs (target\debug\deps\integer_locals-80ca7ea74a0c54fe.exe)
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+     Running tests\integer_specialization.rs (target\debug\deps\integer_specialization-343a99df04f78817.exe)
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+     Running tests\loop_control.rs (target\debug\deps\loop_control-70fc7de453acc002.exe)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+     Running tests\match_frontend.rs (target\debug\deps\match_frontend-d0a3b6dcee8aab27.exe)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\match_lowering.rs (target\debug\deps\match_lowering-33b5a8fe8e044acf.exe)
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+     Running tests\match_runtime.rs (target\debug\deps\match_runtime-2bc5ec58bc765d59.exe)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+     Running tests\memory_benchmarks.rs (target\debug\deps\memory_benchmarks-e7c65e9a33bb6c74.exe)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running tests\named_arguments.rs (target\debug\deps\named_arguments-fc19dbe740cfe514.exe)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\named_call_lowering.rs (target\debug\deps\named_call_lowering-688a606d446ea69d.exe)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\named_call_runtime.rs (target\debug\deps\named_call_runtime-34263dff6f90d5a4.exe)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+     Running tests\named_defaults.rs (target\debug\deps\named_defaults-a6733bd99a206e41.exe)
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\pipelines_adapters.rs (target\debug\deps\pipelines_adapters-0bfd59131cc481fa.exe)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests\pipelines_frontend.rs (target\debug\deps\pipelines_frontend-24f18a5b99562224.exe)
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\pipelines_lowering.rs (target\debug\deps\pipelines_lowering-fa0573057a801675.exe)
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests\pipelines_runtime.rs (target\debug\deps\pipelines_runtime-e25cd125f8ba0915.exe)
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.85s
+     Running tests\process.rs (target\debug\deps\process-2378e6c3fdc3b9e4.exe)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s
+     Running tests\range_frontend.rs (target\debug\deps\range_frontend-f519ab30f29c76b7.exe)
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\range_membership.rs (target\debug\deps\range_membership-c6e1aace0aa829cc.exe)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+     Running tests\ranges.rs (target\debug\deps\ranges-de171f7de7833c96.exe)
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+     Running tests\remainder.rs (target\debug\deps\remainder-43929c105a5654b2.exe)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.88s
+     Running tests\result_inference.rs (target\debug\deps\result_inference-26778ba27c4ed1d6.exe)
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+     Running tests\result_inference_adapters.rs (target\debug\deps\result_inference_adapters-131b6d0bfff1dd52.exe)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running tests\result_inference_chains.rs (target\debug\deps\result_inference_chains-64212dd85cb49300.exe)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running tests\result_inference_combined.rs (target\debug\deps\result_inference_combined-407a7b0e8f805cc7.exe)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+     Running tests\result_inference_combined_checks.rs (target\debug\deps\result_inference_combined_checks-b0ec3d7129b77538.exe)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\result_inference_defaults.rs (target\debug\deps\result_inference_defaults-8703cd0afd289321.exe)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.12s
+     Running tests\runtime.rs (target\debug\deps\runtime-21a7054632071594.exe)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+     Running tests\typed_array_marshaling.rs (target\debug\deps\typed_array_marshaling-76ef1697c717b9c8.exe)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+     Running tests\typed_array_measurements.rs (target\debug\deps\typed_array_measurements-7894f37849fb212d.exe)
+test record_typed_array_markers ... ok
+test record_typed_array_capacity ... ok
+test typed_array_workloads_execute_with_independent_results_and_allocation_checks ... ok
+test record_typed_array_guest_timing ... ok
+test bounded_typed_array_workloads_use_public_compile_and_normal_memory_exports ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+     Running tests\typed_arrays.rs (target\debug\deps\typed_arrays-b8043916a1978cc0.exe)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\typed_arrays_lowering.rs (target\debug\deps\typed_arrays_lowering-c1e0aea3264dc17b.exe)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\typed_arrays_runtime.rs (target\debug\deps\typed_arrays_runtime-082d45119539a9a7.exe)
+test raw_host_retained_typed_arrays_survive_recursive_reentry_traps_and_rhs_growth ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+     Running tests\value_loops.rs (target\debug\deps\value_loops-834fe4bafee1c6a4.exe)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+     Running tests\workspace_contract.rs (target\debug\deps\workspace_contract-bb1cbb72e70a594f.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+     Running tests\wp5_interactions.rs (target\debug\deps\wp5_interactions-3791b0f1df300545.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+     Running unittests src\main.rs (target\debug\deps\was_compiler-8b65c10f36655a38.exe)
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\abi.rs (target\debug\deps\abi-4dc1b3dd1d2467cb.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests\cli.rs (target\debug\deps\cli-6f65d3a9b3d1754e.exe)
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.68s
+     Running tests\closures_adapters.rs (target\debug\deps\closures_adapters-6eaf11e732e692df.exe)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.14s
+     Running tests\contracts_adapters.rs (target\debug\deps\contracts_adapters-0e0743c8fdf07f31.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.39s
+     Running tests\diagnostics.rs (target\debug\deps\diagnostics-14eccc3e88597933.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests\match_adapters.rs (target\debug\deps\match_adapters-f95ca3d304b226e0.exe)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+     Running tests\pipelines_adapters.rs (target\debug\deps\pipelines_adapters-09af83ecb5e54340.exe)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.02s
+     Running tests\result_inference_adapters.rs (target\debug\deps\result_inference_adapters-c85e06ec842584d4.exe)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+     Running tests\result_inference_release.rs (target\debug\deps\result_inference_release-37f9a4a444ab31fd.exe)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
+     Running tests\typed_arrays_adapters.rs (target\debug\deps\typed_arrays_adapters-f10cd6d15dafcd91.exe)
+test cli_typed_array_diagnostics_match_core_without_touching_output ... ok
+test cli_typed_arrays_execute_with_raw_host_layouts ... ok
+test cli_typed_array_hosts_selected_exports_and_contextual_source_match_core ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+COMMAND: cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings
+EXIT: 0
+TRANSIENT LOG: target/m1-53-browser-clippy.log
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.37s
+
+COMMAND: git --no-pager diff --check
+EXIT: 0 (after validation; repeated after documentation edits)
+
+SHA-256 snapshots (implementation and generated package):
+Production/source-tree aggregate (sorted POSIX path, NUL, raw bytes, NUL): 6dafe82713d487b89538a04f98d5c9333ff40a3c340ee231e858497bc4b3d892
+Aggregate includes cfg(test) private lifetime files; 77 Rust files.
+289d616165fd28cbeb26ca242b935142b91faedbc0d99d3d73d440ad402026aa  Cargo.lock
+c9b665774feed3283d60636273167e8c5cf61a17dbf0ab7380c15b6597457e66  crates/compiler/src/lib.rs
+c75b23a696514343529a9cd04f96b2b3b6b09b7027a5d4c24023a0b9e311d19f  crates/compiler/src/lifetime.rs
+4f4a98c9671854e17d59a361ba25f01a02230c138304a20f9432a12879878203  crates/compiler/src/lifetime/conservative_tests.rs
+4025ec5698686ab98860ba393c2454da009f9a5f47494fd1e9ab6866fd91aa21  crates/compiler/src/lifetime/diagnostics.rs
+c4e32b385b8b7a87b255dc713f91351fbf0ced9057c8881c38d936cf75ea62b5  crates/compiler/src/lifetime/forged_tests.rs
+3bd83977347925718949e35adbc470719e7de8d5a2c5e23a7f42eced91dddf38  crates/compiler/src/lifetime/noninterference_tests.rs
+0cb8d9817b8f109650981cbe8c4b580d5a9456bcdd2b453663727305bbfe30a0  crates/compiler/src/lifetime/runtime_tests.rs
+32021468012c062c9d5c47e303f58d7fe6dab4e0492067624dc64fdc521bce25  pkg/was_compiler.js
+9f0e11bbebf0dfdd93fa37f8eb866569fc9b5c3906cf9be2294eecdec44816fa  pkg/was_compiler_bg.wasm

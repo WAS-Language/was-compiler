@@ -35,6 +35,7 @@ execution engine. Host registration declares imports; it does not install callba
 | [Compilation roadmap](docs/compilation-roadmap.md) | Architecture, milestones, acceptance criteria |
 | [Memory ABI](docs/memory-abi.md) | Authoritative descriptor, allocation, ownership, and host contract (revision 1) |
 | [Memory M0 baseline](docs/m0-memory-baseline.md) | Contract-to-test map, measurement limits and release evidence; read before changing retention or reclamation |
+| [Memory M1 classification](docs/m1-lifetime-analysis.md) | Private test-only proof, outcome/reason semantics and integrated validation; read before changing lifetime classification or adding storage consumers |
 | [Typed arrays #37](docs/typed-arrays.md) | Contextual typing, Rust migration, consumed validation, adapter copy contract and final release evidence |
 | [Integer specialization #38/#39/#40/#41](docs/integer-specialization.md) | Proof/local eligibility, comparison/negation contracts, preset parity, correctness evidence and pending release decision |
 | [Limitations](docs/limitations.md) | Implemented restrictions versus possible alternatives |
@@ -105,6 +106,7 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 | `crates/compiler/src/flow.rs` | Private completion sets shared by semantic/backend flow summaries |
 | `crates/compiler/src/host.rs`, `crates/compiler/src/exports.rs` | Ordered host declarations, private external-type eligibility, and owned export selection |
 | `crates/compiler/src/optimization.rs` | Preset-to-numeric policy selection; borrowed `Cow<TypedProgram>` boundary without AST rewrites |
+| `crates/compiler/src/lifetime.rs`, `crates/compiler/src/lifetime/` | Private `cfg(test)` M1 classifier and tests; borrowed direct-body array origins, invocation-wide closed proof and owner-qualified conservative explanations; not part of the production pipeline |
 | `crates/compiler/src/codegen/representation.rs` | Private per-body `Facts` cache for exact-i32 literal/add-sub/negation and eligible ordinary-local/read proofs |
 | `crates/compiler/src/codegen/abi.rs` | Internal language-to-Wasm signatures, separate external signature checks, and named memory-layout constants |
 | `crates/compiler/src/codegen/layout.rs`, `crates/compiler/src/codegen/indices.rs` | Signatures, callees, exports, distinct Wasm index types |
@@ -135,6 +137,15 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
 
 ### Preserve the internal boundaries
 
+- M1 is classification only, explicitly invoked by private tests; compilation,
+  emission, numeric presets and adapters neither invoke it nor consume its facts.
+  Only direct function-body let-bound number/bool array literals in the closed
+  invocation-wide subset can be temporary candidates. Escape paths are potential
+  structural publication evidence; unsupported cases remain unproven. Candidate
+  status changes no storage and authorizes no cleanup after returns or traps.
+  [Integrated #53 gates passed](docs/m1-lifetime-analysis.md#integrated-validation--2026-10-26-53),
+  including ignored runtimes and rebuilt-browser parity. M2 storage selection,
+  reclamation and managed-heap support remain unimplemented and unauthorized.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating
