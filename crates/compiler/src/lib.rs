@@ -7,6 +7,8 @@ pub mod exports;
 mod flow;
 pub mod host;
 pub mod lexer;
+#[cfg(test)]
+mod lifetime;
 mod match_patterns;
 mod number_literal;
 mod optimization;
