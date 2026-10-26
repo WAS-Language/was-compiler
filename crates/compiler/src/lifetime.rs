@@ -8,6 +8,11 @@ use crate::{
     },
 };
 
+mod diagnostics;
+
+#[cfg(test)]
+mod conservative_tests;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UnprovenReason {
     OutsideSubset,
@@ -18,11 +23,21 @@ enum UnprovenReason {
     CallableDeclaration,
     UnsupportedType,
     InconsistentTree,
+    AliasCreation,
+    HostObservation,
+    CaptureStorage,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EscapePath {
     ReturnedHandle,
+    PotentialHostPublication,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Reason {
+    Escape(EscapePath),
+    Unproven(UnprovenReason),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -44,6 +59,7 @@ struct Origin<'tree> {
 struct Fact<'tree> {
     origin: Origin<'tree>,
     outcome: Outcome,
+    reasons: Vec<Reason>,
 }
 
 // This slice reports only direct function-body let literals. Nested allocation
@@ -56,6 +72,22 @@ fn analyze(program: &TypedProgram) -> Vec<Fact<'_>> {
             if let TypedStatementKind::Let { id, value, .. } = &statement.kind
                 && let TypedExprKind::Array(_, element) = &value.kind
             {
+                let mut reasons = diagnostics::collect(function, value);
+                if let Err(reason) = proof
+                    && !reasons.contains(&Reason::Unproven(reason))
+                {
+                    reasons.push(Reason::Unproven(reason));
+                }
+                let outcome = if reasons.contains(&Reason::Escape(EscapePath::ReturnedHandle)) {
+                    Outcome::Escape(EscapePath::ReturnedHandle)
+                } else if reasons.contains(&Reason::Escape(EscapePath::PotentialHostPublication)) {
+                    Outcome::Escape(EscapePath::PotentialHostPublication)
+                } else {
+                    match proof {
+                        Ok(()) => Outcome::TemporaryCandidate,
+                        Err(reason) => Outcome::Unproven(reason),
+                    }
+                };
                 facts.push(Fact {
                     origin: Origin {
                         function,
@@ -63,17 +95,8 @@ fn analyze(program: &TypedProgram) -> Vec<Fact<'_>> {
                         literal: value,
                         element: *element,
                     },
-                    outcome: if function.body.iter().any(|statement| {
-                        matches!(&statement.kind, TypedStatementKind::Return(Some(expr))
-                            if matches!(expr.kind, TypedExprKind::Identifier { id: returned, .. } if returned == *id))
-                    }) {
-                        Outcome::Escape(EscapePath::ReturnedHandle)
-                    } else {
-                        match &proof {
-                            Ok(()) => Outcome::TemporaryCandidate,
-                            Err(reason) => Outcome::Unproven(*reason),
-                        }
-                    },
+                    outcome,
+                    reasons,
                 });
             }
         }
@@ -284,6 +307,231 @@ fn scalar(expr: &TypedExpr, bindings: &Bindings) -> Proof<Type> {
 mod tests {
     use super::*;
     use crate::Compiler;
+
+    #[test]
+    fn lifetime_alias_return_is_an_identified_path_not_just_an_unknown_alias() {
+        assert_eq!(
+            outcomes("fn main() -> number[] { let a = [1]; let b = a; let c = b; return c; }"),
+            vec![Outcome::Escape(EscapePath::ReturnedHandle)]
+        );
+    }
+
+    #[test]
+    fn lifetime_reports_later_host_and_return_paths_after_unsupported_syntax() {
+        let mut compiler = Compiler::new();
+        compiler
+            .register_host_function(
+                "publish",
+                "env",
+                "publish",
+                vec![Type::Array(ArrayElementType::Number)],
+                Type::Void,
+            )
+            .unwrap();
+        let program = compiler
+            .analyze("fn main() -> number[] { let a = [1]; if false {} publish(a); return a; }")
+            .unwrap();
+        let facts = analyze(&program);
+        assert_eq!(
+            facts[0].outcome,
+            Outcome::Escape(EscapePath::ReturnedHandle)
+        );
+        assert!(
+            facts[0]
+                .reasons
+                .contains(&Reason::Unproven(UnprovenReason::ControlFlow))
+        );
+        assert!(
+            facts[0]
+                .reasons
+                .contains(&Reason::Escape(EscapePath::PotentialHostPublication))
+        );
+        assert!(
+            facts[0]
+                .reasons
+                .contains(&Reason::Escape(EscapePath::ReturnedHandle))
+        );
+        assert_eq!(
+            facts[0].reasons,
+            vec![
+                Reason::Unproven(UnprovenReason::ControlFlow),
+                Reason::Unproven(UnprovenReason::HostObservation),
+                Reason::Escape(EscapePath::PotentialHostPublication),
+                Reason::Escape(EscapePath::ReturnedHandle),
+            ]
+        );
+        assert_eq!(facts[0].reasons, analyze(&program)[0].reasons);
+    }
+
+    #[test]
+    fn lifetime_returned_block_tail_preserves_an_identifiable_path() {
+        assert_eq!(
+            outcomes("fn main() -> number[] { let a = [1]; return { a }; }"),
+            vec![Outcome::Escape(EscapePath::ReturnedHandle)]
+        );
+    }
+
+    #[test]
+    fn lifetime_host_barriers_are_invocation_wide_and_publication_is_only_potential() {
+        let mut compiler = Compiler::new();
+        compiler
+            .register_host_function("observe", "env", "observe", vec![], Type::Bool)
+            .unwrap();
+        compiler
+            .register_host_function(
+                "publish",
+                "env",
+                "publish",
+                vec![Type::Array(ArrayElementType::Number)],
+                Type::Bool,
+            )
+            .unwrap();
+        for source in [
+            "fn main() { observe(); let a = [1]; }",
+            "fn main() { let a = [1]; let n = a[0]; observe(); }",
+            "fn main() { let a = [1]; return; observe(); }",
+        ] {
+            let program = compiler.analyze(source).unwrap();
+            let facts = analyze(&program);
+            assert!(matches!(facts[0].outcome, Outcome::Unproven(_)), "{source}");
+            assert!(
+                facts[0]
+                    .reasons
+                    .contains(&Reason::Unproven(UnprovenReason::HostObservation))
+            );
+            assert!(
+                !facts[0]
+                    .reasons
+                    .iter()
+                    .any(|r| matches!(r, Reason::Escape(_)))
+            );
+        }
+        let program = compiler
+            .analyze("fn main() { let a = [1]; let alias = a; publish(alias); }")
+            .unwrap();
+        assert_eq!(
+            analyze(&program)[0].outcome,
+            Outcome::Escape(EscapePath::PotentialHostPublication)
+        );
+    }
+
+    #[test]
+    fn lifetime_nested_and_skipped_children_do_not_hide_host_paths() {
+        let mut compiler = Compiler::new();
+        compiler
+            .register_host_function(
+                "publish",
+                "env",
+                "publish",
+                vec![Type::Array(ArrayElementType::Number)],
+                Type::Bool,
+            )
+            .unwrap();
+        for snippet in [
+            "if false { publish(a); }",
+            "while false { publish(a); }",
+            "for n in 0..0 { publish(a); }",
+            "loop { break; publish(a); }",
+            "match true { true => false, false => publish(a) };",
+            "false && publish(a);",
+            "true || publish(a);",
+            "let n = { publish(a); 1 };",
+            "let n = if true { 1 } else { publish(a); 2 };",
+            "let b = [publish(a)];",
+            "a[{ publish(a); 0 }] = 1;",
+            "a[0] += { publish(a); 1 };",
+            "let f = () => { publish(a); 1 };",
+            "1 |> ((n: number) => { publish(a); n });",
+            "helper(n: { publish(a); 1 });",
+            "publish({ let copy = a; copy });",
+        ] {
+            let source =
+                format!("fn helper(n: number = 1) {{}} fn main() {{ let a = [1]; {snippet} }}");
+            let program = compiler
+                .analyze(&source)
+                .unwrap_or_else(|e| panic!("{source}: {e}"));
+            let facts = analyze(&program);
+            assert_eq!(
+                facts[0].outcome,
+                Outcome::Escape(EscapePath::PotentialHostPublication),
+                "{snippet}: {:?}",
+                facts[0].reasons
+            );
+            assert!(
+                facts[0]
+                    .reasons
+                    .contains(&Reason::Unproven(UnprovenReason::HostObservation))
+            );
+        }
+    }
+
+    #[test]
+    fn lifetime_aliases_and_reassignments_are_not_automatic_escape_evidence() {
+        for source in [
+            "fn main() { let a = [1]; let alias = a; }",
+            "fn main() -> number[] { let a = [1]; let alias = a; alias = [2]; return alias; }",
+            "fn main() -> number[] { let a = [1]; a = [2]; return a; }",
+            "fn main() -> number[] { let a = [1]; let alias = a; if false { alias = [2]; } return alias; }",
+        ] {
+            let program = Compiler::new().analyze(source).unwrap();
+            let facts = analyze(&program);
+            assert!(matches!(facts[0].outcome, Outcome::Unproven(_)), "{source}");
+            assert!(
+                !facts[0]
+                    .reasons
+                    .iter()
+                    .any(|r| matches!(r, Reason::Escape(_))),
+                "{source}"
+            );
+            assert!(facts[0].reasons.iter().any(|r| matches!(
+                r,
+                Reason::Unproven(
+                    UnprovenReason::AliasCreation | UnprovenReason::HandleReassignment
+                )
+            )));
+        }
+    }
+
+    #[test]
+    fn lifetime_contracts_and_normalized_defaults_are_structurally_inspected() {
+        use crate::typed_ast::TypedContract;
+        let mut compiler = Compiler::new();
+        compiler
+            .register_host_function("observe", "env", "observe", vec![], Type::Number)
+            .unwrap();
+        let original = compiler
+            .analyze("fn helper(n: number = 1) {} fn main() { let a = [1]; helper(); observe(); }")
+            .unwrap();
+        for in_contract in [false, true] {
+            let mut program = original.clone();
+            let function = &mut program.functions[1];
+            let statement = function.body.pop().unwrap();
+            let TypedStatementKind::Expression(host) = statement.kind else {
+                panic!()
+            };
+            if in_contract {
+                function.contracts.push(TypedContract {
+                    value: host,
+                    span: statement.span,
+                });
+            } else {
+                let TypedStatementKind::Expression(expr) = &mut function.body[1].kind else {
+                    panic!()
+                };
+                let TypedExprKind::NormalizedCall(call) = &mut expr.kind else {
+                    panic!()
+                };
+                call.bindings[0].value = host;
+            }
+            let facts = analyze(&program);
+            assert!(matches!(facts[0].outcome, Outcome::Unproven(_)));
+            assert!(
+                facts[0]
+                    .reasons
+                    .contains(&Reason::Unproven(UnprovenReason::HostObservation))
+            );
+        }
+    }
 
     #[test]
     fn lifetime_direct_numeric_literal_is_a_candidate() {
