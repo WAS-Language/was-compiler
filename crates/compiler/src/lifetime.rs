@@ -12,6 +12,12 @@ mod diagnostics;
 
 #[cfg(test)]
 mod conservative_tests;
+#[cfg(test)]
+mod forged_tests;
+#[cfg(test)]
+mod noninterference_tests;
+#[cfg(test)]
+mod runtime_tests;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UnprovenReason {
