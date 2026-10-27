@@ -34,8 +34,18 @@ impl<'a> ValidatedProgram<'a> {
         exports: &ExportOptions,
         policy: super::NumericPolicy,
     ) -> Result<Self, CodegenError> {
+        Self::with_region_selection(program, exports, policy, super::region::select)
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_region_selection(
+        program: &'a TypedProgram,
+        exports: &ExportOptions,
+        policy: super::NumericPolicy,
+        select: impl FnOnce(&'a TypedProgram) -> Vec<super::region::Selection<'a>>,
+    ) -> Result<Self, CodegenError> {
         let mut layout = Layout::with_exports(program, exports)?;
-        layout.regions = super::region::select(program);
+        layout.regions = select(program);
         Self::lower(program, layout, policy)
     }
 
