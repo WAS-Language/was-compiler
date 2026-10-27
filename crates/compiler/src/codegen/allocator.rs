@@ -5,7 +5,12 @@ use wasm_encoder::{
     GlobalSection, GlobalType, Instruction, MemArg, TypeSection, ValType,
 };
 
-use super::{CodegenError, NumericPolicy, abi, memory, validation::ValidatedProgram};
+use super::{
+    CodegenError, NumericPolicy, abi,
+    indices::{FunctionIndex, TypeIndex},
+    memory,
+    validation::ValidatedProgram,
+};
 
 // One reusable record per physical block, separate from the usable payload.
 const RECORD_BYTES: i32 = 32;
@@ -44,12 +49,19 @@ fn compile(
     let memory = layout.memory.as_ref().ok_or(Error::MissingMemory)?;
 
     // Preflight all append-index arithmetic before infallible section assembly.
-    let count = program.host_functions.len()
-        + layout.users.len()
-        + memory.helpers.len()
-        + usize::from(layout.remainder.is_some())
-        + layout.ranges.len()
-        + layout.callables.len();
+    let count = [
+        program.host_functions.len(),
+        layout.users.len(),
+        memory.helpers.len(),
+        usize::from(layout.remainder.is_some()),
+        layout.ranges.len(),
+        layout.callables.len(),
+    ]
+    .into_iter()
+    .try_fold(0usize, usize::checked_add)
+    .ok_or(CodegenError::LimitExceeded {
+        what: "private allocator functions",
+    })?;
     super::checked_u32(count, "private allocator functions")?
         .checked_add(HELPER_COUNT)
         .ok_or(CodegenError::LimitExceeded {
@@ -93,8 +105,8 @@ enum HeadAccess {
 }
 
 struct Emitter {
-    first_function: u32,
-    backing: u32,
+    first_function: FunctionIndex,
+    backing: FunctionIndex,
     last_identity: u32,
     registry: u32,
     population: u32,
@@ -108,17 +120,14 @@ pub(super) fn append(validated: &ValidatedProgram<'_>, config: Config, sections:
         .memory
         .as_ref()
         .expect("allocator preflight requires memory");
-    let first_type = sections.types.len();
-    let first_function = u32::try_from(validated.program().host_functions.len())
-        .expect("checked import count")
-        + sections.functions.len();
+    let first_function = FunctionIndex::new(
+        u32::try_from(validated.program().host_functions.len()).expect("checked import count")
+            + sections.functions.len(),
+    );
     let first_global = sections.globals.len();
     let emitter = Emitter {
         first_function,
-        backing: memory
-            .first_function
-            .offset(memory::Helper::Alloc.index())
-            .raw(),
+        backing: memory.first_function.offset(memory::Helper::Alloc.index()),
         last_identity: first_global,
         registry: first_global + 1,
         population: first_global + 2,
@@ -166,7 +175,9 @@ pub(super) fn append(validated: &ValidatedProgram<'_>, config: Config, sections:
         (vec![I32], vec![I32]),
         (vec![I32, I32], vec![]),
     ] {
+        let type_index = TypeIndex::new(sections.types.len());
         sections.types.ty().function(params, results);
+        sections.functions.function(type_index.raw());
     }
     let bodies = [
         emitter.classify(),
@@ -179,12 +190,11 @@ pub(super) fn append(validated: &ValidatedProgram<'_>, config: Config, sections:
     ];
     for (slot, body) in bodies.iter().enumerate() {
         let slot = u32::try_from(slot).expect("fixed helper count");
-        sections.functions.function(first_type + slot);
         sections.code.function(body);
         if let Some(name) = EXPORTS.get(slot as usize) {
             sections
                 .exports
-                .export(name, ExportKind::Func, first_function + slot);
+                .export(name, ExportKind::Func, first_function.offset(slot).raw());
         }
     }
 }
@@ -216,7 +226,7 @@ fn trap_if(body: &mut Function) {
 
 impl Emitter {
     fn call(&self, slot: u32) -> Instruction<'static> {
-        Instruction::Call(self.first_function + slot)
+        Instruction::Call(self.first_function.offset(slot).raw())
     }
 
     fn classify(&self) -> Function {
@@ -392,7 +402,7 @@ impl Emitter {
             &[
                 LocalGet(4),
                 I32WrapI64,
-                Call(self.backing),
+                Call(self.backing.raw()),
                 LocalSet(2),
                 LocalGet(2),
                 GlobalGet(self.registry),

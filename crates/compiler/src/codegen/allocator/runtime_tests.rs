@@ -196,7 +196,7 @@ fn unknown_interior_and_wrong_identity_release_preserve_live_and_free_state() {
             ...Array.from({length: 29}, (_, classIndex) => observe(7, classIndex)),
             ...[live, free].flatMap(p => [
                 ...[3, 4, 5, 6].map(selector => observe(selector, p)),
-                Array.from(bytes().slice(p - 32, p + 16))
+                Array.from(bytes().slice(p - 32, p + 9))
             ])
         ];
         const before = snapshot();

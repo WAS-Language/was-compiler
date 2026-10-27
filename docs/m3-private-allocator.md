@@ -175,9 +175,23 @@ The first focused test failed against ordinary assembly with missing
 | `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline` | Passed; current-source package rebuilt |
 | `node tests/browser.cjs pkg` | 25 groups passed |
 | `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings` | Passed |
+| `cargo test --offline --workspace -- --include-ignored` | Passed on retry with cached builds, then passed again after review fixes; all workspace packages and ignored runtimes selected |
 
 The initial `cargo test --offline --workspace -- --include-ignored` run reached
 its 180-second tool deadline near the end of compiler integration tests, without
 reported failures. That interrupted run alone is not full-suite evidence.
 The browser build printed the usual wasm-bindgen tooling-resolution and optional
 package-metadata notices; no separate install/fetch command was invoked.
+
+### Two-axis review
+
+Independent Standards and Spec reviews used baseline `e8303a3` (the separately
+committed pre-existing M2 validation/M3 plan and example deletion). Standards
+identified raw function/type indices in the new emitter; those now retain
+`FunctionIndex`/`TypeIndex` to encoder boundaries. Spec identified one test snapshot
+reading spare capacity outside its initialized nine-byte extent; the snapshot now
+reads only the management record and those nine bytes. Both were low-priority
+findings, corrected before the final focused allocator, Clippy and full ignored
+workspace runs. No allocator correctness or unauthorized-scope finding was raised.
+Both independent reviewers rechecked the correction and reported zero outstanding
+Standards and Spec findings.
