@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "mode": "timing",
+  "preset": "Basic",
+  "utc": "2026-10-27T13:32:00.305Z",
+  "source": {
+    "bytes": 345,
+    "sha256": "cb306543d1035ff26ad68af89a84902f17bcdf772ad77714d96b36ea0da45660"
+  },
+  "modules": {
+    "baseline": {
+      "bytes": 1314,
+      "sha256": "0f528219f4782646e8332825b47a06daddb68a3d446b67511e92de75df165e07"
+    },
+    "prototype": {
+      "bytes": 1498,
+      "sha256": "7e2ac70b1ee1d2da1ceccc98ef7c3e9f4b978e4f9419b5903753ff8f1a21834c"
+    },
+    "instrumented": {
+      "bytes": 1975,
+      "sha256": "ac38dd644eb1014b61bcc7ec272633b75dbf2fd39ac9799c4d74d3ccd0aaae7a"
+    }
+  },
+  "harness": {
+    "bytes": 13169,
+    "sha256": "e98da72b24c2761aace7972f203284d8ec3bda3c4bd51c4b092b7ad9e5bf3156"
+  },
+  "environment": {
+    "node": "v24.12.0",
+    "v8": "13.6.233.17-node.37",
+    "platform": "win32",
+    "arch": "x64",
+    "osRelease": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 5 125H",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 16730726400,
+    "nodeFlags": []
+  },
+  "capacities": [
+    {
+      "name": "numbers",
+      "capacity": 24
+    },
+    {
+      "name": "aligned",
+      "capacity": 48
+    },
+    {
+      "name": "lazy",
+      "capacity": 16
+    }
+  ],
+  "verification": {
+    "baseline": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    },
+    "prototype": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    },
+    "instrumented": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    }
+  },
+  "result": {
+    "unit": "ns/guest call",
+    "warmupCallsPerVariantPerRepetition": 8,
+    "samplesPerVariantPerRepetition": 10,
+    "pairsPerSample": 256,
+    "callsPerSample": 512,
+    "expectedChecksum": 68864,
+    "markerCalls": 0,
+    "repetitions": [
+      {
+        "repetition": 0,
+        "order": [
+          "baseline",
+          "prototype"
+        ],
+        "observations": {
+          "baseline": {
+            "rawNsPerCall": [
+              172.0703125,
+              144.921875,
+              124.4140625,
+              123.828125,
+              127.9296875,
+              122.265625,
+              121.484375,
+              120.703125,
+              125.390625,
+              121.6796875
+            ],
+            "medianNsPerCall": 124.12109375
+          },
+          "prototype": {
+            "rawNsPerCall": [
+              106.0546875,
+              101.171875,
+              101.5625,
+              102.734375,
+              101.5625,
+              100.9765625,
+              105.859375,
+              105.6640625,
+              103.3203125,
+              106.4453125
+            ],
+            "medianNsPerCall": 103.02734375
+          }
+        }
+      },
+      {
+        "repetition": 1,
+        "order": [
+          "prototype",
+          "baseline"
+        ],
+        "observations": {
+          "prototype": {
+            "rawNsPerCall": [
+              103.3203125,
+              104.6875,
+              101.5625,
+              102.734375,
+              104.1015625,
+              104.296875,
+              105.46875,
+              105.859375,
+              102.734375,
+              106.0546875
+            ],
+            "medianNsPerCall": 104.19921875
+          },
+          "baseline": {
+            "rawNsPerCall": [
+              120.5078125,
+              123.828125,
+              123.046875,
+              122.265625,
+              120.8984375,
+              118.5546875,
+              116.6015625,
+              117.578125,
+              120.5078125,
+              118.1640625
+            ],
+            "medianNsPerCall": 120.5078125
+          }
+        }
+      },
+      {
+        "repetition": 2,
+        "order": [
+          "baseline",
+          "prototype"
+        ],
+        "observations": {
+          "baseline": {
+            "rawNsPerCall": [
+              118.75,
+              118.1640625,
+              127.1484375,
+              118.359375,
+              124.4140625,
+              441.9921875,
+              129.6875,
+              123.6328125,
+              123.2421875,
+              123.4375
+            ],
+            "medianNsPerCall": 123.53515625
+          },
+          "prototype": {
+            "rawNsPerCall": [
+              303.3203125,
+              113.0859375,
+              107.2265625,
+              128.125,
+              114.2578125,
+              107.03125,
+              109.1796875,
+              153.90625,
+              106.0546875,
+              98.2421875
+            ],
+            "medianNsPerCall": 111.1328125
+          }
+        }
+      }
+    ],
+    "aggregate": {
+      "baseline": {
+        "medianNsPerCall": 122.65625
+      },
+      "prototype": {
+        "medianNsPerCall": 105.56640625
+      }
+    }
+  }
+}

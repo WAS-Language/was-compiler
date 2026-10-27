@@ -1,0 +1,32 @@
+[
+  {
+    "command": "cargo test --offline -p was-compiler --lib codegen::region -- --include-ignored --test-threads=1",
+    "exitCode": 0,
+    "log": "validation-region.txt"
+  },
+  {
+    "command": "cargo test --offline -p was-compiler --test memory_benchmarks",
+    "exitCode": 0,
+    "log": "validation-memory.txt"
+  },
+  {
+    "command": "cargo test --offline -p was-compiler --test memory_benchmarks memory_workloads_execute_with_independent_results_and_allocation_checks -- --ignored --exact",
+    "exitCode": 0,
+    "log": "validation-memory-runtime.txt"
+  },
+  {
+    "command": "cargo test --offline",
+    "exitCode": 0,
+    "log": "validation-default.txt"
+  },
+  {
+    "command": "cargo clippy --offline --all-targets -- -D warnings",
+    "exitCode": 0,
+    "log": "validation-clippy.txt"
+  },
+  {
+    "command": "cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown",
+    "exitCode": 0,
+    "log": "validation-wasm.txt"
+  }
+]

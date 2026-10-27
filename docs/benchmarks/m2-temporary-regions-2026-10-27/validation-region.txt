@@ -1,0 +1,30 @@
+
+running 23 tests
+test codegen::region::measurement_tests::instrumentation_is_explicit_and_adds_no_calls_or_storage_selection_changes ... ok
+test codegen::region::measurement_tests::measured_presets_are_deterministic_and_enabled_bytes_match ... ok
+test codegen::region::measurement_tests::record_m2_accounting ... ok
+test codegen::region::measurement_tests::record_m2_capacity ... ok
+test codegen::region::measurement_tests::record_m2_failed_provisioning ... ok
+test codegen::region::measurement_tests::record_m2_guest_timing ... ok
+test codegen::region::runtime_tests::acquisition_is_lazy_after_scalar_contract_and_absent_for_unreachable_literals ... ok
+test codegen::region::runtime_tests::capped_later_literal_reservation_changes_failure_and_growth_before_access_traps ... ok
+test codegen::region::runtime_tests::failed_front_loaded_reservation_preserves_cursor_and_ordinary_storage ... ok
+test codegen::region::runtime_tests::front_loaded_reservation_precedes_earlier_initializer_trap ... ok
+test codegen::region::runtime_tests::reentrant_recursive_callers_keep_retained_arrays_and_captures_isolated ... ok
+test codegen::region::runtime_tests::reuse_reinitializes_distinct_aligned_literals_and_preserves_ordinary_handles ... ok
+test codegen::region::runtime_tests::traps_quarantine_owned_blocks_and_keep_completed_initialization_and_writes ... ok
+test codegen::region::selected_function_has_private_cache_and_checked_array_stores ... ok
+test codegen::region::tests::capacity_overflow_lowers_the_whole_function_with_baseline_storage ... ok
+test codegen::region::tests::checked_capacity_includes_aligned_empty_and_unreachable_literals ... ok
+test codegen::region::tests::excluded_forms_and_no_candidates_emit_no_region_machinery ... ok
+test codegen::region::tests::forged_binding_ids_and_skipped_children_keep_ordinary_diagnostics ... ok
+test codegen::region::tests::malformed_unreachable_candidate_and_invalid_function_id_preserve_error_order ... ok
+test codegen::region::tests::mixed_selected_and_excluded_hidden_bodies_keep_source_order_errors ... ok
+test codegen::region::tests::ordinary_bytes_presets_exports_and_diagnostics_remain_independent ... ok
+test codegen::region::tests::sparse_binding_ids_still_select_and_lower_checked_storage ... ok
+test codegen::region::tests::unrepresentable_inventory_discards_all_slices_and_keeps_a_deterministic_reason ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 510 filtered out; finished in 4.56s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-eb8c15a554b28099.exe)

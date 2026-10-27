@@ -70,7 +70,7 @@ fn run_bytes(bytes: &[u8], script: &str, level: OptimizationLevel) {
     );
 }
 
-fn cap_memory(bytes: &[u8], maximum: u64) -> Vec<u8> {
+pub(super) fn cap_memory(bytes: &[u8], maximum: u64) -> Vec<u8> {
     let mut capped = wasm_encoder::Module::new();
     for payload in wasmparser::Parser::new(0).parse_all(bytes) {
         if let Some((id, range)) = payload.unwrap().as_section() {

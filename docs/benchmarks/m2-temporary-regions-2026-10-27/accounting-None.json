@@ -1,0 +1,694 @@
+{
+  "schemaVersion": 1,
+  "mode": "accounting",
+  "preset": "None",
+  "utc": "2026-10-27T13:31:58.221Z",
+  "source": {
+    "bytes": 345,
+    "sha256": "cb306543d1035ff26ad68af89a84902f17bcdf772ad77714d96b36ea0da45660"
+  },
+  "modules": {
+    "baseline": {
+      "bytes": 1350,
+      "sha256": "1b012ea2fc14bee663aeffa671d0613f6dbb0b551a014e6a69ad50fea0fa0e57"
+    },
+    "prototype": {
+      "bytes": 1534,
+      "sha256": "f857873a45aac220e49d1952cd1622393c4030bd254abef30281c930afb90d87"
+    },
+    "instrumented": {
+      "bytes": 2011,
+      "sha256": "45814b07e4e21868c7dc0c72412554dbdaf3f53d1fb80b36f85a77aadd48f9e4"
+    }
+  },
+  "harness": {
+    "bytes": 13169,
+    "sha256": "e98da72b24c2761aace7972f203284d8ec3bda3c4bd51c4b092b7ad9e5bf3156"
+  },
+  "environment": {
+    "node": "v24.12.0",
+    "v8": "13.6.233.17-node.37",
+    "platform": "win32",
+    "arch": "x64",
+    "osRelease": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 5 125H",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 16730726400,
+    "nodeFlags": []
+  },
+  "capacities": [
+    {
+      "name": "numbers",
+      "capacity": 24
+    },
+    {
+      "name": "aligned",
+      "capacity": 48
+    },
+    {
+      "name": "lazy",
+      "capacity": 16
+    }
+  ],
+  "verification": {
+    "baseline": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    },
+    "prototype": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    },
+    "instrumented": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    }
+  },
+  "result": {
+    "callsPerFunction": 256,
+    "lazyCalls": 256,
+    "traps": 8,
+    "recoveryCalls": 2,
+    "snapshots": [
+      {
+        "label": "initial",
+        "functions": {
+          "numbers": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "aligned": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_1_pair",
+        "functions": {
+          "numbers": {
+            "provisions": "1",
+            "reuses": "0",
+            "literals": "1",
+            "retirements": "1",
+            "provisionedBytes": "24",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 24,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "0",
+            "literals": "3",
+            "retirements": "1",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_256_pairs",
+        "functions": {
+          "numbers": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "256",
+            "retirements": "256",
+            "provisionedBytes": "24",
+            "reusedBlockBytes": "6120",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 24,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_256_lazy_calls",
+        "functions": {
+          "numbers": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "256",
+            "retirements": "256",
+            "provisionedBytes": "24",
+            "reusedBlockBytes": "6120",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 24,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_trap_1",
+        "functions": {
+          "numbers": {
+            "provisions": "1",
+            "reuses": "256",
+            "literals": "257",
+            "retirements": "256",
+            "provisionedBytes": "24",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "1",
+            "quarantineBytes": "24"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_trap_2",
+        "functions": {
+          "numbers": {
+            "provisions": "2",
+            "reuses": "256",
+            "literals": "258",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "2",
+            "quarantineBytes": "48"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_trap_3",
+        "functions": {
+          "numbers": {
+            "provisions": "3",
+            "reuses": "256",
+            "literals": "259",
+            "retirements": "256",
+            "provisionedBytes": "72",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "3",
+            "quarantineBytes": "72"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_trap_4",
+        "functions": {
+          "numbers": {
+            "provisions": "4",
+            "reuses": "256",
+            "literals": "260",
+            "retirements": "256",
+            "provisionedBytes": "96",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "4",
+            "quarantineBytes": "96"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_trap_5",
+        "functions": {
+          "numbers": {
+            "provisions": "5",
+            "reuses": "256",
+            "literals": "261",
+            "retirements": "256",
+            "provisionedBytes": "120",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "5",
+            "quarantineBytes": "120"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_trap_6",
+        "functions": {
+          "numbers": {
+            "provisions": "6",
+            "reuses": "256",
+            "literals": "262",
+            "retirements": "256",
+            "provisionedBytes": "144",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "6",
+            "quarantineBytes": "144"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_trap_7",
+        "functions": {
+          "numbers": {
+            "provisions": "7",
+            "reuses": "256",
+            "literals": "263",
+            "retirements": "256",
+            "provisionedBytes": "168",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "7",
+            "quarantineBytes": "168"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_trap_8",
+        "functions": {
+          "numbers": {
+            "provisions": "8",
+            "reuses": "256",
+            "literals": "264",
+            "retirements": "256",
+            "provisionedBytes": "192",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "8",
+            "quarantineBytes": "192"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_recovery",
+        "functions": {
+          "numbers": {
+            "provisions": "9",
+            "reuses": "256",
+            "literals": "265",
+            "retirements": "257",
+            "provisionedBytes": "216",
+            "reusedBlockBytes": "6144",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 24,
+            "quarantinedBlocks": "8",
+            "quarantineBytes": "192"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      },
+      {
+        "label": "after_reuse",
+        "functions": {
+          "numbers": {
+            "provisions": "9",
+            "reuses": "257",
+            "literals": "266",
+            "retirements": "258",
+            "provisionedBytes": "216",
+            "reusedBlockBytes": "6168",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 24,
+            "quarantinedBlocks": "8",
+            "quarantineBytes": "192"
+          },
+          "aligned": {
+            "provisions": "1",
+            "reuses": "255",
+            "literals": "768",
+            "retirements": "256",
+            "provisionedBytes": "48",
+            "reusedBlockBytes": "12240",
+            "cachedBlocks": "1",
+            "cachedCapacityBytes": 48,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          },
+          "lazy": {
+            "provisions": "0",
+            "reuses": "0",
+            "literals": "0",
+            "retirements": "0",
+            "provisionedBytes": "0",
+            "reusedBlockBytes": "0",
+            "cachedBlocks": "0",
+            "cachedCapacityBytes": 0,
+            "quarantinedBlocks": "0",
+            "quarantineBytes": "0"
+          }
+        }
+      }
+    ],
+    "markers": {
+      "baseline": {
+        "before": 8,
+        "after": 18448,
+        "deltaBytes": 18432,
+        "markerCalls": 2,
+        "markerReservationBytes": 8,
+        "markerOverheadBytes": 16,
+        "callsPerFunction": 256
+      },
+      "prototype": {
+        "before": 8,
+        "after": 88,
+        "deltaBytes": 72,
+        "markerCalls": 2,
+        "markerReservationBytes": 8,
+        "markerOverheadBytes": 16,
+        "callsPerFunction": 256
+      }
+    },
+    "minimumMarker": {
+      "offsets": [
+        8,
+        16
+      ],
+      "reservationBytes": 8
+    }
+  }
+}

@@ -148,6 +148,7 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   including ignored runtimes and rebuilt-browser parity. #54 implements a private
   reusable-region prototype through the existing checked backend. Before changing
   region selection, acquisition or retirement, read [the M2 prototype contract](docs/m2-region-prototype.md).
+  Before changing M2 counters or measurement workloads, read [#56's observation boundaries and evidence](docs/benchmarks/m2-temporary-regions-2026-10-27/README.md).
   Public activation, general reclamation and managed-heap support remain unauthorized.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.

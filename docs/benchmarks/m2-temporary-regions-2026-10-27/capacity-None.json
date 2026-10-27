@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "mode": "capacity",
+  "preset": "None",
+  "utc": "2026-10-27T13:31:58.957Z",
+  "source": {
+    "bytes": 345,
+    "sha256": "cb306543d1035ff26ad68af89a84902f17bcdf772ad77714d96b36ea0da45660"
+  },
+  "modules": {
+    "baseline": {
+      "bytes": 1350,
+      "sha256": "1b012ea2fc14bee663aeffa671d0613f6dbb0b551a014e6a69ad50fea0fa0e57"
+    },
+    "prototype": {
+      "bytes": 1534,
+      "sha256": "f857873a45aac220e49d1952cd1622393c4030bd254abef30281c930afb90d87"
+    },
+    "instrumented": {
+      "bytes": 2011,
+      "sha256": "45814b07e4e21868c7dc0c72412554dbdaf3f53d1fb80b36f85a77aadd48f9e4"
+    }
+  },
+  "harness": {
+    "bytes": 13169,
+    "sha256": "e98da72b24c2761aace7972f203284d8ec3bda3c4bd51c4b092b7ad9e5bf3156"
+  },
+  "environment": {
+    "node": "v24.12.0",
+    "v8": "13.6.233.17-node.37",
+    "platform": "win32",
+    "arch": "x64",
+    "osRelease": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 5 125H",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 16730726400,
+    "nodeFlags": []
+  },
+  "capacities": [
+    {
+      "name": "numbers",
+      "capacity": 24
+    },
+    {
+      "name": "aligned",
+      "capacity": 48
+    },
+    {
+      "name": "lazy",
+      "capacity": 16
+    }
+  ],
+  "verification": {
+    "baseline": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    },
+    "prototype": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    },
+    "instrumented": {
+      "scalarCases": 16,
+      "trapCases": 1,
+      "completedTrapBytes": 24,
+      "markerBefore": 8,
+      "markerAfter": 40,
+      "markerReservationBytes": 8,
+      "markerCalls": 2,
+      "markerOverheadBytes": 16
+    }
+  },
+  "result": {
+    "callsPerFunction": 4096,
+    "markerCalls": 0,
+    "observations": {
+      "baseline": {
+        "initialPages": 1,
+        "finalPages": 5
+      },
+      "prototype": {
+        "initialPages": 1,
+        "finalPages": 1
+      }
+    }
+  }
+}

@@ -219,6 +219,17 @@ bump consumption, not live bytes. General allocation counts and peak live bytes
 are unavailable; no production telemetry was added. Historical timing records
 remain unchanged; this milestone makes no performance or reclamation claim.
 
+## Memory roadmap M2 — 2026-10-27 private reuse measurements
+
+[#56 evidence and definitions](benchmarks/m2-temporary-regions-2026-10-27/README.md)
+record matched ordinary/private-prototype modules at all four presets, explicit
+instrumented events for successful provisioning/reuse and trap quarantine, and
+separate uninstrumented marker/capacity/timing runs. The caller remains in private
+library unit tests, with Node cases ignored by default. Read that record before
+changing counters or interpreting capacity as reuse; it includes bounded failure
+accounting, module-size overhead, provenance and measurement limits. The ordinary
+memory corpus and public storage policy are unchanged; #57 integration is separate.
+
 ## Issue #37 M4: comparative measurements and optimization handoff
 
 The M4 measurement portion is recorded in

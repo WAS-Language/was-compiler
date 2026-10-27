@@ -1,0 +1,12 @@
+
+running 5 tests
+test memory_workloads_execute_with_independent_results_and_allocation_checks ... ignored, requires Node.js on PATH
+test record_memory_capacity ... ignored, manual bounded M0 capacity baseline; requires Node.js
+test record_memory_guest_timing ... ignored, manual bounded M0 guest timing baseline; requires Node.js
+test record_memory_markers ... ignored, manual bounded M0 allocation baseline; requires Node.js
+test bounded_memory_workloads_compile_deterministically_at_the_public_seam ... ok
+
+test result: ok. 1 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests\memory_benchmarks.rs (target\debug\deps\memory_benchmarks-86d6c2035ce82483.exe)

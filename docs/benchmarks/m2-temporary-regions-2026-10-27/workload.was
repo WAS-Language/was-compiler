@@ -1,0 +1,13 @@
+
+fn numbers(n: number, i: number) -> number {
+    let a = [n, n + 1];
+    a[0] += 5;
+    return a[i];
+}
+fn aligned(n: number) -> number {
+    let e: number[] = [];
+    let b: bool[] = [true, false, true, false, true, false, true, false, true];
+    let a = [n];
+    return len(e) + len(b) + a[0];
+}
+fn lazy() -> number { return 7; let a = [1]; }

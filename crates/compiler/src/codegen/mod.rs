@@ -421,6 +421,8 @@ fn assemble(validated: &validation::ValidatedProgram<'_>) -> Vec<u8> {
                 );
             }
         }
+        #[cfg(test)]
+        region::append_instrumentation(program, &layout.regions, &mut globals, &mut exports);
         exports.export("memory", ExportKind::Memory, 0);
         exports.export(
             "__alloc",

@@ -1,2 +1,4 @@
 # Preserve raw command output and its recorded hashes, including final blank lines.
 *.txt whitespace=-blank-at-eof
+# Preserve the measured source bytes and their SHA-256 across Windows checkouts.
+m2-temporary-regions-2026-10-27/workload.was text eol=lf

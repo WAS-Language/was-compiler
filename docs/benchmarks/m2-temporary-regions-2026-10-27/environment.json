@@ -1,0 +1,77 @@
+{
+  "recordedUtc": "2026-10-27T13:32:00.555Z",
+  "baseRevision": "88f3d42238a78a8820792c506c6ebe5da7c7b33b",
+  "workingTreeStatus": "M AGENTS.md\n M crates/compiler/src/codegen/mod.rs\n M crates/compiler/src/codegen/region.rs\n M crates/compiler/src/codegen/region/runtime_tests.rs\n M docs/benchmarks.md\n M docs/m2-region-prototype.md\n M docs/was_compiler_memory_and_optimization_roadmap.md\n D examples/sum.was\n?? crates/compiler/src/codegen/region/instrumentation.rs\n?? crates/compiler/src/codegen/region/measurement_tests.rs\n?? docs/benchmarks/m2-temporary-regions-2026-10-27/\n?? tests/support/m2_region_measure.cjs",
+  "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.0\nLLVM version: 22.1.8",
+  "cargo": "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+  "node": "v24.12.0",
+  "rustCallerProfile": "debug; guest timing excludes Rust compilation",
+  "commands": [
+    {
+      "command": "cargo test --offline -p was-compiler --lib codegen::region::measurement_tests::record_m2_accounting -- --ignored --exact --nocapture --test-threads=1",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --lib codegen::region::measurement_tests::record_m2_capacity -- --ignored --exact --nocapture --test-threads=1",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --lib codegen::region::measurement_tests::record_m2_failed_provisioning -- --ignored --exact --nocapture --test-threads=1",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --lib codegen::region::measurement_tests::record_m2_guest_timing -- --ignored --exact --nocapture --test-threads=1",
+      "exitCode": 0
+    }
+  ],
+  "files": {
+    "Cargo.toml": {
+      "bytes": 459,
+      "sha256": "ea2310a193ecd5806d3eb1fa314eb4ef164ea406b2bd80abccdd28828639b3f0"
+    },
+    "Cargo.lock": {
+      "bytes": 14446,
+      "sha256": "289d616165fd28cbeb26ca242b935142b91faedbc0d99d3d73d440ad402026aa"
+    },
+    "crates/compiler/Cargo.toml": {
+      "bytes": 374,
+      "sha256": "81bed71914078d7f8f8446280044051b0651b19a88c9ff247db0b7a49390b64f"
+    },
+    "crates/compiler/src/codegen/mod.rs": {
+      "bytes": 16192,
+      "sha256": "77a8c296c626a4c8e95c81bf661659d9d390a6ae154c038a75a078b25084f8da"
+    },
+    "crates/compiler/src/codegen/region.rs": {
+      "bytes": 7691,
+      "sha256": "c556c91ddbae8daf62606b3a4a5230194df4e649e5b1bdb9ad23b0e4f5b6af5c"
+    },
+    "crates/compiler/src/codegen/region/instrumentation.rs": {
+      "bytes": 3737,
+      "sha256": "4c313d854c74e1369b7e02c1e54a318733775ee6d420bd15690651959685bd44"
+    },
+    "crates/compiler/src/codegen/region/measurement_tests.rs": {
+      "bytes": 7842,
+      "sha256": "e67216430ce63bbeedc1bd6e63118417221d962061288e7eb263c2eb254532b0"
+    },
+    "crates/compiler/src/codegen/region/runtime_tests.rs": {
+      "bytes": 24761,
+      "sha256": "09b43d10623a97f82385aa6111f2bdfaaa2721e7ec4d3b1cad50a02a20f02ecf"
+    },
+    "crates/compiler/src/codegen/validation.rs": {
+      "bytes": 2816,
+      "sha256": "cd071f667d51f6775976315610dbff8d4f012cb8623268e4e8f688bcd6e946ed"
+    },
+    "crates/compiler/src/lifetime.rs": {
+      "bytes": 29018,
+      "sha256": "c66a71b8ac630d2b10d44c91d46ff0f2837e1bdb6549711424aae9a2535b1af1"
+    },
+    "tests/support/m2_region_measure.cjs": {
+      "bytes": 13169,
+      "sha256": "e98da72b24c2761aace7972f203284d8ec3bda3c4bd51c4b092b7ad9e5bf3156"
+    },
+    "tests/support/process.rs": {
+      "bytes": 3220,
+      "sha256": "7ac7ca4356f70ad44951746340f2085eb18e10287e831187a982234a3c23d907"
+    }
+  }
+}

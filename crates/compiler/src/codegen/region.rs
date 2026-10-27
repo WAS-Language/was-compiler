@@ -9,6 +9,10 @@ use super::{function::BodyEmitter, indices::LocalIndex, memory::Helper};
 
 use super::{CodegenError, NumericPolicy};
 
+mod instrumentation;
+use instrumentation::{Counters, Event};
+pub(super) use instrumentation::{append as append_instrumentation, compile_instrumented};
+
 pub(super) fn compile(
     program: &TypedProgram,
     exports: &ExportOptions,
@@ -30,6 +34,7 @@ pub(super) struct Plan<'a> {
     pub capacity: u32,
     pub cache: u32,
     literals: Vec<(&'a TypedExpr, u32)>,
+    counters: Option<Counters>,
 }
 
 // No in-memory management header: cache globals and invocation locals own blocks.
@@ -87,6 +92,7 @@ impl<'a> Selection<'a> {
                 capacity: 0,
                 cache: 0,
                 literals: Vec::new(),
+                counters: None,
             });
         }
         let Self::Region(plan) = self else {
@@ -134,8 +140,17 @@ impl Invocation<'_> {
         body.instruction(&Instruction::I32Const(self.plan.capacity as i32));
         body.call(body.helper(Helper::Alloc));
         body.local_set(self.base);
+        if let Some(counters) = self.plan.counters {
+            // Failed provisioning never reaches this event.
+            counters.record(Event::Provision, body);
+            body.otherwise();
+            counters.record(Event::Reuse, body);
+        }
         body.end();
         body.end();
+        if let Some(counters) = self.plan.counters {
+            counters.record(Event::Literal, body);
+        }
         body.local_get(self.base);
         body.instruction(&Instruction::I32Const(offset as i32));
         body.instruction(&Instruction::I32Add);
@@ -148,11 +163,15 @@ impl Invocation<'_> {
         body.begin_if(BlockType::Empty)?;
         body.local_get(self.base);
         body.instruction(&Instruction::GlobalSet(self.plan.cache));
+        if let Some(counters) = self.plan.counters {
+            counters.record(Event::Retirement, body);
+        }
         body.end();
         Ok(())
     }
 }
 
+mod measurement_tests;
 mod runtime_tests;
 mod tests;
 

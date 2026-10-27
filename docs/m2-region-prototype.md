@@ -3,8 +3,9 @@
 Implemented as an explicitly test-invoked experiment. Ordinary compilation,
 numeric presets, CLI and browser adapters retain revision-1 storage behavior.
 There is no public option, feature, AST field or new dependency. Adversarial
-hardening under #55 is validated below; measurements (#56) and integrated M2
-release evidence (#57) remain follow-on work. This prototype is not public
+hardening under #55 is validated below; [measurements (#56)](benchmarks/m2-temporary-regions-2026-10-27/README.md)
+record successful reuse and trap quarantine. Integrated M2 release evidence (#57)
+remains follow-on work. This prototype is not public
 activation or a performance claim.
 
 ## Selection and checked lowering
@@ -81,6 +82,14 @@ bytes before/after experimental compilation.
   during reads and initialization, completed writes and ordinary retained handles.
   A capped one-page module checks front-loaded provisioning failure without
   cursor corruption or per-literal fallback.
+
+- `region::measurement_tests` (#56): deterministic matched modules and decoded
+  instrumentation isolation; four ignored bounded Node recording tests for
+  successful/interleaved reuse, lazy nonexecution, trap quarantine, failed
+  provisioning and separate capacity/timing observations. The private
+  `region::instrumentation` variant adds only i64 event globals and inspection
+  exports; uninstrumented compilation has none. Read the [measurement record](benchmarks/m2-temporary-regions-2026-10-27/README.md)
+  for event semantics, quiescent-boundary derived capacities and reproduction.
 
 ## Validation
 
