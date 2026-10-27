@@ -26,8 +26,9 @@ The timed closures return `()` and explicitly `black_box_drop` their outputs so
 Divan does not move output destruction outside the timed region. Inputs cross a
 black-box boundary too. Setup and validation are outside the measured loop; each
 invocation recreates the stateful processor. There are no registered hosts or
-production API changes. All measurements use default compiler options (currently
-all optimization levels produce identical output) and optimized Cargo bench builds.
+production API changes. These native compiler measurements use default compiler
+options (`None`) and optimized Cargo bench builds. Enabled numeric presets retain
+byte identity with one another, not necessarily with `None`.
 Stage medians do not necessarily sum to the end-to-end median: setup, intermediate
 lifetimes, cache state, and scheduling differ.
 

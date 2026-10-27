@@ -4,8 +4,8 @@ Implemented as an explicitly test-invoked experiment. Ordinary compilation,
 numeric presets, CLI and browser adapters retain revision-1 storage behavior.
 There is no public option, feature, AST field or new dependency. Adversarial
 hardening under #55 is validated below; [measurements (#56)](benchmarks/m2-temporary-regions-2026-10-27/README.md)
-record successful reuse and trap quarantine. Integrated M2 release evidence (#57)
-remains follow-on work. This prototype is not public
+record successful reuse and trap quarantine. [Integrated M2 validation (#57)](m2-temporary-regions.md)
+passed on 2026-10-27 against the final #54–#56 sources. This prototype is not public
 activation or a performance claim.
 
 ## Selection and checked lowering
@@ -103,7 +103,8 @@ Also preserve M1, memory and typed-array regressions and the repository's
 [offline fast/full validation workflow](validation.md#finite-direct-commands).
 Rebuild browser bindings before current-source browser or full ignored validation.
 Adversarial isolation evidence is recorded under #55 below. Measurements belong
-to #56, with integrated M2 evidence in #57.
+to #56; [#57's integrated record](m2-temporary-regions.md) reconciles the final
+contract-to-test map, measurement limits and fresh fast/full evidence.
 
 ### Implementation validation — 2026-10-27
 

@@ -1,5 +1,0 @@
-fn main() -> number {
-    let sum = (if true { 5 } else { 10 }) + 10;
-
-    return d;
-}

@@ -12,7 +12,7 @@ neither changes storage nor authorizes reclamation.
 _Avoid_: Temporary region allocation, managed heap object
 
 **Temporary region allocation**:
-A proposed allocation whose storage lifetime is governed by a temporary region
+An allocation whose storage lifetime is governed by a temporary region
 rather than instance-long retention. Unlike a temporary candidate, it denotes
 an actual storage choice, not merely a lifetime proof.
 _Avoid_: Temporary candidate, managed heap object

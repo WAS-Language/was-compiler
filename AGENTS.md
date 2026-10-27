@@ -149,6 +149,12 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   reusable-region prototype through the existing checked backend. Before changing
   region selection, acquisition or retirement, read [the M2 prototype contract](docs/m2-region-prototype.md).
   Before changing M2 counters or measurement workloads, read [#56's observation boundaries and evidence](docs/benchmarks/m2-temporary-regions-2026-10-27/README.md).
+  [Integrated #57 gates passed](docs/m2-temporary-regions.md) on final #54–#56 sources,
+  including ignored runtimes and freshly rebuilt ordinary browser compilation.
+  Run `cargo test --offline -p was-compiler --lib codegen::region -- --include-ignored`
+  for focused M2 checks; integration dependencies cannot activate this test-only seam.
+  Selection uses exclusive fixed per-function blocks, lazy acquisition, normal-return
+  retirement and permanent trap quarantine; it never rewinds the ordinary heap.
   Public activation, general reclamation and managed-heap support remain unauthorized.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.

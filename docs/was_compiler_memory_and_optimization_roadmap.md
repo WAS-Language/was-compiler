@@ -349,9 +349,12 @@ flowchart TD
 
 The user confirmed the consolidated contract and four-ticket implementation
 breakdown on 2026-10-26, completing the interview and approving ticket publication.
-M2 remains unimplemented; no implementation work or public activation is performed
-by this confirmation. The illustrative region model and experiments below must
-be read subject to these narrower experimental boundaries.
+At confirmation, M2 was unimplemented; the confirmation itself performed no
+implementation or public activation. The private prototype is now implemented
+through #54–#56, with [integrated validation under #57](m2-temporary-regions.md)
+passed on 2026-10-27. Public activation remains unauthorized. The illustrative
+region model and experiments below remain subject to these narrower experimental
+boundaries.
 
 Approved implementation tickets (all initially `ready-for-agent`):
 
@@ -523,6 +526,157 @@ Measure reserved pages, region bytes reused, allocation count, execution time, a
 
 **Goal:** Add reusable heap allocation for objects and buffers that are not proven region-local, without prematurely claiming a complete memory manager. The region allocator from M2 and this heap allocator serve different lifetimes.
 
+### M3 interview decisions (2026-10-27; confirmed)
+
+The consolidated scope and six-ticket implementation breakdown are confirmed.
+This records the agreed private prototype contract; it does not claim implemented
+behavior, release validation or approval for production activation.
+
+- **Initial delivery:** a private experimental allocation/release infrastructure,
+  exercised by internal test workloads through the existing checked backend.
+  Ordinary compilation remains unchanged; no public option or adapter activation
+  is introduced. A production consumer requires separate explicit approval.
+  Evidence must distinguish bounded reuse in the tested workload from general
+  memory reduction in current language programs.
+- **Reclamation authority:** management rights and proof that no usable references
+  remain are separate obligations. M3 introduces neither GC nor reference counting,
+  and neither binding overwrite nor scope/function exit alone proves death.
+  Shared, published or unknown-provenance allocations without an explicit proof
+  retain the ordinary monotonic/nonreclaiming fallback.
+- **M2 isolation:** preserve M2's existing per-function caches, normal-return reuse
+  and permanent trap quarantine. Do not migrate M2 to the new allocator, pool its
+  blocks across functions or recover quarantined blocks as part of M3.
+- **Compatibility:** retain the public eight-byte descriptors and revision-1 raw
+  host obligations. Private management metadata cannot retroactively establish
+  ownership of accepted descriptors, including separately allocated payloads.
+  No host root registration, handle release or adapter ownership transfer is
+  required. Optional managed-host ownership remains M11 work; capacity/resizing
+  decisions remain M4 work.
+
+#### Confirmed operation and evidence boundaries
+
+- **Minimal operations:** the first delivery implements private allocation and
+  release only. `realloc_owned`, content-preserving relocation and production
+  resizing consumers are deferred. A future failed reallocation must preserve the
+  original live allocation, but realignment/copy/growth/shrink policy is not part
+  of this first gate.
+- **Allocation identity:** an address, size and occupied flag alone do not authorize
+  release. Private release authority must distinguish successive allocations at
+  the same address and reject obsolete authority after reuse (the ABA case).
+  This does not change public handles or make stale memory reads safe. The limits
+  below settle identity representation and exhaustion behavior.
+- **Emitted-runtime evidence:** internal workloads must exercise helpers actually
+  emitted and executed in Wasm, with module validation and independent decoded
+  assertions. A Rust model may complement but cannot replace this evidence.
+  Test-only scenarios must not add language-level `free`, public management APIs
+  or management exports to ordinary modules. Cover simultaneous live blocks,
+  content preservation, explicit release, reuse and memory growth.
+- **Trap policy:** traps authorize no automatic release, next-call sweep or recovery
+  of still-active allocations. Completed releases remain completed; allocations
+  active at a trap remain unavailable for reuse, with no recovery promise in this
+  delivery. Bounded-growth claims apply to successful explicit-release cycles,
+  not unlimited traps that leave active allocations behind.
+
+#### Confirmed reuse, validation and measurement policy
+
+- **Size classes:** round requests to power-of-two capacities, with an eight-byte
+  minimum. Reuse only within the requested class; an empty class obtains fresh
+  storage through the existing checked bump allocator. No splitting, larger-class
+  borrowing or coalescing is included. The request-domain decision below settles
+  the upper limit and oversized-request policy. Accept internal fragmentation and
+  free capacity stranded in other classes; do not claim general fragmentation resistance.
+- **Invalid release:** obsolete identity, double release or unknown address must
+  trap before modifying free lists or valid allocation metadata. Registered metadata, not caller-supplied size/class, is authoritative.
+  Exercise these failures through the private harness, without claiming protection
+  against arbitrary memory corruption by a malicious host.
+- **Identity lifetime:** use an instance-wide monotonic identity renewed on every
+  acquisition, including reuse. Never wrap or recycle identities. Exhaustion
+  fails before removing a free block or reserving fresh storage. The bounded-metadata
+  decision below fixes the identity representation as u64.
+- **Separate reuse from space efficiency:** with fixed size classes and a fixed
+  simultaneous-live-block peak, successful allocate/release cycles must stop
+  consuming fresh storage after warmup. Measure requested bytes, reserved capacity,
+  metadata, retained free storage and memory pages separately. Page stability
+  alone is insufficient: observe bump/storage consumption as well. Mixed-class
+  workloads must verify contents of still-live blocks. No page return, shrinking
+  `memory.size` or memory bound under an increasing demand peak is promised.
+
+#### Confirmed limits and acquisition consistency
+
+- **Request domain:** the experimental allocator has 29 power-of-two payload
+  capacity classes, from eight bytes through 2^31 bytes. Reject larger requests,
+  negative inputs and out-of-domain values before mutation, without truncation.
+  A supported class does not guarantee allocation success: metadata, existing
+  reservations and memory limits still apply. This private limit changes neither
+  the source language nor the ordinary bump allocator.
+- **Alignment and zero size:** guarantee fixed eight-byte alignment instead of
+  exposing a generic alignment parameter. A zero-byte request acquires a distinct
+  live allocation in the minimum class, with its own identity and explicit release
+  obligation. Larger alignments are outside this delivery.
+- **Bounded metadata:** each physical block has a reusable management record,
+  separate from its usable payload. Renew an internal u64 identity on acquisition
+  without allocating a permanent history record. Metadata storage must stabilize
+  with the physical block population; compare release authority against the current
+  identity rather than retaining every obsolete identity.
+- **Acquisition failure:** invalid requests, arithmetic overflow, identity
+  exhaustion and allocation failure preserve live blocks and free-block
+  availability. Check size and identity availability before mutation. Reserve
+  fresh payload and metadata together through a single checked backing allocation,
+  then publish only a fully initialized block. Do not promise rollback of earlier
+  effects or shrinking of already grown memory.
+
+#### Confirmed release authority, initialization and acceptance gates
+
+- **Release authority:** use the private pair of payload address and u64 allocation
+  identity. First locate an exact payload-address match in a private linked
+  registry of physical blocks, then validate current identity and active state.
+  Reject interior, unknown, static and host-provided addresses lacking such a
+  record; never infer provenance by interpreting bytes before an untrusted
+  address as an allocation header. Derive size/class from the record rather than
+  requiring caller-supplied values. Linear release validation is accepted for
+  this prototype: O(number of registered blocks), to be measured, not advertised
+  as constant time.
+- **Initialization:** reused payload is not guaranteed to be zeroed. A private
+  consumer must initialize every byte it will read or publish. Requested extent
+  and rounded capacity are distinct; spare capacity does not enlarge the
+  consumer's requested extent. Tests initialize before reading and check that
+  writes within that extent preserve other live blocks. No isolation from a host
+  with exported-memory access is claimed. Production initialization proofs remain
+  part of separately approved consumer work.
+- **Post-trap adversarial evidence:** catch invalid-release/acquisition traps in
+  the harness and continue in the same instance. Cover double release, stale
+  authority after address reuse, unknown/interior addresses, invalid requests,
+  identity exhaustion and failed acquisition with live and free blocks present.
+  Verify live contents and free-block availability after failure, without issuing
+  duplicate active allocations. Use deterministic private test mechanisms for
+  identity exhaustion and allocation failure, not enormous iteration counts or
+  exhaustion of actual host resources.
+- **Acceptance:** deliver a correct, characterized private prototype, not production
+  activation or a required speedup. Require validated Wasm, independent decoded
+  layout/instruction checks, executed reuse/growth/failure/content scenarios,
+  storage-and-metadata plateaus under stabilized demand, and fragmentation/search
+  cost measurements without an arbitrary speed threshold. Verify ordinary
+  compilation and M2 contract preservation. Run native/browser evidence appropriate
+  to affected paths, rebuilding bindings when needed; unexecuted ignored tests
+  are not evidence. No result implicitly authorizes ordinary-array or M4 integration.
+
+All five question rounds and the consolidated six-ticket breakdown are confirmed.
+Implementation must remain within the approved private scope; ordinary-array/M4
+integration and production activation require separate explicit approval.
+
+| Ticket | Deliverable | Blocked by |
+| --- | --- | --- |
+| [#58](https://github.com/WAS-Language/was-compiler/issues/58) | Safe private allocation/release/reuse cycle | None |
+| [#59](https://github.com/WAS-Language/was-compiler/issues/59) | Size classes, multiple blocks and growth | #58 |
+| [#60](https://github.com/WAS-Language/was-compiler/issues/60) | Same-instance invalid-release evidence | #58 |
+| [#61](https://github.com/WAS-Language/was-compiler/issues/61) | Acquisition failures and trap retention | #58 |
+| [#62](https://github.com/WAS-Language/was-compiler/issues/62) | Storage/metadata plateaus, fragmentation and search costs | #59 |
+| [#63](https://github.com/WAS-Language/was-compiler/issues/63) | Integrated correctness and noninterference gates | #60, #61, #62 |
+
+These are logical blocking edges, not permission for concurrent edits to shared
+compiler planning/emission. Core changes retain a single owner; measurements and
+integrated gates run sequentially on stable sources.
+
 ### Proposed heap allocator layering
 
 ```mermaid
@@ -537,15 +691,18 @@ flowchart TD
   H --> C
 ```
 
-Possible internal operations:
+Conceptual private operations for the confirmed first delivery (not Rust or Wasm
+signature specifications):
 
 ```text
-alloc(size, alignment) -> address
-realloc_owned(old_address, old_size, new_size, alignment) -> address
-release_owned(address, allocation_class) -> void
+acquire(requested_size) -> (payload_address, allocation_identity)
+release(payload_address, allocation_identity) -> void
 ```
 
-These are runtime implementation operations, **not necessarily public WAS language functions**.
+Alignment is fixed at eight bytes; registered metadata determines the size class.
+These are test-only runtime implementation operations, not public WAS language
+functions or ordinary-module management exports. `realloc_owned` is deferred to
+separately approved follow-up work.
 
 ### Key engineering requirements
 
@@ -557,15 +714,31 @@ These are runtime implementation operations, **not necessarily public WAS langua
 - Validate behavior after `memory.grow`, especially in JavaScript where cached typed-array views may need refreshing.
 - Document whether fragmentation and coalescing are supported; an initial size-class allocator may be intentionally limited.
 
+### Deferred host-ownership protocol (post-M9)
+
+M3 must preserve the revision-1 raw-host contract: host-retained handles remain valid for the instance lifetime, including across traps and subsequent calls. Reusable heap blocks may contain **only allocations with established management rights and proven dead lifetimes**. Valid descriptor bounds alone do not establish ownership. Do not require existing Node/browser consumers to register roots, release raw handles or opt into a new contract. An optional managed-host protocol belongs to M11; until then, unknown, host-visible or potentially retained objects remain nonreclaimable.
+
+An allocator free list is permissible without an advanced alias/effects engine, provided release sites have local, explicit proofs. Advanced interprocedural effects and aliasing are deferred to M10. Treat conservative nonreclamation as correct behavior, not an incomplete free operation.
+
 ### Crucial limitation
 
 A free list answers **how to reuse released memory**, not **when memory can be released**. Region classification from M1/M2 handles only proven temporaries; arbitrary shared heap values still require a separate liveness/ownership policy. The second question needs a language-level or compiler-proven lifetime rule. Do not free an array descriptor merely because a local binding is overwritten; another alias or the host may still reference it.
 
 ### Exit gate
 
-- A dedicated stress test repeatedly allocates and releases **provably owned buffers** and demonstrates bounded reserved-memory growth for that scenario.
-- Wrong-size frees, stale pointers, double release, and use-after-free cannot be triggered through supported language operations.
-- Host-owned/static values cannot accidentally enter the free lists.
+- Dedicated emitted-Wasm workloads repeatedly acquire and release privately owned
+  buffers and demonstrate storage-and-metadata plateaus for fixed classes and
+  fixed simultaneous-live demand, with live-content checks and separate accounting
+  for requested bytes, capacity, metadata, retained free storage and pages.
+- Exercise invalid releases and failed acquisitions, then verify preserved state
+  in the same instance. Cover stale authority after reuse, double release,
+  unknown/interior addresses, request bounds, identity exhaustion and memory growth.
+- Host-owned/static values cannot enter the free lists merely by passing descriptor
+  bounds checks. Private release identity does not make stale payload reads safe;
+  supported language operations cannot invoke this experimental management seam.
+- Preserve ordinary compilation and M2 behavior; record validation and measured
+  limitations without claiming production activation, general bounded memory,
+  constant-time release, or a complete memory manager.
 
 ---
 
@@ -591,6 +764,10 @@ Stable array handle
 ```
 
 **ABI choice required:** Either (A) adopt a new 16-byte descriptor and version all public consumers, or (B) preserve the public 8-byte descriptor while storing capacity in separately managed metadata. Option A is simpler internally; Option B may preserve more compatibility but can be significantly harder to implement safely. Do not treat the diagram above as the final ABI until this decision is made.
+
+### Compatibility constraints for deferred ownership work
+
+Preserve the existing 8-byte public descriptor by default unless a separately approved ABI revision explicitly migrates consumers. Capacity may initially be represented in private metadata. No raw host-visible descriptor is automatically managed or movable merely because it validates. Only resize storage with proven rights; host-originated or unproven descriptors must have a documented safe behavior (for example, reject the resize without invalidating them). A raw handle remains stable and retained handle rights remain intact; payload-address refresh after resize is a distinct contract. Decide this before implementing the resizing operation, even though the optional host ownership protocol is deferred until M11.
 
 ### Growth algorithm
 
@@ -665,7 +842,7 @@ That supports a common meaning of “change a string” without exposing shared 
 
 ## 10. Milestone M6 — Escape and lifetime improvements
 
-**Goal:** Refine M1/M2 escape proofs and reduce allocations further through scalar replacement, compact layouts and closure/range specialization. This is the advanced optimization stage, not the first introduction of lifetime analysis.
+**Goal:** Refine M1/M2 escape proofs and reduce allocations through **conservative, locally provable** scalar replacement, compact layouts and closure/range specialization. Full interprocedural alias/effect proofs and SSA-based dataflow transformations are deferred until M10–M13. This is not the first introduction of lifetime analysis.
 
 | Target | Current concern | Candidate optimization | Soundness precondition |
 |---|---|---|---|
@@ -681,6 +858,8 @@ Do **not** implement a general “reset heap at function return” strategy. The
 ### Optional Goose-inspired compact layouts
 
 Explore inline storage only when aliasing and host contracts make it observationally equivalent. For example, compact immutable `string[]` representations may reduce indirection, but random access, UTF-8 boundaries, resizing, and public descriptor layout can erase those benefits. Treat these as **measured, opt-in internal representations**, not a general replacement for the existing handle-based ABI.
+
+**Scope gate:** Prefer straight-line or directly proven cases. If a candidate requires whole-program effects, joins, dominance, memory SSA or general alias resolution, record it as deferred rather than building a throwaway framework here.
 
 **Exit gate:** Each optimization has a negative test that deliberately exercises aliases, reentrancy, returns and traps; optimized and unoptimized modules agree on results.
 
@@ -779,6 +958,10 @@ Each pass should declare its prerequisites, preserved invariants, whether it can
 
 **Goal:** Reuse a mature WebAssembly optimizer without making the language dependent on a particular host runtime.
 
+### Independence from future SSA
+
+M9 consumes valid Core Wasm emitted by the **existing Typed AST backend**. Do not make M9 depend on M10 effects/aliasing, M11 host ownership or M12 SSA IR. Preserve before/after Binaryen artifacts and differential test cases as a baseline for the later IR migration.
+
 ### Proposed integration
 
 ```text
@@ -815,7 +998,88 @@ The exact CLI flags should follow the project's established conventions. **Binar
 
 ---
 
-## 14. Testing, benchmarks and observability
+## 14. Milestone M10 — Advanced effect and alias analysis
+
+**Goal:** Build a reusable, conservative model of memory, host and call effects for advanced optimization without retroactively changing M2–M9 semantics.
+
+### Scope
+
+- Define effects such as allocation, trap, guest-memory reads/writes, host calls, possible reentry, handle publication and retention. Distinguish local-object writes from writes observable through aliases.
+- Track object identity and may-alias relationships across assignment, calls, returned handles, captures and collection elements; use unknown/top states when proofs are absent.
+- Start intraprocedurally with conservative call summaries; add interprocedural summaries only when supported by soundness tests.
+- Keep revision-1 host behavior conservative: unknown host calls may observe and retain handles; no purity or nonretention is inferred from signatures alone.
+- Provide diagnostics explaining blocked optimizations, not just yes/no answers. Store semantic facts separately from both Typed AST mutation and Wasm emission.
+
+**Exit gate:** Adversarial alias, host callback, capture, recursion, trap and reentry tests demonstrate conservative soundness; at least one formerly unproven optimization candidate is correctly classified without changing public ABI rights.
+
+---
+
+## 15. Milestone M11 — Optional managed host ownership protocol
+
+**Goal:** Introduce an **opt-in** mechanism allowing the guest and host to coordinate management of explicitly enrolled memory objects, while preserving revision-1 raw handles unchanged.
+
+### Scope
+
+- Define enrollment/provenance separately from descriptor validity and structural bounds checks.
+- Specify whether managed handles use explicit retain/release, handles with generation checks, or another versioned protocol; **do not assume** that one mechanism is already approved.
+- Preserve existing unregistered raw host handles for the instance lifetime. Never impose retroactive root registration, release obligations or different trap-retention rules on existing clients.
+- Specify reentry, duplicate release, stale handle, failed allocation and trap behavior before allowing reuse of managed buffers.
+- Keep integration optional for Node/browser hosts and document interoperation between raw and managed handles.
+
+**Exit gate:** Managed handles obey the chosen lifecycle under nested calls, growth and traps; raw revision-1 compatibility fixtures remain valid and independent of enrollment.
+
+---
+
+## 16. Milestone M12 — SSA-oriented intermediate representation
+
+**Goal:** Add a compiler-owned optimization IR with explicit control flow **after** the stable Typed AST path and preserve the existing backend as a differential oracle during migration.
+
+### Scope and staged migration
+
+1. Define typed values, basic blocks, terminators and block parameters (or equivalent phi semantics); use explicit operations for allocations, loads, stores, traps and calls.
+2. Lower a narrow subset of numeric functions from the Typed AST first. Preserve source semantics and the established `number`/`f64` boundaries.
+3. Add CFG verification (block arguments and types, dominance, well-formed branches, effects) and a debugging dump format.
+4. Generate valid structured Core Wasm from the IR, initially alongside the current codegen rather than replacing it.
+5. Extend lowering to arrays, dynamic strings, closures, ranges, contracts and host interactions with explicit memory effects.
+6. Migrate individual optimizations only after program-level equivalence is demonstrated. Retain compatibility with optional Binaryen.
+
+**Exit gate:** The IR path matches the existing path for an agreed feature corpus across results, memory effects, host interactions, traps and ABI layout; supported optimization levels retain differential coverage. Incomplete language constructs stay on the old path until validated.
+
+---
+
+## 17. Milestone M13 — Advanced dataflow and allocation optimization
+
+**Goal:** Use M10 analysis and M12 IR to implement transformations that would otherwise require an ad hoc CFG and alias framework on the Typed AST.
+
+### Candidate passes
+
+- Global constant propagation and value numbering where observable effects permit.
+- Dominance- and loop-aware range propagation, induction-variable simplification and loop-invariant code motion with trap/order guards.
+- Scalar replacement of aggregates, finer-grained allocation removal and region expansion beyond the initial invocation-wide M1/M2 subset when aliasing and lifetime proofs are sufficient.
+- Dead-store elimination and targeted specialization, with memory effects explicitly accounted for.
+- Numeric `i32` representation propagation through SSA joins and reassignments, preserving `-0`, overflow, NaN and public `f64` semantics.
+
+**Exit gate:** Each transformation has adversarial correctness tests, pass-on/off differential cases, reproducible benchmarks and a conservative fallback. Require measured benefit or demonstrably better generated code before enabling broadly.
+
+---
+
+## 18. Milestone M14 — Profile-guided optimization and performance tooling
+
+**Goal:** Prioritize optimizations using reproducible workload evidence and make optimization decisions inspectable without requiring a production debugging runtime.
+
+### Scope
+
+- Establish instrumented workloads and offline profile artifacts with explicit engine/compiler/Binaryen versions and warm-up configuration.
+- Prototype profile-guided prioritization or specialization of hot functions; do not require profiling for correct or useful default compilation.
+- Add optional optimization reports: applied passes, numeric representation decisions, allocation/region decisions and conservative rejection reasons.
+- Compare compilation latency, guest execution time, Wasm size, capacity growth and genuine retained memory (when measurable); do not infer live bytes from pages.
+- Separate test/debug counters from release builds and maintain privacy/performance boundaries for runtime profiling.
+
+**Exit gate:** A profile is reproducible; profile/no-profile behavior is semantically equivalent; reports explain decisions without changing Wasm bytes when reporting alone is enabled.
+
+---
+
+## 19. Testing, benchmarks and observability
 
 ### Testing matrix
 
@@ -827,7 +1091,9 @@ The exact CLI flags should follow the project's established conventions. **Binar
 | Closures | Shared cells, nesting, recursion, reentrancy, traps | Before/after lifetime optimizations |
 | Strings | UTF-8, literal interning, replacement, builder | Unicode edge cases, alias cases |
 | Numerical equivalence | `f64` vs specialized `i32` | Boundary and randomized cases |
-| Optimizer equivalence | Original vs own passes vs Binaryen | All optimization levels |
+| Optimizer equivalence | Original vs own passes vs Binaryen; later SSA and PGO paths | All optimization levels |
+| Advanced effects and host ownership (post-M9) | Aliases, reentry, publication, managed-vs-raw handles | Unknown-call fallback and opt-in managed protocol |
+| IR differential validation (post-M9) | Typed AST backend vs SSA lowering and backend | CFG joins, loops, arrays, captures, traps |
 | Long-running execution | Sustained allocation and reclamation | Millions of operations, repeated calls |
 
 ### Suggested benchmark dimensions
@@ -848,7 +1114,7 @@ Benchmark scenarios should include numeric loops, Fibonacci/recursion, array app
 
 ---
 
-## 15. Sequencing and dependencies
+## 20. Sequencing and dependencies
 
 ```mermaid
 flowchart TD
@@ -857,15 +1123,22 @@ flowchart TD
   M0 --> M3[M3: Reusable managed heap]
   M3 --> M4[M4: Dynamic arrays]
   M0 --> M5[M5: Immutable string operations]
-  M2 --> M6[M6: Advanced lifetime and layouts]
+  M2 --> M6[M6: Conservative lifetime and layouts]
   M4 --> M6
   M5 --> M6
   M0 --> M7[M7: Safe i32/f64 specialization]
-  M6 --> M8[M8: Language-aware optimizations]
+  M6 --> M8[M8: Basic language-aware optimizations]
   M7 --> M8
   M8 --> M9[M9: Optional Binaryen]
+  M9 --> M10[M10: Advanced effects and aliases]
+  M10 --> M11[M11: Optional host ownership]
+  M10 --> M12[M12: SSA IR]
+  M9 --> M12
+  M12 --> M13[M13: Advanced optimization]
+  M10 --> M13
+  M13 --> M14[M14: PGO and tooling]
   M0 --> T[Continuous tests and benchmarks]
-  M9 --> T
+  M14 --> T
 ```
 
 | Priority | Milestone | Primary outcome | Main prerequisite |
@@ -873,39 +1146,48 @@ flowchart TD
 | P0 | M0 — ABI / semantic contracts | Baselines and documented alias behavior | Existing code |
 | P0 | M1 — Escape / lifetime analysis | Conservative storage classification | M0 |
 | P0 | M2 — Temporary regions | Provably safe bulk reclamation | M1 |
-| P0 | M3 — Managed heap reuse | Reuse known-dead shared buffers | M0; coordinate with M2 |
-| P0 | M4 — Dynamic arrays | Stable descriptors and safe resizing | M0, M3 core |
+| P0 | M3 — Managed heap reuse | Reuse of proven-dead owned buffers, with conservative fallback | M0; coordinate with M2 |
+| P0 | M4 — Dynamic arrays | Stable descriptors and safe resizing | M0, M3 core; ownership-compatible design |
 | P0 | M5 — String operations | Useful immutable transformations | M0; may proceed in parallel |
-| P1 | M6 — Lifetime/layout optimization | Scalar replacement and compact internal representations | M1, M2, M4/M5 |
-| P1 | M7 — `i32` / `f64` specialization | Proven-correct numeric lowering | M0; may proceed in parallel |
-| P1 | M8 — Language-aware optimizer | Controlled semantic passes | M6/M7 for advanced passes |
-| P1 | M9 — Binaryen | Optional Wasm optimizer | Valid codegen; may prototype earlier |
+| P1 | M6 — Conservative lifetime/layout optimization | Locally proven scalar replacement and compact representations | M1, M2, M4/M5 |
+| P1 | M7 — `i32` / `f64` specialization | Proven-correct numeric lowering | M0; partially implemented, may proceed in parallel |
+| P1 | M8 — Basic language-aware optimizer | Typed AST passes without mandatory CFG/SSA | M6/M7 |
+| P1 | M9 — Binaryen | Optional Wasm postprocessing | Valid codegen; may prototype earlier |
+| P2 | M10 — Advanced effects/aliases | Shared soundness facts and conservative call summaries | M9 roadmap phase (architecturally independent) |
+| P2 | M11 — Host ownership protocol | Optional managed-handle lifecycle | M10; preserve revision-1 raw handles |
+| P2 | M12 — SSA IR | Verified CFG + staged alternative backend | M9; M10 facts helpful but not required for numeric prototype |
+| P2 | M13 — Advanced optimizer | CFG/dataflow, loops and allocation optimization | M10, M12 |
+| P2 | M14 — PGO and tooling | Profile-driven choices and explainable optimizer | M13 |
 | Continuous | Tests and benchmarking | Correctness and measured improvements | Every milestone |
 
-**Pragmatic sequencing:** M1 can initially target a narrow family of temporaries without blocking array functionality. M2 must be designed for safe isolation, not a blanket heap reset. M3/M4 can proceed in parallel with broader escape-analysis work once M0 is established. A basic `wasm-opt` experiment can happen at any time because it consumes valid generated Wasm.
+**Pragmatic sequencing:** Finish the already-started M2 unchanged. M3–M9 must stay implementable on the current Typed AST/codegen; M3/M4 must honor revision-1 retention and obtain explicit management rights before relocating/reclaiming storage. Defer global alias analysis, optional managed-host ownership and mandatory SSA until after M9. M11 and M12 may progress independently after their own contracts are established; the arrows express a suggested rollout, not a release mandate.
 
 ---
 
-## 16. Decisions required before implementation
+## 21. Decisions required before implementation
 
 These are intentionally **open decisions**, not hidden assumptions:
 
 1. **Array descriptor compatibility:** adopt a public ABI v2 (e.g., 16-byte descriptor), or preserve the public 8-byte descriptor with private capacity metadata?
 2. **Reclamation model:** use proven region reclamation for temporaries; what ownership, RC, tracing, or nonreclamation fallback applies to arbitrary shared heap objects?
-3. **Temporary-region shape:** per-invocation independent arena, bounded scratch region, or reusable managed block? How are recursion, callbacks and trap paths handled?
+3. **Post-M2 region expansion:** M2 already specifies per-function exclusive reusable blocks, normal-return reuse and trap quarantine. What additional lifetimes or trap-recovery protocols would justify broadening this policy later?
 4. **Escape-analysis contract:** what host annotations or ABI rules allow proving a handle is not retained? Is unknown host behavior always considered escaping?
 5. **Host ownership:** may JS/Node allocate and hand off array descriptors? Can the Wasm side resize these arrays, and who frees their storage?
 6. **`pop` and empty collections:** return type and error/trap behavior given the currently limited optional-value types.
-7. **Iteration under mutation:** what happens if `remove` invalidates the next index? Initial-length snapshots are a recommendation, not an established dynamic-array contract.
+7. **Iteration under mutation:** M0 confirms initial-length capture and live checked reads as the proposed M4 contract; M4 must implement/test this behavior without assuming it is already shipped.
 8. **String API:** immutable `replace`/concat only, or an additional explicit mutable builder?
 9. **Unicode indexing:** bytes, Unicode scalars, grapheme clusters, or a restricted first implementation?
 10. **ABI numeric boundaries:** retain `f64` for all public `number` signatures and numeric arrays until a separately planned ABI version?
 11. **Optimization failure behavior:** should a missing/failing Binaryen installation be an error only for explicitly requested optimization, or always fall back to unoptimized Wasm?
-12. **Memory diagnostics:** how will the compiler or test harness expose heap cursor, reused bytes, and outstanding allocations without shipping a debugging runtime in release builds?
+12. **Memory diagnostics:** M0/M2 establish test-only instrumentation boundaries; which additional counters and opt-in reports are worthwhile for M14 without shipping a debugging runtime in release builds?
+13. **M10 effect granularity:** which calls, memory effects and alias classes merit precise modeling after M9 versus unknown conservative fallback?
+14. **M11 managed host protocol:** what opt-in provenance and lifecycle mechanism enables reclaiming enrolled handles without changing revision-1 raw retention?
+15. **M12 SSA design:** use block parameters or phi nodes, what verification and CFG-to-structured-Wasm strategy, and how long should the legacy codegen coexist?
+16. **M14 profiling:** which workload format, performance counters and offline profile compatibility policy are practical for browser and native compilation?
 
 ---
 
-## 17. Explicit non-goals
+## 22. Explicit non-goals
 
 The following are deliberately not prerequisites for this cycle:
 
@@ -913,7 +1195,9 @@ The following are deliberately not prerequisites for this cycle:
 - WASI as a required import or target-specific I/O abstractions.
 - WebAssembly Component Model and WIT interoperability.
 - Native executables or a Cranelift native backend.
-- A mandatory full compiler IR rewrite.
+- A mandatory full compiler IR rewrite **before M9** (an incremental SSA IR is planned in M12).
+- General interprocedural effect/alias infrastructure or host-managed-handle enrollment as a prerequisite of M2–M9 (planned for M10–M11).
+- Profile-guided compilation as a prerequisite for efficient default output (optional after M13).
 - A full Goose-style data-stack model relying on independently growing native virtual-memory regions.
 - General-purpose garbage collection **without** a separate ownership/lifetime design.
 - Full first-class function values or arbitrary closure escape if the language continues to disallow them.
@@ -921,7 +1205,7 @@ The following are deliberately not prerequisites for this cycle:
 
 ---
 
-## 18. Definition of “stable enough to optimize”
+## 23. Definition of “stable enough to optimize”
 
 Memory and numerical representation are sufficiently stable to begin aggressive optimization when:
 
@@ -936,7 +1220,7 @@ Memory and numerical representation are sufficiently stable to begin aggressive 
 - The raw unoptimized module remains valid, independently executable Core WebAssembly.
 - Binaryen is optional and optimizer-on/off equivalence is tested.
 
-**Outcome:** a small, well-defined runtime model that can support meaningful optimization and portability work later, without making modules, WASI, or multiple output targets part of the current critical path.
+**Outcome through M9:** a small, well-defined runtime model with proven conservative optimization and optional Binaryen, without making SSA, PGO, modules, WASI or multiple output targets part of the critical path. **After M9:** progressively extend analyses, optional host ownership and compiler IR under separate compatibility and differential-test gates.
 
 ---
 
@@ -944,11 +1228,11 @@ Memory and numerical representation are sufficiently stable to begin aggressive 
 
 Repository sources reviewed or used as architectural reference (public `main` branch, accessed October 17, 2026):
 
-1. [WAS Compiler README](https://github.com/LuanRoger/was-compiler)
-2. [Memory ABI documentation](https://github.com/LuanRoger/was-compiler/blob/main/docs/memory-abi.md)
-3. [Memory codegen and helpers](https://github.com/LuanRoger/was-compiler/blob/main/crates/compiler/src/codegen/memory.rs)
-4. [ABI constants and type mapping](https://github.com/LuanRoger/was-compiler/blob/main/crates/compiler/src/codegen/abi.rs)
-5. [Value lowering](https://github.com/LuanRoger/was-compiler/blob/main/crates/compiler/src/codegen/values.rs)
+1. [WAS Compiler README](https://github.com/WAS-Language/was-compiler)
+2. [Memory ABI documentation](https://github.com/WAS-Language/was-compiler/blob/main/docs/memory-abi.md)
+3. [Memory codegen and helpers](https://github.com/WAS-Language/was-compiler/blob/main/crates/compiler/src/codegen/memory.rs)
+4. [ABI constants and type mapping](https://github.com/WAS-Language/was-compiler/blob/main/crates/compiler/src/codegen/abi.rs)
+5. [Value lowering](https://github.com/WAS-Language/was-compiler/blob/main/crates/compiler/src/codegen/values.rs)
 6. [Binaryen project](https://github.com/WebAssembly/binaryen)
 7. [Goose, Byte by Byte](https://aardappel.github.io/goose/docs/html/Goose,%20Byte%20by%20Byte.html) — inspiration for compile-time lifetime reasoning, region/data-stack techniques and representation specialization; its performance results are not assumed to transfer to WAS.
 8. [Goose — Running on WebAssembly](https://aardappel.github.io/goose/docs/design/wasm.html) — design caveats for adapting native virtual-memory data stacks to WebAssembly linear memory.

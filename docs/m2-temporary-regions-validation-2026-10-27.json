@@ -1,0 +1,993 @@
+{
+  "recorded_utc": "2026-10-27T13:49:04.144032+00:00",
+  "issue": 57,
+  "source_revision": "9bbfc79f3cc4e0778c10c6f7cf2ce67bba6b6843",
+  "initial_worktree_status": [
+    " M docs/was_compiler_memory_and_optimization_roadmap.md",
+    " D examples/sum.was"
+  ],
+  "source_diff": {
+    "command": [
+      "git",
+      "--no-pager",
+      "diff",
+      "--name-status",
+      "HEAD",
+      "--",
+      "crates",
+      "tests",
+      "runtime",
+      "Cargo.toml",
+      "Cargo.lock"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "documentation_only_changes_after_validation": true,
+  "tools": [
+    {
+      "command": [
+        "rustc",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "cargo",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "v24.12.0",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "wasm-pack",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "wasm-pack 0.15.0",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "rustup",
+        "target",
+        "list",
+        "--installed"
+      ],
+      "exit_code": 0,
+      "stdout": "wasm32-unknown-unknown\nx86_64-pc-windows-msvc",
+      "stderr": ""
+    }
+  ],
+  "wasm_bindgen_path_status": "Not found on PATH; documented wasm-pack no-install build resolved compatible tooling successfully",
+  "commands": [
+    {
+      "command": "cargo test --offline -p was-compiler --lib codegen::region -- --include-ignored",
+      "exit_code": 0,
+      "seconds": 2.715,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-region.log",
+      "phase": "focused",
+      "log_sha256": "1c80f5b5b3fa23c06ca373b865051e54e65945353da613e62717778033180ddd",
+      "targets": [
+        {
+          "target": "Running unittests src\\lib.rs (target\\debug\\deps\\was_compiler-eb8c15a554b28099.exe)",
+          "result": "test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 510 filtered out; finished in 1.53s"
+        }
+      ]
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --lib lifetime -- --include-ignored",
+      "exit_code": 0,
+      "seconds": 0.999,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-lifetime.log",
+      "phase": "focused",
+      "log_sha256": "4d499a99588d3653f0a22eb8437bfd9245a279106b273e2750a7e97282408432",
+      "targets": [
+        {
+          "target": "Running unittests src\\lib.rs (target\\debug\\deps\\was_compiler-eb8c15a554b28099.exe)",
+          "result": "test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 491 filtered out; finished in 0.73s"
+        }
+      ]
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --lib codegen::memory_tests -- --include-ignored",
+      "exit_code": 0,
+      "seconds": 1.55,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-memory.log",
+      "phase": "focused",
+      "log_sha256": "4933bd8b5c8284648e9084f71b91d33631cdbdf0567d1fdf419d40be8fd9f70c",
+      "targets": [
+        {
+          "target": "Running unittests src\\lib.rs (target\\debug\\deps\\was_compiler-eb8c15a554b28099.exe)",
+          "result": "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 512 filtered out; finished in 1.30s"
+        }
+      ]
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --test typed_arrays_lowering",
+      "exit_code": 0,
+      "seconds": 2.284,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-typed-lowering.log",
+      "phase": "focused",
+      "log_sha256": "2a26e6cd98870f93dafab3668f63cdba1db6967992a14ffde85996d50442f07d",
+      "targets": [
+        {
+          "target": "Running tests\\typed_arrays_lowering.rs (target\\debug\\deps\\typed_arrays_lowering-0e0df37e9e83d331.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        }
+      ]
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --test typed_arrays_runtime raw_host_retained_typed_arrays_survive_recursive_reentry_traps_and_rhs_growth -- --ignored --exact",
+      "exit_code": 0,
+      "seconds": 2.496,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-typed-retention.log",
+      "phase": "focused",
+      "log_sha256": "e60379fef7323d89730985e95df7263184ff76e44d5a8fccf07aafe467ecee85",
+      "targets": [
+        {
+          "target": "Running tests\\typed_arrays_runtime.rs (target\\debug\\deps\\typed_arrays_runtime-193fb5b38e438a04.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.28s"
+        }
+      ]
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --test closures_runtime reentrant_live_contexts_and_retained_handles_survive_inner_traps_and_growth -- --ignored --exact",
+      "exit_code": 0,
+      "seconds": 2.454,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-closure-retention.log",
+      "phase": "focused",
+      "log_sha256": "18365def54e48f0dc2ff1cbe59ad2bff270a58928897ce796ca8cc05c8b75495",
+      "targets": [
+        {
+          "target": "Running tests\\closures_runtime.rs (target\\debug\\deps\\closures_runtime-352c3f2e5bae2a27.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.25s"
+        }
+      ]
+    },
+    {
+      "command": "cargo test --offline",
+      "exit_code": 0,
+      "seconds": 24.749,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-default.log",
+      "result_summaries": 70,
+      "totals": {
+        "passed": 1196,
+        "failed": 0,
+        "ignored": 219
+      },
+      "phase": "integrated",
+      "log_sha256": "8bf2ce8bc201b1912651cd6236ac34cce4adaff6c9c2487fb8e4baea23e8658f",
+      "targets": [
+        {
+          "target": "Running unittests src\\lib.rs (target\\debug\\deps\\was_compiler-034920b2707c5ee8.exe)",
+          "result": "test result: ok. 485 passed; 0 failed; 48 ignored; 0 measured; 0 filtered out; finished in 0.13s"
+        },
+        {
+          "target": "Running tests\\abi.rs (target\\debug\\deps\\abi-f90d455710515dd3.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\array_equality.rs (target\\debug\\deps\\array_equality-dba85ca74ebd87fb.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        },
+        {
+          "target": "Running tests\\array_for_loops.rs (target\\debug\\deps\\array_for_loops-923669bca34f163d.exe)",
+          "result": "test result: ok. 6 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.04s"
+        },
+        {
+          "target": "Running tests\\benchmark_corpus.rs (target\\debug\\deps\\benchmark_corpus-7a4e9de4d6e724bc.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.29s"
+        },
+        {
+          "target": "Running tests\\block_values.rs (target\\debug\\deps\\block_values-27d99bf6f9898164.exe)",
+          "result": "test result: ok. 10 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.04s"
+        },
+        {
+          "target": "Running tests\\closures_frontend.rs (target\\debug\\deps\\closures_frontend-219ddc8874f28480.exe)",
+          "result": "test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s"
+        },
+        {
+          "target": "Running tests\\closures_lowering.rs (target\\debug\\deps\\closures_lowering-7a7d6fe0d5ffc5b9.exe)",
+          "result": "test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s"
+        },
+        {
+          "target": "Running tests\\closures_runtime.rs (target\\debug\\deps\\closures_runtime-f1784127c0f21a5f.exe)",
+          "result": "test result: ok. 0 passed; 0 failed; 30 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\comments.rs (target\\debug\\deps\\comments-6ed1426c5fdc5ba5.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\compound_assignment.rs (target\\debug\\deps\\compound_assignment-e09f164e8ca1e69c.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\contracts_frontend.rs (target\\debug\\deps\\contracts_frontend-c0470f3d3d68ace5.exe)",
+          "result": "test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\contracts_lowering.rs (target\\debug\\deps\\contracts_lowering-4e176718fccc2a71.exe)",
+          "result": "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\contracts_runtime.rs (target\\debug\\deps\\contracts_runtime-af2e8b5e4daf8667.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\default_lowering.rs (target\\debug\\deps\\default_lowering-e7798d553a734f73.exe)",
+          "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\default_runtime.rs (target\\debug\\deps\\default_runtime-c8c97b876a468533.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\diagnostics.rs (target\\debug\\deps\\diagnostics-b65de3953f478171.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\emitter.rs (target\\debug\\deps\\emitter-b782ee0a1d7d9964.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\for_frontend.rs (target\\debug\\deps\\for_frontend-d59ad1d0636a416f.exe)",
+          "result": "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\for_loops.rs (target\\debug\\deps\\for_loops-71d5de696f07d985.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.15s"
+        },
+        {
+          "target": "Running tests\\for_lowering.rs (target\\debug\\deps\\for_lowering-3da7d9ea81464aec.exe)",
+          "result": "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+        },
+        {
+          "target": "Running tests\\inference.rs (target\\debug\\deps\\inference-4c289b05b4404518.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        },
+        {
+          "target": "Running tests\\integer_baselines.rs (target\\debug\\deps\\integer_baselines-4601f7960c105387.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.16s"
+        },
+        {
+          "target": "Running tests\\integer_locals.rs (target\\debug\\deps\\integer_locals-80ca7ea74a0c54fe.exe)",
+          "result": "test result: ok. 16 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\integer_specialization.rs (target\\debug\\deps\\integer_specialization-343a99df04f78817.exe)",
+          "result": "test result: ok. 11 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.35s"
+        },
+        {
+          "target": "Running tests\\loop_control.rs (target\\debug\\deps\\loop_control-70fc7de453acc002.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\match_frontend.rs (target\\debug\\deps\\match_frontend-d0a3b6dcee8aab27.exe)",
+          "result": "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\match_lowering.rs (target\\debug\\deps\\match_lowering-33b5a8fe8e044acf.exe)",
+          "result": "test result: ok. 17 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\match_runtime.rs (target\\debug\\deps\\match_runtime-2bc5ec58bc765d59.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\memory_benchmarks.rs (target\\debug\\deps\\memory_benchmarks-e7c65e9a33bb6c74.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.10s"
+        },
+        {
+          "target": "Running tests\\named_arguments.rs (target\\debug\\deps\\named_arguments-fc19dbe740cfe514.exe)",
+          "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\named_call_lowering.rs (target\\debug\\deps\\named_call_lowering-688a606d446ea69d.exe)",
+          "result": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\named_call_runtime.rs (target\\debug\\deps\\named_call_runtime-34263dff6f90d5a4.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+        },
+        {
+          "target": "Running tests\\named_defaults.rs (target\\debug\\deps\\named_defaults-a6733bd99a206e41.exe)",
+          "result": "test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\pipelines_adapters.rs (target\\debug\\deps\\pipelines_adapters-0bfd59131cc481fa.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+        },
+        {
+          "target": "Running tests\\pipelines_frontend.rs (target\\debug\\deps\\pipelines_frontend-24f18a5b99562224.exe)",
+          "result": "test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\pipelines_lowering.rs (target\\debug\\deps\\pipelines_lowering-fa0573057a801675.exe)",
+          "result": "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\pipelines_runtime.rs (target\\debug\\deps\\pipelines_runtime-e25cd125f8ba0915.exe)",
+          "result": "test result: ok. 0 passed; 0 failed; 20 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\process.rs (target\\debug\\deps\\process-2378e6c3fdc3b9e4.exe)",
+          "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s"
+        },
+        {
+          "target": "Running tests\\range_frontend.rs (target\\debug\\deps\\range_frontend-f519ab30f29c76b7.exe)",
+          "result": "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\range_membership.rs (target\\debug\\deps\\range_membership-c6e1aace0aa829cc.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        },
+        {
+          "target": "Running tests\\ranges.rs (target\\debug\\deps\\ranges-de171f7de7833c96.exe)",
+          "result": "test result: ok. 18 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.04s"
+        },
+        {
+          "target": "Running tests\\remainder.rs (target\\debug\\deps\\remainder-43929c105a5654b2.exe)",
+          "result": "test result: ok. 10 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.07s"
+        },
+        {
+          "target": "Running tests\\result_inference.rs (target\\debug\\deps\\result_inference-26778ba27c4ed1d6.exe)",
+          "result": "test result: ok. 33 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\result_inference_adapters.rs (target\\debug\\deps\\result_inference_adapters-131b6d0bfff1dd52.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\result_inference_chains.rs (target\\debug\\deps\\result_inference_chains-64212dd85cb49300.exe)",
+          "result": "test result: ok. 8 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\result_inference_combined.rs (target\\debug\\deps\\result_inference_combined-407a7b0e8f805cc7.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+        },
+        {
+          "target": "Running tests\\result_inference_combined_checks.rs (target\\debug\\deps\\result_inference_combined_checks-b0ec3d7129b77538.exe)",
+          "result": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\result_inference_defaults.rs (target\\debug\\deps\\result_inference_defaults-8703cd0afd289321.exe)",
+          "result": "test result: ok. 11 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\runtime.rs (target\\debug\\deps\\runtime-21a7054632071594.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\typed_array_marshaling.rs (target\\debug\\deps\\typed_array_marshaling-76ef1697c717b9c8.exe)",
+          "result": "test result: ok. 0 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\typed_array_measurements.rs (target\\debug\\deps\\typed_array_measurements-7894f37849fb212d.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.27s"
+        },
+        {
+          "target": "Running tests\\typed_arrays.rs (target\\debug\\deps\\typed_arrays-b8043916a1978cc0.exe)",
+          "result": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\typed_arrays_lowering.rs (target\\debug\\deps\\typed_arrays_lowering-c1e0aea3264dc17b.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\typed_arrays_runtime.rs (target\\debug\\deps\\typed_arrays_runtime-082d45119539a9a7.exe)",
+          "result": "test result: ok. 0 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\value_loops.rs (target\\debug\\deps\\value_loops-834fe4bafee1c6a4.exe)",
+          "result": "test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\workspace_contract.rs (target\\debug\\deps\\workspace_contract-bb1cbb72e70a594f.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s"
+        },
+        {
+          "target": "Running tests\\wp5_interactions.rs (target\\debug\\deps\\wp5_interactions-3791b0f1df300545.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        },
+        {
+          "target": "Running unittests src\\main.rs (target\\debug\\deps\\was_compiler-8b65c10f36655a38.exe)",
+          "result": "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\abi.rs (target\\debug\\deps\\abi-4dc1b3dd1d2467cb.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        },
+        {
+          "target": "Running tests\\cli.rs (target\\debug\\deps\\cli-6f65d3a9b3d1754e.exe)",
+          "result": "test result: ok. 50 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 7.43s"
+        },
+        {
+          "target": "Running tests\\closures_adapters.rs (target\\debug\\deps\\closures_adapters-6eaf11e732e692df.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 2.82s"
+        },
+        {
+          "target": "Running tests\\contracts_adapters.rs (target\\debug\\deps\\contracts_adapters-0e0743c8fdf07f31.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.73s"
+        },
+        {
+          "target": "Running tests\\diagnostics.rs (target\\debug\\deps\\diagnostics-14eccc3e88597933.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s"
+        },
+        {
+          "target": "Running tests\\match_adapters.rs (target\\debug\\deps\\match_adapters-f95ca3d304b226e0.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s"
+        },
+        {
+          "target": "Running tests\\pipelines_adapters.rs (target\\debug\\deps\\pipelines_adapters-09af83ecb5e54340.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.75s"
+        },
+        {
+          "target": "Running tests\\result_inference_adapters.rs (target\\debug\\deps\\result_inference_adapters-c85e06ec842584d4.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s"
+        },
+        {
+          "target": "Running tests\\result_inference_release.rs (target\\debug\\deps\\result_inference_release-37f9a4a444ab31fd.exe)",
+          "result": "test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.67s"
+        },
+        {
+          "target": "Running tests\\typed_arrays_adapters.rs (target\\debug\\deps\\typed_arrays_adapters-f10cd6d15dafcd91.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.63s"
+        },
+        {
+          "target": "Doc-tests was_compiler",
+          "result": "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        }
+      ]
+    },
+    {
+      "command": "cargo clippy --offline --all-targets -- -D warnings",
+      "exit_code": 0,
+      "seconds": 0.506,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-clippy.log",
+      "result_summaries": 0,
+      "totals": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      "phase": "integrated",
+      "log_sha256": "9d892c5778d0c975f64a671e66ea5a753502353da3addd1dfdf3825225e406a2",
+      "targets": []
+    },
+    {
+      "command": "cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown",
+      "exit_code": 0,
+      "seconds": 0.278,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-core-wasm.log",
+      "result_summaries": 0,
+      "totals": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      "phase": "integrated",
+      "log_sha256": "d7dae192715495fa89ccbe279af3efb9792c1dae1768228e369035e68a1df673",
+      "targets": []
+    },
+    {
+      "command": "cargo test --offline -p was-compiler --test workspace_contract",
+      "exit_code": 0,
+      "seconds": 1.278,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-workspace.log",
+      "result_summaries": 1,
+      "totals": {
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "phase": "integrated",
+      "log_sha256": "eda0014bfb5d013f56abcf5175eace616fac6997feb75ab9550032d070b29bf2",
+      "targets": [
+        {
+          "target": "Running tests\\workspace_contract.rs (target\\debug\\deps\\workspace_contract-6a7362cc7da017da.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s"
+        }
+      ]
+    },
+    {
+      "command": "wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline",
+      "exit_code": 0,
+      "seconds": 13.197,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-browser-build.log",
+      "result_summaries": 0,
+      "totals": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      "phase": "integrated",
+      "log_sha256": "017aba35775b6e59ed738ab93b47b72c72881dfc235f80d6e6dc7a6dea099925",
+      "targets": []
+    },
+    {
+      "command": "cargo test --offline --workspace -- --include-ignored",
+      "exit_code": 0,
+      "seconds": 174.63,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-full.log",
+      "result_summaries": 81,
+      "totals": {
+        "passed": 1428,
+        "failed": 0,
+        "ignored": 0
+      },
+      "phase": "integrated",
+      "log_sha256": "88b0c38c8da53b7794f8dc07db55a4f3d86b94b441e26903ae9fbb0ffda6eccc",
+      "targets": [
+        {
+          "target": "Running unittests src\\lib.rs (target\\debug\\deps\\was_compiler-a10cacda90f85f65.exe)",
+          "result": "test result: ok. 533 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.03s"
+        },
+        {
+          "target": "Running tests\\abi.rs (target\\debug\\deps\\abi-6d6ce4e19d5e4b9f.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s"
+        },
+        {
+          "target": "Running tests\\array_equality.rs (target\\debug\\deps\\array_equality-49a252461d4f662f.exe)",
+          "result": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s"
+        },
+        {
+          "target": "Running tests\\array_for_loops.rs (target\\debug\\deps\\array_for_loops-21c2ac8a2abacc70.exe)",
+          "result": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s"
+        },
+        {
+          "target": "Running tests\\benchmark_corpus.rs (target\\debug\\deps\\benchmark_corpus-6aa7cfdbcd065355.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s"
+        },
+        {
+          "target": "Running tests\\block_values.rs (target\\debug\\deps\\block_values-50f4d746e5594547.exe)",
+          "result": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s"
+        },
+        {
+          "target": "Running tests\\closures_frontend.rs (target\\debug\\deps\\closures_frontend-2a6082297befa2b4.exe)",
+          "result": "test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s"
+        },
+        {
+          "target": "Running tests\\closures_lowering.rs (target\\debug\\deps\\closures_lowering-fdc7a106597a261b.exe)",
+          "result": "test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s"
+        },
+        {
+          "target": "Running tests\\closures_runtime.rs (target\\debug\\deps\\closures_runtime-e52267d50a7b5b4c.exe)",
+          "result": "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.31s"
+        },
+        {
+          "target": "Running tests\\comments.rs (target\\debug\\deps\\comments-93fc56c3de853d22.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\compound_assignment.rs (target\\debug\\deps\\compound_assignment-70577dc769ea4e38.exe)",
+          "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s"
+        },
+        {
+          "target": "Running tests\\contracts_frontend.rs (target\\debug\\deps\\contracts_frontend-6bc68364480a60cd.exe)",
+          "result": "test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\contracts_lowering.rs (target\\debug\\deps\\contracts_lowering-b74c8a0c0a7bbcb6.exe)",
+          "result": "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\contracts_runtime.rs (target\\debug\\deps\\contracts_runtime-a2b7d559254ba6cd.exe)",
+          "result": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s"
+        },
+        {
+          "target": "Running tests\\default_lowering.rs (target\\debug\\deps\\default_lowering-43b1a1898996d826.exe)",
+          "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\default_runtime.rs (target\\debug\\deps\\default_runtime-21388991783023b0.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s"
+        },
+        {
+          "target": "Running tests\\diagnostics.rs (target\\debug\\deps\\diagnostics-5de223c5bf16de35.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\emitter.rs (target\\debug\\deps\\emitter-d21575b7fe9eca74.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s"
+        },
+        {
+          "target": "Running tests\\for_frontend.rs (target\\debug\\deps\\for_frontend-3f028b0b76e2c8ce.exe)",
+          "result": "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\for_loops.rs (target\\debug\\deps\\for_loops-846cb286f4ea130a.exe)",
+          "result": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s"
+        },
+        {
+          "target": "Running tests\\for_lowering.rs (target\\debug\\deps\\for_lowering-15a7686d1844e3f7.exe)",
+          "result": "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+        },
+        {
+          "target": "Running tests\\inference.rs (target\\debug\\deps\\inference-3092507c2b31967b.exe)",
+          "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s"
+        },
+        {
+          "target": "Running tests\\integer_baselines.rs (target\\debug\\deps\\integer_baselines-23d58b8aa436801c.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s"
+        },
+        {
+          "target": "Running tests\\integer_locals.rs (target\\debug\\deps\\integer_locals-e9eb8caf3bbc5d5b.exe)",
+          "result": "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s"
+        },
+        {
+          "target": "Running tests\\integer_specialization.rs (target\\debug\\deps\\integer_specialization-241a72c382924d95.exe)",
+          "result": "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s"
+        },
+        {
+          "target": "Running tests\\loop_control.rs (target\\debug\\deps\\loop_control-ebbe1b266811eaec.exe)",
+          "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s"
+        },
+        {
+          "target": "Running tests\\match_frontend.rs (target\\debug\\deps\\match_frontend-d67432d486834ef2.exe)",
+          "result": "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\match_lowering.rs (target\\debug\\deps\\match_lowering-05f794f203c6c6ec.exe)",
+          "result": "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s"
+        },
+        {
+          "target": "Running tests\\match_runtime.rs (target\\debug\\deps\\match_runtime-9cf49ef1eac14cb1.exe)",
+          "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s"
+        },
+        {
+          "target": "Running tests\\memory_benchmarks.rs (target\\debug\\deps\\memory_benchmarks-436e41e4d08b5642.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s"
+        },
+        {
+          "target": "Running tests\\named_arguments.rs (target\\debug\\deps\\named_arguments-ca313a8a8620503a.exe)",
+          "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\named_call_lowering.rs (target\\debug\\deps\\named_call_lowering-c5b5328e09c3d928.exe)",
+          "result": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\named_call_runtime.rs (target\\debug\\deps\\named_call_runtime-05ddbff43de86ee6.exe)",
+          "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s"
+        },
+        {
+          "target": "Running tests\\named_defaults.rs (target\\debug\\deps\\named_defaults-b169f661ea0769ef.exe)",
+          "result": "test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\pipelines_adapters.rs (target\\debug\\deps\\pipelines_adapters-938b5f94aae8ab32.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+        },
+        {
+          "target": "Running tests\\pipelines_frontend.rs (target\\debug\\deps\\pipelines_frontend-89c9a437e2b180fa.exe)",
+          "result": "test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\pipelines_lowering.rs (target\\debug\\deps\\pipelines_lowering-a5de91046eb77a89.exe)",
+          "result": "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\pipelines_runtime.rs (target\\debug\\deps\\pipelines_runtime-2d3e5e22c1f4cc66.exe)",
+          "result": "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s"
+        },
+        {
+          "target": "Running tests\\process.rs (target\\debug\\deps\\process-9cc6b8cd977f88f1.exe)",
+          "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s"
+        },
+        {
+          "target": "Running tests\\range_frontend.rs (target\\debug\\deps\\range_frontend-09c6d3daf1b36b62.exe)",
+          "result": "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\range_membership.rs (target\\debug\\deps\\range_membership-59fc828b3b82e8ca.exe)",
+          "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s"
+        },
+        {
+          "target": "Running tests\\ranges.rs (target\\debug\\deps\\ranges-bea656a097bb1f80.exe)",
+          "result": "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s"
+        },
+        {
+          "target": "Running tests\\remainder.rs (target\\debug\\deps\\remainder-5707947cda0cb4c2.exe)",
+          "result": "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s"
+        },
+        {
+          "target": "Running tests\\result_inference.rs (target\\debug\\deps\\result_inference-8802b7ae55c7fd6e.exe)",
+          "result": "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s"
+        },
+        {
+          "target": "Running tests\\result_inference_adapters.rs (target\\debug\\deps\\result_inference_adapters-5a74cdbe250e8481.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s"
+        },
+        {
+          "target": "Running tests\\result_inference_chains.rs (target\\debug\\deps\\result_inference_chains-96b6ac3635119023.exe)",
+          "result": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s"
+        },
+        {
+          "target": "Running tests\\result_inference_combined.rs (target\\debug\\deps\\result_inference_combined-5c6d0ff0a563d398.exe)",
+          "result": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s"
+        },
+        {
+          "target": "Running tests\\result_inference_combined_checks.rs (target\\debug\\deps\\result_inference_combined_checks-bb80c5c80984fd5f.exe)",
+          "result": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\result_inference_defaults.rs (target\\debug\\deps\\result_inference_defaults-c9dc150cb47796f5.exe)",
+          "result": "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.99s"
+        },
+        {
+          "target": "Running tests\\runtime.rs (target\\debug\\deps\\runtime-812884c4e725547a.exe)",
+          "result": "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s"
+        },
+        {
+          "target": "Running tests\\typed_array_marshaling.rs (target\\debug\\deps\\typed_array_marshaling-ef1acc5092e2377b.exe)",
+          "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s"
+        },
+        {
+          "target": "Running tests\\typed_array_measurements.rs (target\\debug\\deps\\typed_array_measurements-e0a697b05cf7629e.exe)",
+          "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s"
+        },
+        {
+          "target": "Running tests\\typed_arrays.rs (target\\debug\\deps\\typed_arrays-16c528887fc43f24.exe)",
+          "result": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\typed_arrays_lowering.rs (target\\debug\\deps\\typed_arrays_lowering-3beed9c3bd81683a.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        },
+        {
+          "target": "Running tests\\typed_arrays_runtime.rs (target\\debug\\deps\\typed_arrays_runtime-f6da7574d5079791.exe)",
+          "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s"
+        },
+        {
+          "target": "Running tests\\value_loops.rs (target\\debug\\deps\\value_loops-db22effda794333d.exe)",
+          "result": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s"
+        },
+        {
+          "target": "Running tests\\workspace_contract.rs (target\\debug\\deps\\workspace_contract-bfe9e3d4fdb7a8b8.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s"
+        },
+        {
+          "target": "Running tests\\wp5_interactions.rs (target\\debug\\deps\\wp5_interactions-4eb1b9b7883cac5f.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s"
+        },
+        {
+          "target": "Running unittests src\\lib.rs (target\\debug\\deps\\was_compiler_browser-e0e9aa7a8badd33c.exe)",
+          "result": "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        },
+        {
+          "target": "Running tests\\browser.rs (target\\debug\\deps\\browser-936da344a9192882.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s"
+        },
+        {
+          "target": "Running tests\\closures_adapters.rs (target\\debug\\deps\\closures_adapters-f98d3e71affd3456.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s"
+        },
+        {
+          "target": "Running tests\\contracts_adapters.rs (target\\debug\\deps\\contracts_adapters-24ff2cadcce7f221.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s"
+        },
+        {
+          "target": "Running tests\\default_runtime.rs (target\\debug\\deps\\default_runtime-a9ee6d1c05825854.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s"
+        },
+        {
+          "target": "Running tests\\integer_specialization_adapters.rs (target\\debug\\deps\\integer_specialization_adapters-7ed9170bfcbbd02b.exe)",
+          "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.73s"
+        },
+        {
+          "target": "Running tests\\match_adapters.rs (target\\debug\\deps\\match_adapters-2a32cd85a3110ca5.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s"
+        },
+        {
+          "target": "Running tests\\pipelines_adapters.rs (target\\debug\\deps\\pipelines_adapters-79497d5c72a1f090.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s"
+        },
+        {
+          "target": "Running tests\\result_inference.rs (target\\debug\\deps\\result_inference-c1c3852f3e776ac9.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s"
+        },
+        {
+          "target": "Running tests\\result_inference_adapters.rs (target\\debug\\deps\\result_inference_adapters-a1b49ef45aca3404.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s"
+        },
+        {
+          "target": "Running tests\\typed_arrays_adapters.rs (target\\debug\\deps\\typed_arrays_adapters-19eb93eebe46eadc.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s"
+        },
+        {
+          "target": "Running unittests src\\main.rs (target\\debug\\deps\\was_compiler-f7af9f4ff8e1181a.exe)",
+          "result": "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+        },
+        {
+          "target": "Running tests\\abi.rs (target\\debug\\deps\\abi-9ed608553fecd0d3.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s"
+        },
+        {
+          "target": "Running tests\\cli.rs (target\\debug\\deps\\cli-f92287d213f600b2.exe)",
+          "result": "test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.98s"
+        },
+        {
+          "target": "Running tests\\closures_adapters.rs (target\\debug\\deps\\closures_adapters-d5b284e4018aed30.exe)",
+          "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.90s"
+        },
+        {
+          "target": "Running tests\\contracts_adapters.rs (target\\debug\\deps\\contracts_adapters-0c239b54ef902443.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.18s"
+        },
+        {
+          "target": "Running tests\\diagnostics.rs (target\\debug\\deps\\diagnostics-c2456ad86f0bab6a.exe)",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s"
+        },
+        {
+          "target": "Running tests\\match_adapters.rs (target\\debug\\deps\\match_adapters-cff6702ef122cb33.exe)",
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s"
+        },
+        {
+          "target": "Running tests\\pipelines_adapters.rs (target\\debug\\deps\\pipelines_adapters-04ea6acb1270ee89.exe)",
+          "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.56s"
+        },
+        {
+          "target": "Running tests\\result_inference_adapters.rs (target\\debug\\deps\\result_inference_adapters-e4c8bc372b0fb56e.exe)",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s"
+        },
+        {
+          "target": "Running tests\\result_inference_release.rs (target\\debug\\deps\\result_inference_release-398b1721b87c7c40.exe)",
+          "result": "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.55s"
+        },
+        {
+          "target": "Running tests\\typed_arrays_adapters.rs (target\\debug\\deps\\typed_arrays_adapters-acfe9b35fb75e697.exe)",
+          "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s"
+        },
+        {
+          "target": "Doc-tests was_compiler",
+          "result": "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        }
+      ]
+    },
+    {
+      "command": "cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings",
+      "exit_code": 0,
+      "seconds": 3.645,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-browser-clippy.log",
+      "result_summaries": 0,
+      "totals": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      "phase": "integrated",
+      "log_sha256": "e7842d349d7d40c4dabfa294023b9b993ad72ebb5735a4f48f948797522c3fd8",
+      "targets": []
+    },
+    {
+      "command": "node tests/browser.cjs pkg",
+      "exit_code": 0,
+      "seconds": 0.67,
+      "timeout_seconds": 180,
+      "log": "target/m2-57-browser-smoke.log",
+      "phase": "additional smoke",
+      "log_sha256": "1c975f7138cffcd787412d4dac7944d153f6cbd11f9acbb3e7de9d0ead3dd283",
+      "output": [
+        "ok 1 - arithmetic, control flow, recursion, and internal calls",
+        "ok 2 - while transfers target nearest loops, recheck conditions, and retain diagnostics",
+        "ok 3 - statement and value loops preserve types, effects, transfers, Never, diagnostics, and parity",
+        "ok 4 - compound updates preserve old values, target traps, and optimization parity",
+        "ok 5 - match preserves ordered fractional patterns, effects, values, transfers, and diagnostics",
+        "ok 6 - comments preserve within-level bytes and execute without changing strings or division",
+        "ok 7 - inferred locals preserve all types, host order, and annotated bytes at every level",
+        "ok 8 - inferred acyclic named/default diamonds retain concrete ABI, effects, and private ranges",
+        "ok 9 - inferred result rejection matrix preserves independent native diagnostic origins and recovery",
+        "ok 10 - inferred reassignment and void diagnostics retain locations and recover",
+        "ok 11 - value blocks and if preserve concrete results, effects, transfers, errors, and parity",
+        "ok 12 - remainder arithmetic, IEEE-754 inputs, host order, and guest-only memory",
+        "ok 13 - string and array execution with explicit raw memory descriptors",
+        "ok 14 - numeric array content equality, mutation, IEEE-754, and descriptor traps",
+        "ok 15 - compile and compileWat report each stage and recover",
+        "ok 16 - unterminated block comments retain original locations and compilation recovers",
+        "ok 17 - host imports cover every supported type without wrappers",
+        "ok 18 - host registration rejects invalid names, types, and arrays atomically",
+        "ok 19 - private ranges require explicit exports and allow contextual by host calls",
+        "ok 20 - ranges and array for compose with value regions, aliases, compounds, and abrupt flow",
+        "ok 21 - range and for diagnostics preserve source spans, skipped checks, and recovery",
+        "ok 22 - range host parameters, results, and reserved names are rejected atomically",
+        "ok 23 - all, none, selected, and invalid exports preserve compilation",
+        "ok 24 - optimization levels specialize integer expressions, require exact integers, and preserve state",
+        "ok 25 - returned wasm bytes remain owned across calls and compiler disposal",
+        "browser compiler: 25 tests passed"
+      ]
+    },
+    {
+      "command": "git --no-pager diff --check",
+      "exit_code": 0,
+      "seconds": 0.041,
+      "timeout_seconds": 10,
+      "phase": "final documentation",
+      "log": "target/m2-57-diff-check.log",
+      "log_sha256": "3ebbeb116bc2bd47847f7b94416c82222a9d3815da2d75d6644c91e0483d665d"
+    }
+  ],
+  "artifact_hashes": [
+    {
+      "path": "pkg/was_compiler.js",
+      "bytes": 11847,
+      "sha256": "32021468012c062c9d5c47e303f58d7fe6dab4e0492067624dc64fdc521bce25"
+    },
+    {
+      "path": "pkg/was_compiler_bg.wasm",
+      "bytes": 2986522,
+      "sha256": "a22b3076a05e2b1ed9ca591b426306fefe3a2e7458dafde784b50235b1661b5d"
+    },
+    {
+      "path": "pkg/was_compiler.d.ts",
+      "bytes": 2633,
+      "sha256": "d20e53892b4c62b016b2221ccf18fc2c3a1dccf1ac8264b793a0ddac0c1fa58e"
+    },
+    {
+      "path": "pkg/was_compiler_bg.wasm.d.ts",
+      "bytes": 1229,
+      "sha256": "23d15be5fca9bbef45c457d9de17df1f9f4d3b4f5059e7aac264d561e81131c9"
+    },
+    {
+      "path": "Cargo.lock",
+      "bytes": 14446,
+      "sha256": "289d616165fd28cbeb26ca242b935142b91faedbc0d99d3d73d440ad402026aa"
+    }
+  ],
+  "measurement_audit": {
+    "record": "docs/benchmarks/m2-temporary-regions-2026-10-27/environment.json",
+    "matching_input_files": 12,
+    "matching_recorded_json_identities": 16,
+    "matching_existing_module_artifacts_before_validation": 48,
+    "note": "Read-only SHA-256 audit before fresh correctness runs; historical timing samples unchanged. Transient measurement artifacts can be regenerated by correctness tests."
+  },
+  "review": {
+    "base": "9bbfc79f3cc4e0778c10c6f7cf2ce67bba6b6843",
+    "comparison": "Scoped uncommitted working tree and new documents; excluded pre-existing roadmap sections and example deletion",
+    "standards_hard_findings": 0,
+    "standards_judgement_calls": 0,
+    "spec_initial_findings": 1,
+    "spec_resolution": "Recorded the successful final git diff --check command in the durable evidence",
+    "remaining_findings": 0
+  },
+  "documentation_path_check": {
+    "files": [
+      "AGENTS.md",
+      "GLOSSARY.md",
+      "docs/benchmarks.md",
+      "docs/m2-region-prototype.md",
+      "docs/m2-temporary-regions.md",
+      "docs/was_compiler_memory_and_optimization_roadmap.md"
+    ],
+    "missing": []
+  }
+}
