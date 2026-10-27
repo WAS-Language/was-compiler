@@ -25,6 +25,25 @@ impl<'a> ValidatedProgram<'a> {
             ExportOptions::All => Layout::new(program),
             _ => Layout::with_exports(program, exports),
         }?;
+        Self::lower(program, layout, policy)
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_regions(
+        program: &'a TypedProgram,
+        exports: &ExportOptions,
+        policy: super::NumericPolicy,
+    ) -> Result<Self, CodegenError> {
+        let mut layout = Layout::with_exports(program, exports)?;
+        layout.regions = super::region::select(program);
+        Self::lower(program, layout, policy)
+    }
+
+    fn lower(
+        program: &'a TypedProgram,
+        layout: Layout<'a>,
+        policy: super::NumericPolicy,
+    ) -> Result<Self, CodegenError> {
         let mut bodies = Vec::with_capacity(program.functions.len());
 
         for function in &program.functions {

@@ -4,13 +4,15 @@
 The confirmed contract is in
 [roadmap §5](was_compiler_memory_and_optimization_roadmap.md#5-milestone-m1--conservative-escape-and-lifetime-analysis).
 This milestone implements private, explicitly test-invoked classification only.
-It changes no storage or production compilation behavior. M2 storage selection,
-reclamation and managed-heap support remain unimplemented and unauthorized.
+It changes no storage or production compilation behavior. #54 adds a separate
+[private M2 storage consumer](m2-region-prototype.md); public activation, general
+reclamation and managed-heap support remain unauthorized.
 
 ## Invocation and facts
 
 `crates/compiler/src/lifetime.rs` is compiled only under `cfg(test)` and explicitly
-invoked by its unit tests. Compilation and emission never call it. Facts borrow
+invoked by its unit tests and the explicitly experimental M2 compilation seam.
+Ordinary compilation and emission never call it. Facts borrow
 the original function and literal, retaining the function-local binding identity
 and static element type. Functions and direct body declarations determine report
 order; hash maps are used only for binding lookup. No public AST fields, IDs,

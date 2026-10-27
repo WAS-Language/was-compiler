@@ -6,7 +6,9 @@ See the [compilation roadmap](docs/compilation-roadmap.md) for the architecture,
 host ABI, milestones, and acceptance criteria. The [memory ABI](docs/memory-abi.md)
 documents string/array layouts, allocation, ownership, and host examples.
 Its [revision 1 baseline](docs/m0-memory-baseline.md) records memory-contract
-coverage and validation; resizing and reclamation remain future roadmap work.
+coverage and validation; resizing and general reclamation remain future roadmap work.
+A [private test-only M2 prototype](docs/m2-region-prototype.md) reuses proven temporary
+array storage; it adds no public compiler option or adapter activation.
 
 ## Workspace
 

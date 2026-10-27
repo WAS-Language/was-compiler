@@ -286,7 +286,7 @@ pub(super) fn emit_as(
             };
 
             expect_result(function, predicted, expr.ty, span)?;
-            let flow = values::emit_array(elements, *element_type, body, span)?;
+            let flow = values::emit_array(expr, body, span)?;
             (flow, result(flow, Type::Array(*element_type)))
         }
 

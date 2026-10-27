@@ -26,6 +26,8 @@ mod numeric;
 mod place;
 mod pure;
 mod range;
+#[cfg(test)]
+mod region;
 mod representation;
 mod statement;
 mod temporaries;
@@ -406,6 +408,19 @@ fn assemble(validated: &validation::ValidatedProgram<'_>) -> Vec<u8> {
             },
             &ConstExpr::i32_const(memory.plan.heap_start as i32),
         );
+        #[cfg(test)]
+        for selection in &layout.regions {
+            if matches!(selection, region::Selection::Region(_)) {
+                globals.global(
+                    GlobalType {
+                        val_type: ValType::I32,
+                        mutable: true,
+                        shared: false,
+                    },
+                    &ConstExpr::i32_const(0),
+                );
+            }
+        }
         exports.export("memory", ExportKind::Memory, 0);
         exports.export(
             "__alloc",

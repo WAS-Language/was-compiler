@@ -43,6 +43,8 @@ pub(super) struct Layout<'a> {
     pub remainder: Option<UserFunctionPlan>,
     pub ranges: Vec<UserFunctionPlan>,
     pub callables: Vec<CallablePlan<'a>>,
+    #[cfg(test)]
+    pub regions: Vec<super::region::Selection<'a>>,
     callees: Vec<CallTarget>,
     host_count: usize,
 }
@@ -74,6 +76,8 @@ impl<'a> Layout<'a> {
             remainder: None,
             ranges: Vec::new(),
             callables: Vec::new(),
+            #[cfg(test)]
+            regions: Vec::new(),
             callees: Vec::new(),
             host_count: program.host_functions.len(),
         };

@@ -110,6 +110,16 @@ fn analyze(program: &TypedProgram) -> Vec<Fact<'_>> {
     facts
 }
 
+// Borrowed positive facts only; storage consumers cannot alter or widen the proof.
+pub(crate) fn temporary_literals(
+    program: &TypedProgram,
+) -> impl Iterator<Item = (&TypedFunction, &TypedExpr)> {
+    analyze(program).into_iter().filter_map(|fact| {
+        (fact.outcome == Outcome::TemporaryCandidate)
+            .then_some((fact.origin.function, fact.origin.literal))
+    })
+}
+
 type Bindings = std::collections::HashMap<VariableId, Type>;
 type Proof<T = ()> = Result<T, UnprovenReason>;
 

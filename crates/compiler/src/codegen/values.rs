@@ -11,11 +11,14 @@ use super::{
 };
 
 pub(super) fn emit_array(
-    elements: &[TypedExpr],
-    element_type: crate::ast::ArrayElementType,
+    literal: &TypedExpr,
     body: &mut BodyEmitter<'_>,
     span: Span,
 ) -> Result<Flow, CodegenError> {
+    let crate::typed_ast::TypedExprKind::Array(elements, element_type) = &literal.kind else {
+        unreachable!("array emitter receives an array literal")
+    };
+    let element_type = *element_type;
     let limit = || CodegenError::LimitExceeded {
         what: "array allocation size",
     };
@@ -27,8 +30,15 @@ pub(super) fn emit_array(
         .ok_or_else(limit)?;
     let temporary = body.temporary(ValType::I32);
 
-    body.instruction(&Instruction::I32Const(size as i32));
-    body.call(body.helper(Helper::Alloc));
+    #[cfg(test)]
+    let region_allocated = body.allocate_region_literal(literal)?;
+    #[cfg(not(test))]
+    let region_allocated = false;
+
+    if !region_allocated {
+        body.instruction(&Instruction::I32Const(size as i32));
+        body.call(body.helper(Helper::Alloc));
+    }
     body.local_set(temporary);
 
     body.local_get(temporary);

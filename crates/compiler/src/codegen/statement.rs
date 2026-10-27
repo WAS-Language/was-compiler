@@ -94,6 +94,8 @@ pub(super) fn emit(
                 }
             };
 
+            #[cfg(test)]
+            emitter.retire_region()?;
             emitter.instruction(&Instruction::Return);
 
             Ok(flow.then(Flow::return_value(emitter.return_type())))

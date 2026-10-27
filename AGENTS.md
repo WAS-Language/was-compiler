@@ -137,15 +137,18 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
 
 ### Preserve the internal boundaries
 
-- M1 is classification only, explicitly invoked by private tests; compilation,
-  emission, numeric presets and adapters neither invoke it nor consume its facts.
+- M1 is classification only. Ordinary compilation, numeric presets and adapters
+  neither invoke it nor consume its facts. The private `cfg(test)` M2 compilation
+  seam consumes its borrowed positive facts without widening the proof.
   Only direct function-body let-bound number/bool array literals in the closed
   invocation-wide subset can be temporary candidates. Escape paths are potential
   structural publication evidence; unsupported cases remain unproven. Candidate
   status changes no storage and authorizes no cleanup after returns or traps.
   [Integrated #53 gates passed](docs/m1-lifetime-analysis.md#integrated-validation--2026-10-26-53),
-  including ignored runtimes and rebuilt-browser parity. M2 storage selection,
-  reclamation and managed-heap support remain unimplemented and unauthorized.
+  including ignored runtimes and rebuilt-browser parity. #54 implements a private
+  reusable-region prototype through the existing checked backend. Before changing
+  region selection, acquisition or retirement, read [the M2 prototype contract](docs/m2-region-prototype.md).
+  Public activation, general reclamation and managed-heap support remain unauthorized.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating

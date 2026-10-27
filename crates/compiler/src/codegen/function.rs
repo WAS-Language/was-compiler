@@ -235,6 +235,8 @@ pub(super) struct BodyEmitter<'a> {
     loops: Vec<LoopContext>,
     seen_loops: HashSet<LoopId>,
     numeric: Facts,
+    #[cfg(test)]
+    region: Option<super::region::Invocation<'a>>,
 }
 
 impl<'a> BodyEmitter<'a> {
@@ -278,6 +280,31 @@ impl<'a> BodyEmitter<'a> {
             locals.push((context.storage.count, ValType::I32));
         }
 
+        #[cfg(test)]
+        let region = match function {
+            BodyOwner::Function(function) => match module.regions.get(function.id.0) {
+                Some(super::region::Selection::Region(plan)) => {
+                    let index = context
+                        .first_temporary
+                        .checked_add(checked_u32(
+                            context.temporary_types.len(),
+                            "temporary local count",
+                        )?)
+                        .and_then(|index| index.checked_add(context.storage.count))
+                        .ok_or(CodegenError::LimitExceeded {
+                            what: "function local count",
+                        })?;
+                    locals.push((1, ValType::I32));
+                    Some(super::region::Invocation {
+                        plan,
+                        base: LocalIndex::new(index),
+                    })
+                }
+                _ => None,
+            },
+            BodyOwner::Closure(_) => None,
+        };
+
         Ok(Self {
             body: Function::new(locals),
             context,
@@ -286,7 +313,26 @@ impl<'a> BodyEmitter<'a> {
             loops: Vec::new(),
             seen_loops: HashSet::new(),
             numeric,
+            #[cfg(test)]
+            region,
         })
+    }
+
+    #[cfg(test)]
+    pub fn allocate_region_literal(&mut self, literal: &TypedExpr) -> Result<bool, CodegenError> {
+        if let Some(region) = self.region {
+            region.allocate(literal, self)?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    #[cfg(test)]
+    pub fn retire_region(&mut self) -> Result<(), CodegenError> {
+        if let Some(region) = self.region {
+            region.retire(self)?;
+        }
+        Ok(())
     }
 
     pub fn name(&self) -> &'a str {
@@ -763,6 +809,10 @@ pub(super) fn emit<'a>(
             function: function.name.clone(),
             return_type: function.return_type,
         });
+    }
+    #[cfg(test)]
+    if flow.can_fall_through() {
+        emitter.retire_region()?;
     }
     emitter.end();
     Ok(emitter.body)
