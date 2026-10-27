@@ -529,8 +529,10 @@ Measure reserved pages, region bytes reused, allocation count, execution time, a
 ### M3 interview decisions (2026-10-27; confirmed)
 
 The consolidated scope and six-ticket implementation breakdown are confirmed.
-This records the agreed private prototype contract; it does not claim implemented
-behavior, release validation or approval for production activation.
+This records the agreed private prototype contract. [#58's first private allocation,
+release and reuse cycle](m3-private-allocator.md) is implemented behind `cfg(test)`;
+this does not claim the remaining M3 evidence gates, integrated release validation
+or approval for production activation.
 
 - **Initial delivery:** a private experimental allocation/release infrastructure,
   exercised by internal test workloads through the existing checked backend.

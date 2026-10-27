@@ -156,6 +156,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Selection uses exclusive fixed per-function blocks, lazy acquisition, normal-return
   retirement and permanent trap quarantine; it never rewinds the ordinary heap.
   Public activation, general reclamation and managed-heap support remain unauthorized.
+- M3 #58 adds a separate private `cfg(test)` allocator, not an M2 client.
+  Before changing its transport, records, acquisition/release or observations, read
+  [the M3 interface and failure-ordering contract](docs/m3-private-allocator.md).
+  Run `cargo test --offline -p was-compiler --lib codegen::allocator -- --include-ignored`.
+  Production activation and the remaining M3 evidence gates are not authorized by #58.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating

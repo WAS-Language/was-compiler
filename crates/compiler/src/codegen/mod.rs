@@ -12,6 +12,8 @@ use wasm_encoder::{
 };
 
 mod abi;
+#[cfg(test)]
+mod allocator;
 mod array;
 mod call;
 mod control_flow;
@@ -337,6 +339,17 @@ pub(crate) fn compile_with_policy(
 }
 
 fn assemble(validated: &validation::ValidatedProgram<'_>) -> Vec<u8> {
+    assemble_inner(
+        validated,
+        #[cfg(test)]
+        None,
+    )
+}
+
+fn assemble_inner(
+    validated: &validation::ValidatedProgram<'_>,
+    #[cfg(test)] allocator: Option<allocator::Config>,
+) -> Vec<u8> {
     let program = validated.program();
     let layout = validated.layout();
     let mut types = TypeSection::new();
@@ -463,6 +476,21 @@ fn assemble(validated: &validation::ValidatedProgram<'_>) -> Vec<u8> {
     for (plan, body) in layout.callables.iter().zip(validated.callable_bodies()) {
         functions.function(plan.type_index.raw());
         code.function(body);
+    }
+
+    #[cfg(test)]
+    if let Some(config) = allocator {
+        allocator::append(
+            validated,
+            config,
+            allocator::Sections {
+                types: &mut types,
+                functions: &mut functions,
+                globals: &mut globals,
+                exports: &mut exports,
+                code: &mut code,
+            },
+        );
     }
 
     let mut module = Module::new();
