@@ -264,6 +264,281 @@ fn acquisition_reuses_only_exact_class_without_borrowing_larger_free_block() {
 
 #[test]
 #[ignore = "requires Node.js"]
+fn simultaneous_zero_requests_remain_active_until_explicit_release() {
+    run(
+        Config::default(),
+        r#"
+        const blocks = Array.from({length: 6}, () => acquire(0n));
+        assert.equal(new Set(blocks.map(([p]) => p)).size, 6);
+        assert.deepEqual(blocks.map(([, id]) => id), [1n, 2n, 3n, 4n, 5n, 6n]);
+        const cursor = observe(0);
+        for (const [p, id] of blocks) {
+            assert.equal(p % 8, 0);
+            assert.equal(observe(3, p), 1n);
+            assert.equal(observe(4, p), id);
+            assert.equal(observe(5, p), 8n);
+            assert.equal(observe(6, p), 0n);
+        }
+        assert.equal(observe(7, 0), 0n);
+        // Zero requested bytes permit no payload reads or writes, even though
+        // each block reserves eight bytes and owns a separate record.
+        const freed = new Set([blocks[1][0], blocks[4][0]]);
+        for (const index of [1, 4]) e.__m3_release(...blocks[index]);
+        const reused = [acquire(0n), acquire(0n)];
+        assert.deepEqual(new Set(reused.map(([p]) => p)), freed);
+        assert.deepEqual(reused.map(([, id]) => id), [7n, 8n]);
+        assert.equal(observe(0), cursor);
+        assert.equal(observe(2), 6n);
+        assert.equal(observe(7, 0), 0n);
+        for (const index of [0, 2, 3, 5]) {
+            const [p, id] = blocks[index];
+            assert.equal(observe(3, p), 1n);
+            assert.equal(observe(4, p), id);
+            e.__m3_release(p, id);
+        }
+        for (const block of reused) e.__m3_release(...block);
+        for (const [p] of blocks) assert.equal(observe(3, p), 2n);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn mixed_classes_preserve_live_extents_and_metadata_across_unordered_reuse() {
+    run(
+        Config::default(),
+        r#"
+        const groups = [
+            {capacity: 8, classIndex: 0, requests: [1, 8, 5, 7, 2], renew: [6, 8]},
+            {capacity: 16, classIndex: 1, requests: [9, 16, 13, 15, 10], renew: [12, 16]},
+            {capacity: 32, classIndex: 2, requests: [17, 32, 21, 31, 18], renew: [29, 32]},
+            {capacity: 128, classIndex: 4, requests: [65, 128, 93, 127, 66], renew: [100, 128]}
+        ];
+        const records = new Map(), live = new Map();
+        let nextIdentity = 1n;
+        function verify() {
+            const active = [...live.values()];
+            for (const block of active) {
+                const {p, id, n, capacity, classIndex, expected} = block;
+                assert.equal(observe(3, p), 1n);
+                assert.equal(observe(4, p), id);
+                assert.equal(observe(5, p), BigInt(capacity));
+                assert.equal(observe(6, p), BigInt(n));
+                assert.equal(word(p - 24), classIndex);
+                assert.equal(word(p - 20), 1);
+                assert.equal(wide(p - 16), id);
+                assert.equal(wide(p - 8), BigInt(n));
+                assert.deepEqual(bytes().slice(p, p + n), expected);
+            }
+            for (let i = 0; i < active.length; i++) {
+                for (const other of active.slice(i + 1)) {
+                    const a = active[i];
+                    // Include records and the entire reserved capacity in the
+                    // disjointness check, but never read unused payload bytes.
+                    assert.ok(a.p + a.capacity <= other.p - 32 ||
+                              other.p + other.capacity <= a.p - 32);
+                }
+            }
+        }
+        function take(group, n) {
+            const [p, id] = acquire(BigInt(n));
+            assert.equal(id, nextIdentity++);
+            assert.equal(p % 8, 0);
+            assert.ok(!live.has(p));
+            if (records.has(p)) assert.notEqual(id, records.get(p));
+            records.set(p, id);
+            const headers = [...records.keys()].map(address =>
+                [address, bytes().slice(address - 32, address)]);
+            const expected = Uint8Array.from({length: n}, (_, i) =>
+                (Number(id) * 37 + i * 19) % 256);
+            // Initialize exactly the requested extent on every acquisition;
+            // reuse provides no zero-initialization or spare-capacity rights.
+            bytes().set(expected, p);
+            for (const [address, header] of headers) {
+                assert.deepEqual(bytes().slice(address - 32, address), header);
+            }
+            const block = {p, id, n, ...group, expected};
+            live.set(p, block);
+            verify();
+            return block;
+        }
+        const blocks = groups.map(() => []);
+        for (let i = 0; i < 5; i++) {
+            for (const g of [2, 0, 3, 1]) blocks[g].push(take(groups[g], groups[g].requests[i]));
+        }
+        const cursor = observe(0);
+        assert.equal(observe(2), 20n);
+        const freed = groups.map(() => new Set());
+        for (const [g, i] of [[3, 1], [0, 3], [2, 1], [1, 3], [0, 1], [3, 3], [1, 1], [2, 3]]) {
+            const {p, id} = blocks[g][i];
+            e.__m3_release(p, id);
+            live.delete(p);
+            freed[g].add(p);
+            assert.equal(observe(3, p), 2n);
+            verify();
+        }
+        for (const g of [1, 3, 0, 2]) {
+            // Each class has multiple free AND live blocks before reacquisition.
+            assert.equal(freed[g].size, 2);
+            assert.equal([...live.values()].filter(b => b.classIndex === groups[g].classIndex).length, 3);
+        }
+        for (let i = 0; i < 2; i++) {
+            for (const g of [1, 3, 0, 2]) {
+                const {p} = take(groups[g], groups[g].renew[i]);
+                assert.ok(freed[g].delete(p), 'reuse must be a member of this class, not a prescribed order');
+                assert.equal(observe(0), cursor);
+                assert.equal(observe(2), 20n);
+            }
+        }
+        for (const group of groups) assert.equal(observe(7, group.classIndex), 0n);
+        verify();
+        for (const {p, id} of [...live.values()].reverse()) e.__m3_release(p, id);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn adjacent_free_blocks_are_not_coalesced_split_or_borrowed() {
+    run(
+        Config::default(),
+        r#"
+        const [a, aId] = acquire(9n), [b, bId] = acquire(16n);
+        assert.equal(b - 32, a + 16, 'fresh physical blocks are adjacent');
+        fill(a, 9, 0x31);
+        fill(b, 16, 0x72);
+        check(a, 9, 0x31);
+        check(b, 16, 0x72);
+        e.__m3_release(a, aId);
+        e.__m3_release(b, bId);
+        const smallHead = observe(7, 1), before = observe(0);
+        const [large, largeId] = acquire(17n);
+        assert.equal(BigInt(large), before + 32n);
+        assert.equal(observe(0), before + 64n);
+        assert.equal(observe(2), 3n);
+        assert.equal(observe(7, 1), smallHead);
+        assert.equal(observe(3, a), 2n);
+        assert.equal(observe(3, b), 2n);
+        fill(large, 17, 0x19);
+        check(large, 17, 0x19);
+        e.__m3_release(large, largeId);
+        const largeHead = observe(7, 2), afterLarge = observe(0);
+        const [tiny, tinyId] = acquire(1n);
+        assert.equal(BigInt(tiny), afterLarge + 32n);
+        assert.equal(observe(0), afterLarge + 40n);
+        assert.equal(observe(2), 4n);
+        assert.equal(observe(7, 1), smallHead);
+        assert.equal(observe(7, 2), largeHead);
+        assert.equal(observe(3, large), 2n);
+        fill(tiny, 1, 0xff);
+        const cursor = observe(0);
+        const reused = [acquire(15n), acquire(10n), acquire(31n)];
+        assert.deepEqual(new Set(reused.slice(0, 2).map(([p]) => p)), new Set([a, b]));
+        assert.equal(reused[2][0], large);
+        assert.deepEqual(reused.map(([, id]) => id), [5n, 6n, 7n]);
+        assert.equal(observe(0), cursor);
+        assert.equal(observe(2), 4n);
+        assert.equal(observe(7, 1), 0n);
+        assert.equal(observe(7, 2), 0n);
+        for (const [i, [p, id]] of reused.entries()) {
+            const n = [15, 10, 31][i];
+            fill(p, n, 0x40 + i);
+            check(p, n, 0x40 + i);
+            assert.equal(observe(4, p), id);
+            assert.equal(observe(6, p), BigInt(n));
+        }
+        check(tiny, 1, 0xff);
+        for (const block of reused) e.__m3_release(...block);
+        e.__m3_release(tiny, tinyId);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn real_memory_growth_preserves_initialized_live_blocks_identities_and_free_records() {
+    run(
+        Config::default(),
+        r#"
+        const retained = e.retained() >>> 0, ordinary = word(retained);
+        const descriptor = bytes().slice(retained, retained + 8);
+        const live = [], records = new Set();
+        let nextIdentity = 1n, growths = 0;
+        function verify() {
+            assert.deepEqual(bytes().slice(retained, retained + 8), descriptor);
+            assert.equal(view().getFloat64(ordinary, true), 17);
+            assert.equal(view().getFloat64(ordinary + 8, true), 29);
+            for (const {p, id, n, capacity, expected} of live) {
+                assert.equal(observe(3, p), 1n);
+                assert.equal(observe(4, p), id);
+                assert.equal(observe(5, p), BigInt(capacity));
+                assert.equal(observe(6, p), BigInt(n));
+                assert.deepEqual(bytes().slice(p, p + n), expected);
+            }
+        }
+        function take(n, capacity, mustGrow) {
+            const oldBuffer = e.memory.buffer, oldView = bytes();
+            const pages = observe(1), cursor = observe(0);
+            const headers = [...records].map(p => [p, bytes().slice(p - 32, p)]);
+            const [p, id] = acquire(BigInt(n));
+            assert.equal(id, nextIdentity++);
+            assert.equal(p % 8, 0);
+            if (mustGrow) {
+                growths++;
+                assert.ok(observe(1) > pages);
+                assert.notEqual(e.memory.buffer, oldBuffer);
+                assert.equal(oldBuffer.byteLength, 0);
+                assert.equal(oldView.byteLength, 0);
+            }
+            // Every view below is recreated from the current memory buffer.
+            for (const [address, header] of headers) {
+                assert.deepEqual(bytes().slice(address - 32, address), header);
+            }
+            assert.equal(BigInt(p), cursor + 32n);
+            assert.equal(observe(0), cursor + BigInt(32 + capacity));
+            for (const block of live) {
+                assert.ok(block.p + block.capacity <= p - 32 || p + capacity <= block.p - 32);
+            }
+            const header = bytes().slice(p - 32, p);
+            const expected = Uint8Array.from({length: n}, (_, i) => (i * 13 + Number(id) * 41) % 256);
+            bytes().set(expected, p);
+            assert.deepEqual(bytes().slice(p - 32, p), header);
+            records.add(p);
+            const block = {p, id, n, capacity, expected};
+            live.push(block);
+            verify();
+            return block;
+        }
+        take(9, 16, false);
+        take(127, 128, false);
+        const free = take(33, 64, false);
+        live.pop();
+        e.__m3_release(free.p, free.id);
+        const freeHeader = bytes().slice(free.p - 32, free.p);
+        take(65537, 131072, true);
+        take(17, 32, false);
+        take(131073, 262144, true);
+        assert.equal(growths, 2);
+        assert.deepEqual(bytes().slice(free.p - 32, free.p), freeHeader);
+        assert.equal(observe(3, free.p), 2n);
+        const cursor = observe(0), population = observe(2);
+        const [p, id] = acquire(63n);
+        assert.equal(p, free.p);
+        assert.equal(id, 7n);
+        assert.notEqual(id, free.id);
+        assert.equal(observe(0), cursor);
+        assert.equal(observe(2), population);
+        fill(p, 63, 0xa7);
+        check(p, 63, 0xa7);
+        verify();
+        e.__m3_release(p, id);
+        for (const block of live) e.__m3_release(block.p, block.id);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
 fn identity_exhaustion_preserves_live_and_free_blocks_without_wrap() {
     run(
         Config {

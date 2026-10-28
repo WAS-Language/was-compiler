@@ -1,6 +1,6 @@
 use super::{Config, Error, compile};
 use crate::{Compiler, exports::ExportOptions};
-use wasmparser::{ExternalKind, Operator, Parser, Payload, TypeRef, ValType, Validator};
+use wasmparser::{BlockType, ExternalKind, Operator, Parser, Payload, TypeRef, ValType, Validator};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Effect {
@@ -169,6 +169,56 @@ fn export_index(module: &Decoded, name: &str) -> u32 {
         .unwrap_or_else(|| panic!("missing function export {name}"))
         .2
 }
+
+fn operators<'a>(bytes: &'a [u8], module: &Decoded, function: u32) -> Vec<Operator<'a>> {
+    Parser::new(0)
+        .parse_all(bytes)
+        .filter_map(|payload| match payload.unwrap() {
+            Payload::CodeSectionEntry(body) => Some(body),
+            _ => None,
+        })
+        .nth(usize::try_from(function).unwrap() - module.imports.len())
+        .unwrap()
+        .get_operators_reader()
+        .unwrap()
+        .into_iter()
+        .map(Result::unwrap)
+        .collect()
+}
+
+// Independent contract table, deliberately not derived from allocator constants
+// or its emitted shift. Large classes are checked without reserving their payloads.
+const EXPECTED_CAPACITIES: [u64; 29] = [
+    8,
+    16,
+    32,
+    64,
+    128,
+    256,
+    512,
+    1_024,
+    2_048,
+    4_096,
+    8_192,
+    16_384,
+    32_768,
+    65_536,
+    131_072,
+    262_144,
+    524_288,
+    1_048_576,
+    2_097_152,
+    4_194_304,
+    8_388_608,
+    16_777_216,
+    33_554_432,
+    67_108_864,
+    134_217_728,
+    268_435_456,
+    536_870_912,
+    1_073_741_824,
+    2_147_483_648,
+];
 
 #[test]
 fn private_compilation_emits_valid_management_exports() {
@@ -418,6 +468,356 @@ fn management_uses_one_backing_call_and_registry_authority_before_header_access(
         release_loads,
         [(64, 16, 3, 0), (32, 12, 2, 0), (32, 8, 2, 0)]
     );
+}
+
+#[test]
+fn decoded_rounding_covers_every_capacity_and_adjacent_request() {
+    use Operator::*;
+
+    let program = Compiler::new()
+        .analyze("fn main() -> number[] { return [1]; }")
+        .unwrap();
+    let bytes = compile(&program, &ExportOptions::All, Config::default()).unwrap();
+    let module = decode(&bytes);
+    let body = operators(&bytes, &module, export_index(&module, "__m3_class"));
+    let maximum = body
+        .windows(10)
+        .find_map(|ops| match ops {
+            [
+                LocalGet { local_index: 0 },
+                I64Const { value: 0 },
+                I64LtS,
+                LocalGet { local_index: 0 },
+                I64Const { value: maximum },
+                I64GtU,
+                I32Or,
+                If {
+                    blockty: BlockType::Empty,
+                },
+                Unreachable,
+                End,
+            ] => Some(u64::try_from(*maximum).unwrap()),
+            _ => None,
+        })
+        .expect("signed-negative and unsigned upper guards trap before rounding");
+    assert_eq!(maximum, 2_147_483_648);
+    let (minimum, capacity_local) = body
+        .windows(4)
+        .find_map(|ops| match ops {
+            [
+                I64Const { value },
+                LocalSet { local_index },
+                Block {
+                    blockty: BlockType::Empty,
+                },
+                Loop {
+                    blockty: BlockType::Empty,
+                },
+            ] => Some((u64::try_from(*value).unwrap(), *local_index)),
+            _ => None,
+        })
+        .expect("rounding initializes capacity before its loop");
+    assert_eq!(minimum, 8);
+    let (shift, increment) = body
+        .windows(18)
+        .find_map(|ops| match ops {
+            [
+                Loop {
+                    blockty: BlockType::Empty,
+                },
+                LocalGet { local_index: a },
+                LocalGet { local_index: 0 },
+                I64GeU,
+                BrIf { relative_depth: 1 },
+                LocalGet { local_index: b },
+                I64Const { value: shift },
+                I64Shl,
+                LocalSet { local_index: c },
+                LocalGet { local_index: d },
+                I32Const { value: increment },
+                I32Add,
+                LocalSet { local_index: e },
+                Br { relative_depth: 0 },
+                End,
+                End,
+                LocalGet {
+                    local_index: result,
+                },
+                End,
+            ] if *a == capacity_local && a == b && b == c && d == e && e == result => Some((
+                u32::try_from(*shift).unwrap(),
+                u32::try_from(*increment).unwrap(),
+            )),
+            _ => None,
+        })
+        .expect("unsigned capacity test exits; otherwise capacity and class advance together");
+    assert_eq!((shift, increment), (1, 1));
+    assert!(
+        body.iter()
+            .all(|op| !matches!(op, Call { .. } | GlobalSet { .. }))
+    );
+
+    // Evaluate only the decoded rounding recurrence. Expected classes come from
+    // table positions, not from that recurrence; Node tests execute the full helper.
+    let mut cases = vec![(0, Some(0)), (1, Some(0))];
+    for (class, capacity) in EXPECTED_CAPACITIES.into_iter().enumerate() {
+        let class = u32::try_from(class).unwrap();
+        cases.extend([
+            (capacity - 1, Some(class)),
+            (capacity, Some(class)),
+            (capacity + 1, (class < 28).then_some(class + 1)),
+        ]);
+    }
+    for (request, expected) in cases {
+        let actual = if request > maximum {
+            None
+        } else {
+            let mut capacity = minimum;
+            let mut class = 0;
+            while capacity < request {
+                assert!(class < 29, "rounding must terminate");
+                capacity = capacity.checked_shl(shift).unwrap();
+                class += increment;
+            }
+            assert_eq!(
+                capacity,
+                EXPECTED_CAPACITIES[usize::try_from(class).unwrap()]
+            );
+            Some(class)
+        };
+        assert_eq!(actual, expected, "request {request}");
+    }
+}
+
+#[test]
+fn decoded_free_list_dispatch_has_one_distinct_global_per_class() {
+    use Operator::*;
+
+    let program = Compiler::new()
+        .analyze("fn main() -> number[] { return [1]; }")
+        .unwrap();
+    let bytes = compile(&program, &ExportOptions::All, Config::default()).unwrap();
+    let module = decode(&bytes);
+    let acquire = operators(&bytes, &module, export_index(&module, "__m3_acquire"));
+    let (head, set_head) = (
+        acquire
+            .windows(3)
+            .find_map(|ops| match ops {
+                [LocalGet { .. }, Call { function_index }, LocalTee { .. }] => {
+                    Some(*function_index)
+                }
+                _ => None,
+            })
+            .expect("acquire reads its exact class head"),
+        acquire
+            .windows(3)
+            .find_map(|ops| match ops {
+                [I32Load { memarg }, Call { function_index }, End] if memarg.offset == 4 => {
+                    Some(*function_index)
+                }
+                _ => None,
+            })
+            .expect("reuse pops that class's free link"),
+    );
+    let reads = operators(&bytes, &module, head);
+    let writes = operators(&bytes, &module, set_head);
+    assert_eq!(reads.len(), 29 * 7 + 2);
+    assert_eq!(writes.len(), 29 * 8 + 2);
+    let mut globals = Vec::new();
+    for (class, _) in EXPECTED_CAPACITIES.iter().enumerate() {
+        let read_global = match &reads[class * 7..class * 7 + 7] {
+            [
+                LocalGet { local_index: 0 },
+                I32Const { value },
+                I32Eq,
+                If {
+                    blockty: BlockType::Empty,
+                },
+                GlobalGet { global_index },
+                Return,
+                End,
+            ] if *value == i32::try_from(class).unwrap() => *global_index,
+            other => panic!("class {class} head read: {other:?}"),
+        };
+        match &writes[class * 8..class * 8 + 8] {
+            [
+                LocalGet { local_index: 0 },
+                I32Const { value },
+                I32Eq,
+                If {
+                    blockty: BlockType::Empty,
+                },
+                LocalGet { local_index: 1 },
+                GlobalSet { global_index },
+                Return,
+                End,
+            ] if *value == i32::try_from(class).unwrap() => {
+                assert_eq!(*global_index, read_global, "class {class}");
+            }
+            other => panic!("class {class} head write: {other:?}"),
+        }
+        assert!(
+            !globals.contains(&read_global),
+            "classes must not alias heads"
+        );
+        globals.push(read_global);
+        let global = &module.globals[usize::try_from(read_global).unwrap()];
+        assert_eq!(
+            global,
+            &(
+                ValType::I32,
+                true,
+                vec!["I32Const { value: 0 }".into(), "End".into()]
+            )
+        );
+    }
+    assert!(matches!(&reads[29 * 7..], [Unreachable, End]));
+    assert!(matches!(&writes[29 * 8..], [Unreachable, End]));
+}
+
+#[test]
+fn decoded_reservation_math_preserves_large_capacities_and_unsigned_addresses() {
+    use Operator::*;
+
+    let program = Compiler::new()
+        .analyze("fn main() -> number[] { return [1]; }")
+        .unwrap();
+    let bytes = compile(
+        &program,
+        &ExportOptions::All,
+        Config {
+            last_identity: 0,
+            backing_limit: Some(4_294_901_760),
+        },
+    )
+    .unwrap();
+    let module = decode(&bytes);
+    let acquire = operators(&bytes, &module, export_index(&module, "__m3_acquire"));
+    let (base, class_local, capacity_local) = acquire
+        .windows(5)
+        .find_map(|ops| match ops {
+            [
+                I64Const { value },
+                LocalGet { local_index: class },
+                I64ExtendI32U,
+                I64Shl,
+                LocalSet {
+                    local_index: capacity,
+                },
+            ] => Some((u64::try_from(*value).unwrap(), *class, *capacity)),
+            _ => None,
+        })
+        .expect("capacity is shifted in i64, including class 28");
+    assert_eq!(base, 8);
+    let (record_bytes, total_local) = acquire
+        .windows(5)
+        .find_map(|ops| match ops {
+            [
+                LocalGet {
+                    local_index: capacity,
+                },
+                I64Const { value },
+                I64Add,
+                LocalSet { local_index: total },
+                LocalGet {
+                    local_index: checked,
+                },
+            ] if *capacity == capacity_local && total == checked => {
+                Some((u64::try_from(*value).unwrap(), *total))
+            }
+            _ => None,
+        })
+        .expect("record sizing adds to capacity before checking the total");
+    assert_eq!(record_bytes, 32);
+    assert!(acquire.windows(6).any(|ops| matches!(ops,
+        [LocalGet { local_index }, I64Const { value: 4_294_967_295 }, I64GtU,
+            If { blockty: BlockType::Empty }, Unreachable, End] if *local_index == total_local
+    )));
+    assert!(acquire.windows(9).any(|ops| matches!(ops,
+        [GlobalGet { global_index: 0 }, I64ExtendI32U, LocalGet { local_index }, I64Add,
+            I64Const { value: 4_294_901_760 }, I64GtU,
+            If { blockty: BlockType::Empty }, Unreachable, End] if *local_index == total_local
+    )));
+    let backing = export_index(&module, "__alloc");
+    assert!(acquire.windows(3).any(|ops| matches!(ops,
+        [LocalGet { local_index }, I32WrapI64, Call { function_index }]
+            if *local_index == total_local && *function_index == backing
+    )));
+    assert!(acquire.windows(5).any(|ops| matches!(
+        ops,
+        [
+            LocalGet { .. },
+            I32Const { value: 32 },
+            I32Add,
+            LocalGet { .. },
+            End
+        ]
+    )));
+    let observe = operators(&bytes, &module, export_index(&module, "__m3_observe"));
+    assert!(observe.windows(5).any(|ops| matches!(ops,
+        [I64Const { value: 8 }, LocalGet { .. }, I32Load { memarg }, I64ExtendI32U, I64Shl]
+            if memarg.offset == 8 && memarg.align == 2 && memarg.memory == 0
+    )));
+    // The backing allocator, not M3, enforces the memory ceiling. Its request
+    // must remain unsigned after the i32 transport sets its high bit.
+    let backing_body = operators(&bytes, &module, backing);
+    assert!(backing_body.windows(6).any(|ops| matches!(
+        ops,
+        [
+            LocalGet { local_index: 0 },
+            I64ExtendI32U,
+            I64Const { value: 7 },
+            I64Add,
+            I64Const { value: -8 },
+            I64And
+        ]
+    )));
+    assert!(backing_body.windows(7).any(|ops| matches!(
+        ops,
+        [
+            LocalGet { .. },
+            LocalGet { .. },
+            I64Add,
+            LocalTee { .. },
+            I64Const {
+                value: 4_294_901_760
+            },
+            I64GtU,
+            If {
+                blockty: BlockType::Empty
+            }
+        ]
+    )));
+    assert!(class_local != capacity_local);
+
+    for (class, expected) in EXPECTED_CAPACITIES.into_iter().enumerate() {
+        let capacity = base << class;
+        assert_eq!(capacity, expected, "class {class}");
+        let total = capacity + record_bytes;
+        assert_eq!(total, expected + 32);
+        assert_eq!(total % 8, 0, "combined reservation remains aligned");
+        assert!(u32::try_from(total).is_ok());
+    }
+    // Synthetic cursor/capacity cases cross signed-i32 and memory32 boundaries;
+    // no backing storage is acquired. Expected addresses/ends are literal oracles.
+    for (cursor, class, payload, end, within_memory) in [
+        (8_u32, 28, 40_u32, 2_147_483_688_u64, true),
+        (0x7fff_ffe0, 0, 0x8000_0000, 0x8000_0008, true),
+        (0xfffe_ffd8, 0, 0xfffe_fff8, 0xffff_0000, true),
+        (0xfffe_ffe0, 0, 0xffff_0000, 0xffff_0008, false),
+        (0x8000_0000, 28, 0x8000_0020, 0x1_0000_0020, false),
+    ] {
+        let capacity = base << class;
+        let actual_payload = u64::from(cursor) + record_bytes;
+        let actual_end = actual_payload + capacity;
+        assert_eq!(actual_payload, u64::from(payload));
+        assert_eq!(actual_end, end);
+        assert_eq!(actual_payload % 8, 0);
+        assert_eq!(actual_end <= 4_294_901_760, within_memory);
+        if within_memory {
+            assert!(actual_payload + EXPECTED_CAPACITIES[class] <= actual_end);
+        }
+    }
 }
 
 #[test]

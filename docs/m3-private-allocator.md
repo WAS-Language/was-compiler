@@ -195,3 +195,79 @@ findings, corrected before the final focused allocator, Clippy and full ignored
 workspace runs. No allocator correctness or unauthorized-scope finding was raised.
 Both independent reviewers rechecked the correction and reported zero outstanding
 Standards and Spec findings.
+
+## Size-class and growth evidence (#59)
+
+This slice adds evidence only, through the frozen private transport and observation
+schema. It changes no allocator implementation, production compilation, ordinary
+array storage or M2 behavior. It does not establish M3's later failure, measurement
+or integrated release gates.
+
+- `decoded_rounding_covers_every_capacity_and_adjacent_request` uses a literal
+  29-capacity oracle and checks the emitted rounding recurrence for zero, one,
+  exact boundaries and adjacent requests (89 cases). The upper adjacent request
+  is rejected. Large classes do not require allocating multi-GiB buffers.
+- `decoded_free_list_dispatch_has_one_distinct_global_per_class` checks independent
+  class heads and matching read/write dispatch for all 29 classes.
+- `decoded_reservation_math_preserves_large_capacities_and_unsigned_addresses`
+  checks widened capacity/reservation arithmetic, eight-byte alignment, unsigned
+  backing transport and five synthetic address/ceiling cases. These are not
+  successful large backing allocations. All decoded fixtures are Wasm-validated.
+- `simultaneous_zero_requests_remain_active_until_explicit_release` holds six
+  distinct minimum-class allocations, releases two and reacquires exactly those
+  addresses with fresh identities, without touching their zero-byte payloads.
+- `mixed_classes_preserve_live_extents_and_metadata_across_unordered_reuse` holds
+  five blocks in each of four classes, then two free and three live blocks per
+  class. Mixed release/reacquisition checks membership rather than reuse order,
+  renewed identities, disjoint physical extents, initialized requested contents
+  and unchanged records during payload writes. Reuse initializes the new requested
+  extent before reading; spare capacity is never read or treated as usable extent.
+- `adjacent_free_blocks_are_not_coalesced_split_or_borrowed` leaves adjacent
+  16-byte-class blocks free, requires fresh 32-byte storage, then leaves both
+  classes free while requiring fresh eight-byte storage. The original blocks
+  remain independently reusable in their exact classes.
+- `real_memory_growth_preserves_initialized_live_blocks_identities_and_free_records`
+  causes two actual growth operations with requests of 65,537 and 131,073 bytes.
+  It checks increased pages and detached old buffers/views, refreshes views, and
+  verifies independently initialized live contents/identities, a retained ordinary
+  array and a free record from before growth. That free block is then reused with
+  a renewed identity. The workload reserves less than one MiB, not giant buffers.
+
+All four new Node tests use the existing bounded subprocess helper and remain
+ignored by default. These tests are regression evidence over an already implemented
+contract: they passed against the unchanged #58 allocator, without a production
+red/green change.
+
+### Validation — 2026-10-28 (#59)
+
+| Command | Result |
+| --- | --- |
+| `cargo test --offline -p was-compiler --lib codegen::allocator::tests` | 9 passed, none failed/ignored |
+| `cargo test --offline -p was-compiler --lib codegen::allocator::runtime_tests -- --include-ignored` | 11 passed, none failed/ignored |
+| Each of the seven new test names above, passed separately to `cargo test --offline -p was-compiler --lib <name>` (plus `-- --include-ignored` for Node tests) | Each selected exactly one test and passed |
+| `cargo check --offline -p was-compiler --all-targets` | Passed |
+| `cargo test --offline -p was-compiler --lib codegen::region -- --include-ignored` | 23 passed, none failed/ignored |
+| `cargo clippy --offline --all-targets -- -D warnings` | Passed |
+| `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown` | Passed |
+| `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline` | Passed; current-source package rebuilt |
+| `node tests/browser.cjs pkg` | 25 groups passed |
+| `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings` | Passed |
+| `cargo test --offline --workspace -- --include-ignored` | 1,451 passed across 81 targets, none failed/ignored |
+| `git --no-pager diff --check` | Passed |
+
+The full workspace run also included three concurrently developed private
+invalid-release tests outside #59's changes. They were preserved, not included in
+this ticket's commit; the aggregate count describes the tested worktree rather
+than #59 alone. The browser build printed the existing wasm-bindgen tooling
+resolution and optional package-metadata notices; no separate install/fetch
+command was invoked.
+
+### Two-axis review (#59)
+
+Independent reviews examined only this ticket's two test files and this document
+against baseline `bd98992`. Spec reported zero findings. Standards reported zero
+hard violations and one low-priority possible duplication between the local
+runtime verification helpers. That optional extraction is deferred: the scenarios
+keep their distinct metadata, extent and retained-array checks local, without
+introducing a shared testing framework. No allocator defect or core change was
+required.
