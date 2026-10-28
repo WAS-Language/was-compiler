@@ -1,0 +1,1554 @@
+{
+  "schema": 1,
+  "mode": "timing",
+  "recordedUtc": "2026-10-28T19:37:54.089Z",
+  "environment": {
+    "node": "v24.12.0",
+    "v8": "13.6.233.17-node.37",
+    "platform": "win32",
+    "release": "10.0.26300",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra 5 125H"
+  },
+  "source": {
+    "sha256": "43e6de92ad8d1b9c778325ee4d1b62bd8fc0f1f26b832440a6213c8e27ab1cd4",
+    "bytes": 46
+  },
+  "harness": {
+    "sha256": "2b5c3987159b746e2d8a2f38e7438638c65a53f1a00486065efee682a0955cc1"
+  },
+  "modules": {
+    "prototype": {
+      "sha256": "39767d0825417f7c1fe4e100ffea7c025b0b0b0587eb94b3be698d24d7cdb963",
+      "bytes": 2186
+    },
+    "instrumented": {
+      "sha256": "ba52d0f505a522a5714edde7116f32c1085440b83ea0d73370add604b54fbb2c",
+      "bytes": 2226
+    }
+  },
+  "workload": {
+    "requests": [
+      0,
+      9,
+      17,
+      33,
+      65
+    ],
+    "capacities": [
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "persistentPerClass": 1,
+    "transientPerClass": 3,
+    "cycles": 256
+  },
+  "results": {
+    "samples": [
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1580500",
+        "nsPerPair": 385.8642578125
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "892900",
+        "nsPerPair": 217.9931640625
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "836400",
+        "nsPerPair": 204.19921875
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "892400",
+        "nsPerPair": 217.87109375
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "894600",
+        "nsPerPair": 218.408203125
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "693200",
+        "nsPerPair": 169.23828125
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "897300",
+        "nsPerPair": 219.0673828125
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1021200",
+        "nsPerPair": 249.31640625
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "813600",
+        "nsPerPair": 198.6328125
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "865100",
+        "nsPerPair": 211.2060546875
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1005200",
+        "nsPerPair": 245.41015625
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "671300",
+        "nsPerPair": 163.8916015625
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1025400",
+        "nsPerPair": 250.341796875
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "441600",
+        "nsPerPair": 107.8125
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "437300",
+        "nsPerPair": 106.7626953125
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "567400",
+        "nsPerPair": 138.525390625
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "587800",
+        "nsPerPair": 143.505859375
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "403000",
+        "nsPerPair": 98.388671875
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "532700",
+        "nsPerPair": 130.0537109375
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "900700",
+        "nsPerPair": 219.8974609375
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "747300",
+        "nsPerPair": 182.4462890625
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "423300",
+        "nsPerPair": 103.3447265625
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "318000",
+        "nsPerPair": 77.63671875
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "308600",
+        "nsPerPair": 75.341796875
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "190300",
+        "nsPerPair": 46.4599609375
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "875900",
+        "nsPerPair": 213.8427734375
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "672400",
+        "nsPerPair": 164.16015625
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "928000",
+        "nsPerPair": 226.5625
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "892700",
+        "nsPerPair": 217.9443359375
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "751000",
+        "nsPerPair": 183.349609375
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1596900",
+        "nsPerPair": 389.8681640625
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1975800",
+        "nsPerPair": 482.373046875
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1406300",
+        "nsPerPair": 343.3349609375
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1435800",
+        "nsPerPair": 350.537109375
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1698400",
+        "nsPerPair": 414.6484375
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "451700",
+        "nsPerPair": 110.2783203125
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "468600",
+        "nsPerPair": 114.404296875
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "393200",
+        "nsPerPair": 95.99609375
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "412400",
+        "nsPerPair": 100.68359375
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "598900",
+        "nsPerPair": 146.2158203125
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2506200",
+        "nsPerPair": 611.865234375
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2682400",
+        "nsPerPair": 654.8828125
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2519800",
+        "nsPerPair": 615.185546875
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2423800",
+        "nsPerPair": 591.748046875
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2513300",
+        "nsPerPair": 613.5986328125
+      },
+      {
+        "repetition": 0,
+        "sample": 0,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4758900",
+        "nsPerPair": 1161.8408203125
+      },
+      {
+        "repetition": 0,
+        "sample": 1,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "5107500",
+        "nsPerPair": 1246.9482421875
+      },
+      {
+        "repetition": 0,
+        "sample": 2,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4346100",
+        "nsPerPair": 1061.0595703125
+      },
+      {
+        "repetition": 0,
+        "sample": 3,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4730600",
+        "nsPerPair": 1154.931640625
+      },
+      {
+        "repetition": 0,
+        "sample": 4,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4680900",
+        "nsPerPair": 1142.7978515625
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "5332900",
+        "nsPerPair": 1301.9775390625
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4830200",
+        "nsPerPair": 1179.248046875
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4699200",
+        "nsPerPair": 1147.265625
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4690500",
+        "nsPerPair": 1145.1416015625
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4698600",
+        "nsPerPair": 1147.119140625
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2891400",
+        "nsPerPair": 705.908203125
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2500000",
+        "nsPerPair": 610.3515625
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2492000",
+        "nsPerPair": 608.3984375
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2513900",
+        "nsPerPair": 613.7451171875
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2862100",
+        "nsPerPair": 698.7548828125
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "786500",
+        "nsPerPair": 192.0166015625
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "231300",
+        "nsPerPair": 56.4697265625
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "213600",
+        "nsPerPair": 52.1484375
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "331600",
+        "nsPerPair": 80.95703125
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "378100",
+        "nsPerPair": 92.3095703125
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1630400",
+        "nsPerPair": 398.046875
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1166000",
+        "nsPerPair": 284.66796875
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1166200",
+        "nsPerPair": 284.716796875
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1434700",
+        "nsPerPair": 350.2685546875
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1343100",
+        "nsPerPair": 327.9052734375
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "959200",
+        "nsPerPair": 234.1796875
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "977500",
+        "nsPerPair": 238.6474609375
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "903100",
+        "nsPerPair": 220.4833984375
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "602900",
+        "nsPerPair": 147.1923828125
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "589100",
+        "nsPerPair": 143.8232421875
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "994300",
+        "nsPerPair": 242.7490234375
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "740200",
+        "nsPerPair": 180.712890625
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "436400",
+        "nsPerPair": 106.54296875
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "372200",
+        "nsPerPair": 90.869140625
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "480900",
+        "nsPerPair": 117.4072265625
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "892800",
+        "nsPerPair": 217.96875
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "392700",
+        "nsPerPair": 95.8740234375
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "666400",
+        "nsPerPair": 162.6953125
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "674100",
+        "nsPerPair": 164.5751953125
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "348700",
+        "nsPerPair": 85.1318359375
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "374100",
+        "nsPerPair": 91.3330078125
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "381800",
+        "nsPerPair": 93.212890625
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "239600",
+        "nsPerPair": 58.49609375
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "377900",
+        "nsPerPair": 92.2607421875
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "425400",
+        "nsPerPair": 103.857421875
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "218800",
+        "nsPerPair": 53.41796875
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "364400",
+        "nsPerPair": 88.96484375
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "413000",
+        "nsPerPair": 100.830078125
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "218100",
+        "nsPerPair": 53.2470703125
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "687600",
+        "nsPerPair": 167.87109375
+      },
+      {
+        "repetition": 1,
+        "sample": 0,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "489800",
+        "nsPerPair": 119.580078125
+      },
+      {
+        "repetition": 1,
+        "sample": 1,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "194400",
+        "nsPerPair": 47.4609375
+      },
+      {
+        "repetition": 1,
+        "sample": 2,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "448500",
+        "nsPerPair": 109.4970703125
+      },
+      {
+        "repetition": 1,
+        "sample": 3,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "266300",
+        "nsPerPair": 65.0146484375
+      },
+      {
+        "repetition": 1,
+        "sample": 4,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "251900",
+        "nsPerPair": 61.4990234375
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "408600",
+        "nsPerPair": 99.755859375
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "243500",
+        "nsPerPair": 59.4482421875
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "217000",
+        "nsPerPair": 52.978515625
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "359100",
+        "nsPerPair": 87.6708984375
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 1,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "210100",
+        "nsPerPair": 51.2939453125
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "216300",
+        "nsPerPair": 52.8076171875
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "355700",
+        "nsPerPair": 86.8408203125
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "225400",
+        "nsPerPair": 55.029296875
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "208900",
+        "nsPerPair": 51.0009765625
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 32,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "443000",
+        "nsPerPair": 108.154296875
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "264100",
+        "nsPerPair": 64.4775390625
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "262800",
+        "nsPerPair": 64.16015625
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "404500",
+        "nsPerPair": 98.7548828125
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "269700",
+        "nsPerPair": 65.8447265625
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 32,
+        "rank": 17,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "276000",
+        "nsPerPair": 67.3828125
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "565400",
+        "nsPerPair": 138.037109375
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "390900",
+        "nsPerPair": 95.4345703125
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "387900",
+        "nsPerPair": 94.7021484375
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "543500",
+        "nsPerPair": 132.6904296875
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 32,
+        "rank": 32,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "402200",
+        "nsPerPair": 98.193359375
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "192100",
+        "nsPerPair": 46.8994140625
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "356700",
+        "nsPerPair": 87.0849609375
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "198000",
+        "nsPerPair": 48.33984375
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "186600",
+        "nsPerPair": 45.556640625
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 128,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "334900",
+        "nsPerPair": 81.7626953125
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "906800",
+        "nsPerPair": 221.38671875
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "684300",
+        "nsPerPair": 167.0654296875
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "674500",
+        "nsPerPair": 164.6728515625
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "843200",
+        "nsPerPair": 205.859375
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 128,
+        "rank": 65,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1027800",
+        "nsPerPair": 250.927734375
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1435200",
+        "nsPerPair": 350.390625
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1636700",
+        "nsPerPair": 399.5849609375
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1618400",
+        "nsPerPair": 395.1171875
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1628500",
+        "nsPerPair": 397.5830078125
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 128,
+        "rank": 128,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "1457900",
+        "nsPerPair": 355.9326171875
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "221000",
+        "nsPerPair": 53.955078125
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "237500",
+        "nsPerPair": 57.9833984375
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "213700",
+        "nsPerPair": 52.1728515625
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "214400",
+        "nsPerPair": 52.34375
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 512,
+        "rank": 1,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "347400",
+        "nsPerPair": 84.814453125
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2436000",
+        "nsPerPair": 594.7265625
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2528800",
+        "nsPerPair": 617.3828125
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2262800",
+        "nsPerPair": 552.44140625
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "2124500",
+        "nsPerPair": 518.6767578125
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 512,
+        "rank": 257,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "3458300",
+        "nsPerPair": 844.3115234375
+      },
+      {
+        "repetition": 2,
+        "sample": 0,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "5286300",
+        "nsPerPair": 1290.6005859375
+      },
+      {
+        "repetition": 2,
+        "sample": 1,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4979300",
+        "nsPerPair": 1215.6494140625
+      },
+      {
+        "repetition": 2,
+        "sample": 2,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "4857800",
+        "nsPerPair": 1185.986328125
+      },
+      {
+        "repetition": 2,
+        "sample": 3,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "5196100",
+        "nsPerPair": 1268.5791015625
+      },
+      {
+        "repetition": 2,
+        "sample": 4,
+        "population": 512,
+        "rank": 512,
+        "pairs": 4096,
+        "warmupPairs": 2048,
+        "elapsedNs": "5692200",
+        "nsPerPair": 1389.697265625
+      }
+    ],
+    "boundary": "JS loop + two JS/Wasm calls + release search + exact-class reuse + multivalue transport per pair; no payload initialization in timer"
+  }
+}

@@ -4,6 +4,9 @@ This first slice implements emitted-Wasm allocation, explicit release and exact-
 reuse behind `cfg(test)`. It is not a production memory manager, source feature,
 public compiler option or adapter API. The remaining M3 tickets expand runtime,
 failure, growth and measurement evidence; #58 does not claim their exit gates.
+[#63's integrated contract-to-test and validation record](m3-allocation-infrastructure.md)
+now accepts the final private milestone, including #59–#62's evidence and fresh
+ordinary/M2/browser noninterference gates. It does not authorize production consumers.
 The approved scope is [roadmap §7](was_compiler_memory_and_optimization_roadmap.md#7-milestone-m3--allocation-infrastructure-and-reclamation-policy).
 
 ## Activation and assembly boundary

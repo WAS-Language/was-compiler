@@ -1,0 +1,1825 @@
+{
+  "schema": 1,
+  "issue": 63,
+  "recordedUtc": "2026-10-28T19:44:04.134380+00:00",
+  "revision": "fc72d290b0cea1095b0b9df86c476ebc06f1499f",
+  "statusBeforeValidation": "",
+  "sourceStatus": "Clean at start; no implementation, test, runtime, manifest or fixture changes during validation. Only documentation/evidence packaging follows.",
+  "versions": {
+    "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+    "cargo": "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+    "node": "v24.12.0",
+    "python": "3.13.14",
+    "wasmPack": "0.15.0",
+    "wasmBindgenOnPath": false
+  },
+  "commandGroups": [
+    {
+      "name": "focused",
+      "deadlineSeconds": 300,
+      "sequential": true,
+      "completed": true
+    },
+    {
+      "name": "measurement",
+      "deadlineSeconds": 600,
+      "childDeadlineSeconds": 360,
+      "sequential": true,
+      "completed": true,
+      "recorder": "python tests/support/record_m3_allocator.py target/m3-integrated-63/measurements"
+    },
+    {
+      "name": "fast-full",
+      "deadlineSeconds": 1200,
+      "sequential": true,
+      "completed": true
+    }
+  ],
+  "deadlineNote": "Deadlines bound entire tool command groups, not individual gates; every group completed with exit 0. Measurement recorder separately bounds each child. Individual wall-clock durations were not captured; target summaries retain Cargo test durations.",
+  "attemptsNote": "An initial inline Python orchestration command failed shell parsing before executing any gates. The subsequent focused shell chain completed. No validation gate failed, timed out or was retried.",
+  "commands": [
+    {
+      "name": "check",
+      "command": "cargo check --offline --all-targets",
+      "group": "focused",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/check.log",
+      "logBytes": 270,
+      "logSha256": "cc5eea037b0f5fbd2de20b790598e99c78c50545d1f61ab28fa3dc8e0e31e744",
+      "targetSummaries": []
+    },
+    {
+      "name": "allocator",
+      "command": "cargo test --offline -p was-compiler --lib codegen::allocator -- --include-ignored",
+      "group": "focused",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/allocator.log",
+      "logBytes": 4609,
+      "logSha256": "dc1af2a9fa1910b9e92e39b5fd9195c7284785adc1b7d09a25f1026fee249b47",
+      "targetSummaries": [
+        {
+          "passed": 38,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 533,
+          "detail": "finished in 0.95s"
+        }
+      ],
+      "totals": {
+        "passed": 38,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 533
+      }
+    },
+    {
+      "name": "region",
+      "command": "cargo test --offline -p was-compiler --lib codegen::region -- --include-ignored",
+      "group": "focused",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/region.log",
+      "logBytes": 2627,
+      "logSha256": "39000d569564cc8a05e344884055b39e7489fb60cd08450f3652d1c0c74299ef",
+      "targetSummaries": [
+        {
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 548,
+          "detail": "finished in 2.31s"
+        }
+      ],
+      "totals": {
+        "passed": 23,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 548
+      }
+    },
+    {
+      "name": "lifetime",
+      "command": "cargo test --offline -p was-compiler --lib lifetime -- --include-ignored",
+      "group": "focused",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/lifetime.log",
+      "logBytes": 4574,
+      "logSha256": "5812e6d3e152261d0a3692b1cf55f3135f159fe4383e611834dbf4944b8c288c",
+      "targetSummaries": [
+        {
+          "passed": 42,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 529,
+          "detail": "finished in 1.12s"
+        }
+      ],
+      "totals": {
+        "passed": 42,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 529
+      }
+    },
+    {
+      "name": "memory",
+      "command": "cargo test --offline -p was-compiler --lib codegen::memory_tests -- --include-ignored",
+      "group": "focused",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/memory.log",
+      "logBytes": 2703,
+      "logSha256": "8af4be3872a94b909d727cb3823dca6d4e261506df4a1f8f1f6cf9a66761f58f",
+      "targetSummaries": [
+        {
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 550,
+          "detail": "finished in 2.09s"
+        }
+      ],
+      "totals": {
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 550
+      }
+    },
+    {
+      "name": "typed-lowering",
+      "command": "cargo test --offline -p was-compiler --test typed_arrays_lowering",
+      "group": "focused",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/typed-lowering.log",
+      "logBytes": 540,
+      "logSha256": "c6aaf506ac724991f180319f580033c69bcb052e7bfa2980d741aa5fdaf82245",
+      "targetSummaries": [
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        }
+      ],
+      "totals": {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 0
+      }
+    },
+    {
+      "name": "typed-retention",
+      "command": "cargo test --offline -p was-compiler --test typed_arrays_runtime raw_host_retained_typed_arrays_survive_recursive_reentry_traps_and_rhs_growth -- --ignored --exact",
+      "group": "focused",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/typed-retention.log",
+      "logBytes": 479,
+      "logSha256": "beef9f2b11187b16f79e7d48d101d1590ca2a5007cfed9cec2c810e105ee9e5e",
+      "targetSummaries": [
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 5,
+          "detail": "finished in 0.55s"
+        }
+      ],
+      "totals": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 5
+      }
+    },
+    {
+      "name": "closure-retention",
+      "command": "cargo test --offline -p was-compiler --test closures_runtime reentrant_live_contexts_and_retained_handles_survive_inner_traps_and_growth -- --ignored --exact",
+      "group": "focused",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/closure-retention.log",
+      "logBytes": 470,
+      "logSha256": "6f699fea03f0e657071e39e660384ffabcd418f7955ef07dd4d547bee50934c9",
+      "targetSummaries": [
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 29,
+          "detail": "finished in 0.37s"
+        }
+      ],
+      "totals": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 29
+      }
+    },
+    {
+      "name": "default",
+      "command": "cargo test --offline",
+      "group": "fast-full",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/default.log",
+      "logBytes": 150365,
+      "logSha256": "2b528a3277d73f989f4d078190739c2de4738fcf8a35fb4f32015d2aeb97becf",
+      "targetSummaries": [
+        {
+          "passed": 501,
+          "failed": 0,
+          "ignored": 70,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.20s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 3,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.04s"
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 4,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.08s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.56s"
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.09s"
+        },
+        {
+          "passed": 66,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.14s"
+        },
+        {
+          "passed": 59,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.18s"
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 30,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.05s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.05s"
+        },
+        {
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.04s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 7,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        },
+        {
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 5,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.18s"
+        },
+        {
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.10s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.05s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.20s"
+        },
+        {
+          "passed": 16,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.39s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 17,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 5,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 4,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.13s"
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 4,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.06s"
+        },
+        {
+          "passed": 33,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.14s"
+        },
+        {
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 41,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.05s"
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 20,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.06s"
+        },
+        {
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 3,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.06s"
+        },
+        {
+          "passed": 18,
+          "failed": 0,
+          "ignored": 4,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.07s"
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 5,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.09s"
+        },
+        {
+          "passed": 33,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 8,
+          "failed": 0,
+          "ignored": 2,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 3,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.08s"
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 4,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 15,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 6,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 5,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.45s"
+        },
+        {
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 6,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.04s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.71s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        },
+        {
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.40s"
+        },
+        {
+          "passed": 50,
+          "failed": 0,
+          "ignored": 8,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 9.98s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 3,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 3.88s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 2.23s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.12s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.65s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 5.07s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.13s"
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 2.49s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.65s"
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        }
+      ],
+      "totals": {
+        "passed": 1212,
+        "failed": 0,
+        "ignored": 241,
+        "measured": 0,
+        "filteredOut": 0
+      }
+    },
+    {
+      "name": "clippy",
+      "command": "cargo clippy --offline --all-targets -- -D warnings",
+      "group": "fast-full",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/clippy.log",
+      "logBytes": 72,
+      "logSha256": "49339d2d1e4d32f28bff0f82e49e8f61126d87781d9b09ad4d6984058c5c7954",
+      "targetSummaries": []
+    },
+    {
+      "name": "core-wasm",
+      "command": "cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown",
+      "group": "fast-full",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/core-wasm.log",
+      "logBytes": 72,
+      "logSha256": "9c73735a1033f44f00ea48e15c38d73843ff5a391557aac653bd81d564a34b5f",
+      "targetSummaries": []
+    },
+    {
+      "name": "workspace-contract",
+      "command": "cargo test --offline -p was-compiler --test workspace_contract",
+      "group": "fast-full",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/workspace-contract.log",
+      "logBytes": 591,
+      "logSha256": "dabe5faa1303b2c0e261c3e326fbe5afce1526eb08c834250832d4d4d0ee0fdb",
+      "targetSummaries": [
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.27s"
+        }
+      ],
+      "totals": {
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 0
+      }
+    },
+    {
+      "name": "browser-build",
+      "command": "wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline",
+      "group": "fast-full",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/browser-build.log",
+      "logBytes": 380,
+      "logSha256": "bb3d289e95d9fd18323302b52e04344defbc319c481c48af0b2ac82acd960b72",
+      "targetSummaries": []
+    },
+    {
+      "name": "browser-smoke",
+      "command": "node tests/browser.cjs pkg",
+      "group": "fast-full",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/browser-smoke.log",
+      "logBytes": 2137,
+      "logSha256": "1ccd7b02a6e77a957a3256b7a9b8ebf0e499c9ece5151cbcc7a9d287addc998b",
+      "targetSummaries": [],
+      "smokeGroupsPassed": 25
+    },
+    {
+      "name": "full",
+      "command": "cargo test --offline --workspace -- --include-ignored",
+      "group": "fast-full",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/full.log",
+      "logBytes": 146535,
+      "logSha256": "15bf63f3cb602ae554633c17b948994537ba00ed8c21cfc09c7ddfa509165f4d",
+      "targetSummaries": [
+        {
+          "passed": 571,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 5.22s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.10s"
+        },
+        {
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.16s"
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.29s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.26s"
+        },
+        {
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.26s"
+        },
+        {
+          "passed": 66,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.08s"
+        },
+        {
+          "passed": 59,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.08s"
+        },
+        {
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 7.04s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.25s"
+        },
+        {
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.36s"
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.42s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.36s"
+        },
+        {
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.51s"
+        },
+        {
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.09s"
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.08s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.19s"
+        },
+        {
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.35s"
+        },
+        {
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.46s"
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.45s"
+        },
+        {
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.39s"
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.51s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.26s"
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.46s"
+        },
+        {
+          "passed": 33,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.07s"
+        },
+        {
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 41,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.02s"
+        },
+        {
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.11s"
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.06s"
+        },
+        {
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.27s"
+        },
+        {
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.31s"
+        },
+        {
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.89s"
+        },
+        {
+          "passed": 35,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.43s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.29s"
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.26s"
+        },
+        {
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.52s"
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 2.82s"
+        },
+        {
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 2.08s"
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.64s"
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.42s"
+        },
+        {
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.03s"
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.65s"
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.69s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.42s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.50s"
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.93s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.54s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.34s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.22s"
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.84s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.25s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.01s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.17s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.18s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.23s"
+        },
+        {
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.01s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 1.51s"
+        },
+        {
+          "passed": 58,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 10.62s"
+        },
+        {
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 4.74s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 2.30s"
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.08s"
+        },
+        {
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.56s"
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 5.68s"
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 2.43s"
+        },
+        {
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 3.18s"
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.89s"
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filteredOut": 0,
+          "detail": "finished in 0.00s"
+        }
+      ],
+      "totals": {
+        "passed": 1466,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 0
+      }
+    },
+    {
+      "name": "browser-clippy",
+      "command": "cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings",
+      "group": "fast-full",
+      "exitCode": 0,
+      "transientLog": "target/m3-integrated-63/browser-clippy.log",
+      "logBytes": 72,
+      "logSha256": "50030225e5ae0694fd524bd6ffaf6739a71feab2d9e42ecddfc4945633e875e4",
+      "targetSummaries": []
+    }
+  ],
+  "executableSourceHashes": {
+    "Cargo.lock": "289d616165fd28cbeb26ca242b935142b91faedbc0d99d3d73d440ad402026aa",
+    "Cargo.toml": "ea2310a193ecd5806d3eb1fa314eb4ef164ea406b2bd80abccdd28828639b3f0",
+    "crates/browser/Cargo.toml": "f8badb786d7c7879ecb9a143b33dacb3abaa357dc7ed5c27b231f5f70b07375d",
+    "crates/browser/src/lib.rs": "e3b1b73b8927a22e8d9041bab655d5530225b9ba123aa48f86819de703ab2e10",
+    "crates/browser/tests/browser.rs": "28a72d6bf731b013d9b097fbb2019bbce15f36e0dc22627f8a128ddec063b4bc",
+    "crates/browser/tests/closures_adapters.rs": "da7c97fed382d3520eca249a99d1be7600dd25a78a8fc33217a219bb8281e969",
+    "crates/browser/tests/contracts_adapters.rs": "5527af8a8c216fe8481fcadaa7cb3bbb8eb75f979f032396f6d9047671e96b67",
+    "crates/browser/tests/default_runtime.rs": "a85b311a46cbce1dcd537ceee12887d23d0478d4a6c98e3e14bd849ca6748d2b",
+    "crates/browser/tests/integer_specialization_adapters.rs": "477a43a9d5e754db5d7f62f81a7725e8f11179840d819f9fff4e9a47907a8351",
+    "crates/browser/tests/match_adapters.rs": "400762f82f406fc2f42021f37246d8220a5c949ae0e7a0de74f426191fdafe28",
+    "crates/browser/tests/pipelines_adapters.rs": "73705886191b285124bc1bc58d6e531316bda8412f979948a6f6b87efd9fd6a8",
+    "crates/browser/tests/result_inference.rs": "356f241bccd9ed1446c0a95dc72fb85bbcbaaeafb132e166535f8f99af9c385b",
+    "crates/browser/tests/result_inference_adapters.rs": "73b1b3e3b4f723880506673a90e61fc31a9784ac6cfc183687e49e61df2c93b9",
+    "crates/browser/tests/typed_arrays_adapters.rs": "a1a07d4df9b464268d6b1ba6569301a1e4201001e7e7d70d89057afe9295b42d",
+    "crates/cli/Cargo.toml": "f405a4546739758930c628b3bc0388259b2d6c8b86d34d3e96c9f25445a603be",
+    "crates/cli/src/cli.rs": "78499c4eb2a29147bcb4c73efd1eba25c89e8340ed851001dd2615803ab1ccf7",
+    "crates/cli/src/cli_contract_tests.rs": "b6015745feede482cf6867b2a77f4993afc6c19ad791c26d685161093d6c1f50",
+    "crates/cli/src/main.rs": "a88dd9a2a237d2df6b7d85f56b094b5b0ca6b0808b776c6913c5c989f34e5355",
+    "crates/cli/tests/abi.rs": "753d9ec57dbf9d3e5b65b7466d64a5391a865930775bafa8ab8514dc3eb6b723",
+    "crates/cli/tests/cli.rs": "25fc4eb5107dce9f480b6a345c4d83ae8fbf78936d4cd634cf7d2df05a3ebcea",
+    "crates/cli/tests/closures_adapters.rs": "e87a80cee58d3d9265eaad0d0aaf1530a7e617d4ec8d4f9b85273b5e638bf60a",
+    "crates/cli/tests/contracts_adapters.rs": "14d239b5c5b13fd8ced99c654395a23cd57a21b90fa6307de22b4762a32a0ab3",
+    "crates/cli/tests/diagnostics.rs": "98b697341553c6fa329bcfa82b113b47e2e89220a76c70b3421df3f60c6c816e",
+    "crates/cli/tests/match_adapters.rs": "0241b1dfd1787fd6796738a2319cca160dada9d743c184ca3a4ed0618c36e451",
+    "crates/cli/tests/pipelines_adapters.rs": "4fd5db259c445e2e78047f2a0968ae12bec7d83c8330392481ef478b000ae6aa",
+    "crates/cli/tests/result_inference_adapters.rs": "bc4834ca38f04aca1f8cf04d79cd1ddfb175ee406abd2b26be2f64d236dfd455",
+    "crates/cli/tests/result_inference_release.rs": "af590f31fea82132a545d08a8e44e9428ca4c344d4e9a2d7c4a511df7ed878d1",
+    "crates/cli/tests/typed_arrays_adapters.rs": "7fe949ded9a0bd2cecf5ff651b94814bb29a10e7f09f764089724c504971ba32",
+    "crates/compiler/Cargo.toml": "81bed71914078d7f8f8446280044051b0651b19a88c9ff247db0b7a49390b64f",
+    "crates/compiler/benches/compiler.rs": "99a8ebef9801e7eab3c1add9230696789d8bd4136fc24204ce1847085f04a12d",
+    "crates/compiler/benches/integer_specialization.rs": "c920019ea3661b755e87a1418097e5deba4f18831f80f20ceb8bfb6d44ef4aae",
+    "crates/compiler/benches/support/corpus.rs": "ddf953170b47abceb3cda9fd8f370f718479da08befc16df65f5616b2f6f8312",
+    "crates/compiler/src/ast.rs": "94716451e0373b146e3c8fc9a21fbc35c8a965a3261f75752bd078a71995de67",
+    "crates/compiler/src/codegen/abi.rs": "f71152d8a90c81abdcbaf3e6f2481f85d2f8f76a4576045fc78ce6a85f4d49a6",
+    "crates/compiler/src/codegen/allocator.rs": "3fdb837101af8ed693a54a90dcd37b04e6e7072f5035bc623f566806e694f637",
+    "crates/compiler/src/codegen/allocator/failure_order_tests.rs": "915076ab32a98b5c7e6a064a14539c3eed2ca36f78e6d8fcb120c0c0164aee3f",
+    "crates/compiler/src/codegen/allocator/failure_tests.rs": "8c65cad6790422169638f3b46da66172d99eeecc97933c20cb7f358b6b6cc7a7",
+    "crates/compiler/src/codegen/allocator/measurement_tests.rs": "38418a03a225ff52e3a1324823aa63e26e7cbbbcb4aaa4caabf68d57f2c76c1a",
+    "crates/compiler/src/codegen/allocator/release_tests.rs": "8a32350856a303d5a4d8cfff52aa503935a45ee4e2679619ca0dedcf319b1849",
+    "crates/compiler/src/codegen/allocator/runtime_tests.rs": "5bf823c999eae09720cc0fead3ac236134c49593bd4e888c0452466ae3bf59cd",
+    "crates/compiler/src/codegen/allocator/tests.rs": "4cc644afcf4f256e80021aa01db889e3efefae98ed06739a96ed56315114025d",
+    "crates/compiler/src/codegen/array.rs": "52acbd208fd2f076208954b13b4943452cc3587db7951b7295d46935923dd01f",
+    "crates/compiler/src/codegen/call.rs": "792b352895682d43177627db4d92b297a00b3ccef51ea0c8e932fa19daedf4b8",
+    "crates/compiler/src/codegen/closures.rs": "a86aff0046ff52ce2019e749d8ff0ce58ae7d49b7f98fc2c7ac96d874a917a32",
+    "crates/compiler/src/codegen/contracts_tests.rs": "98769c488342a5466589411ca548e91ce673bc05309537fd13a9c21b1749bf50",
+    "crates/compiler/src/codegen/control_flow.rs": "61faddfd5bf2aac71a483c97cc97921c94d5c553da67de257b5516500b642719",
+    "crates/compiler/src/codegen/export_tests.rs": "6d72e3c934291c816dd2433516478d6a51614b5a74cd948562d6320d0b08f65c",
+    "crates/compiler/src/codegen/expression.rs": "7f992e57b41a2521ff4c0fd578234e2ff0ca1445150a6e7047b82d264d397de2",
+    "crates/compiler/src/codegen/function.rs": "cdb996f017785aa7a8a956b0e06ce1b130ba376128b569dfaed3a84869b30d02",
+    "crates/compiler/src/codegen/indices.rs": "cb239143b4ca6f70f44c78fd8bdf86d9df51a7ed78295287d81f7ccc02974ebe",
+    "crates/compiler/src/codegen/layout.rs": "26df960130834af6019896018f08079d00bed777613843c58a8f724a23c3720a",
+    "crates/compiler/src/codegen/locals.rs": "c9a03a23fcb5cf79c88dcfa6f5533f652b24c84008f46f17bddc8a3a2aa2eaf5",
+    "crates/compiler/src/codegen/match_.rs": "a68f1a3e67426cd41738694ba481fbd7c173960134865f7558a55ceae4b0d815",
+    "crates/compiler/src/codegen/memory.rs": "08639c80ef45064a76fe6bc9fc5078fe9680d2ac5461a417e2a655472e3344d5",
+    "crates/compiler/src/codegen/memory_tests.rs": "31830bb78ce11cfa79a0397b8e643d8bd0184037fa625cf15049695d72de438d",
+    "crates/compiler/src/codegen/memory_tests/layout.rs": "ea383465101b6db025c91afce58d86560fa70e59e616f757bcacbf36a4345f63",
+    "crates/compiler/src/codegen/memory_tests/runtime.rs": "affe2ed439e8737a633c5a2a36589e551e040c70312d2f5442484fe6b8aefc73",
+    "crates/compiler/src/codegen/memory_tests/validation.rs": "2776aa883c6a432986ef8727e4d56531fd18c52ecea32963e8f04195cb34c5c8",
+    "crates/compiler/src/codegen/mod.rs": "16a483e0d30fcd4833775c2bd913882b3b7e73f0123bc31e537feea5b51add92",
+    "crates/compiler/src/codegen/numeric.rs": "03e8a5224a123bff92eec4df7bd871de93ef9a94b065059bf21e7d1264f895ca",
+    "crates/compiler/src/codegen/place.rs": "44fe4f1ba4c19efefac7a3ca6530afbf702e1e76100982e9d715ce39cdc82443",
+    "crates/compiler/src/codegen/pure.rs": "43f3730ee9d86cacb3cbb8e70361114f7dce492b0b6ffcee67e046cbb523fea7",
+    "crates/compiler/src/codegen/range.rs": "e64511da9f6f97130609d2fe2f3fede8efe91cf144bd82b91bd74626780aafb0",
+    "crates/compiler/src/codegen/range_tests.rs": "46f2ea648adb0b12e68f3daa432fd4062b7fae92646d7b38d5e04c9c48d080f3",
+    "crates/compiler/src/codegen/region.rs": "c556c91ddbae8daf62606b3a4a5230194df4e649e5b1bdb9ad23b0e4f5b6af5c",
+    "crates/compiler/src/codegen/region/instrumentation.rs": "4c313d854c74e1369b7e02c1e54a318733775ee6d420bd15690651959685bd44",
+    "crates/compiler/src/codegen/region/measurement_tests.rs": "e67216430ce63bbeedc1bd6e63118417221d962061288e7eb263c2eb254532b0",
+    "crates/compiler/src/codegen/region/runtime_tests.rs": "09b43d10623a97f82385aa6111f2bdfaaa2721e7ec4d3b1cad50a02a20f02ecf",
+    "crates/compiler/src/codegen/region/tests.rs": "2a8d0a5ae3df8033420c01f4fadd69927bd5cd9e4a11fc41ff9137e9482ab9b9",
+    "crates/compiler/src/codegen/representation.rs": "b7f72be04cd8bf0aa26c87b5f995305754b20d4979f9f259af40824fd8dda734",
+    "crates/compiler/src/codegen/statement.rs": "fc0974513015cf09f6f518926781e3dea93a93a41e04c793403da48fd16c97fe",
+    "crates/compiler/src/codegen/temporaries.rs": "5956f85c637c9b29f5f6cc54e23b3777beba81bea69c822c947849bfd045d898",
+    "crates/compiler/src/codegen/tests.rs": "451fa9828dc036ac6b63f2847a9175710ab4cbbbb9c36f807b22089adf0b332c",
+    "crates/compiler/src/codegen/tests/block_values.rs": "37abef9288cd8a21d97f1db7543e994b44e32c30f7fc61683836af7cbe52bd31",
+    "crates/compiler/src/codegen/tests/calls.rs": "eaeebd04487c289f7bb6f24aa4116267affeb949bd4b7f2ff6865002fbea0851",
+    "crates/compiler/src/codegen/tests/compound_assignment.rs": "983c53700564587f02f50911cef1a535b0e9670459684940008295fbbe3efe35",
+    "crates/compiler/src/codegen/tests/control_flow.rs": "3668f8ce2a93ed5ff23106300b8508368445f3ee0462269d81fb963a84cd160d",
+    "crates/compiler/src/codegen/tests/expressions.rs": "a472f77522005fa5665c50dfe84f3ac0fd5d5f4861df6a06177f23f9d8736ff6",
+    "crates/compiler/src/codegen/tests/layout.rs": "9806dd2984bc6e4532b7332c080266a91e934686f5d0df55aa0682d514fa9877",
+    "crates/compiler/src/codegen/tests/locals.rs": "0a3872beb33d4c6173288fe06611607c003e5648a56dc9adad0b403dc4d827a2",
+    "crates/compiler/src/codegen/tests/loop_control.rs": "1795c27447155b05757767df17deefbc28300a7f089a2dbdf042a37ecddc12df",
+    "crates/compiler/src/codegen/tests/malformed.rs": "085faacc69bf0131036f612df464d2c91d94c6e9026e8cbe942f2d706323055d",
+    "crates/compiler/src/codegen/tests/runtime.rs": "42111842275232c75840ec0b2a8d86cf07d7f79b05e4502de5974cd597f71d18",
+    "crates/compiler/src/codegen/tests/value_loops.rs": "fd63cc9a8cedfdebc76933997a85c57a5df4c164f956aeeea82ecbc10b6588af",
+    "crates/compiler/src/codegen/validation.rs": "cd071f667d51f6775976315610dbff8d4f012cb8623268e4e8f688bcd6e946ed",
+    "crates/compiler/src/codegen/validation_tests.rs": "4379d0c6c796c7c1e439ef5673ec26a8d0ed33bc501db99765fdf40630d7c1ea",
+    "crates/compiler/src/codegen/values.rs": "a10b1a2fb3a75b3065e95e01710db4f392ccfa789d1a43d057260d7f5d07ecec",
+    "crates/compiler/src/codegen/walker.rs": "cd1c101d3a79d403f7ceb559b757fd91e436286e71a8ff1bb0adf99eecc08b35",
+    "crates/compiler/src/codegen/walker_tests.rs": "05956ba031d2a579370421f4bdf3ffc86878428ec1236f4f2009f56650636760",
+    "crates/compiler/src/compiler.rs": "a11db6ef3ab49d29bee54b357a06601f77865280e7d074bd0a22a98211511571",
+    "crates/compiler/src/diagnostic.rs": "a2df3627def9b2dd93e03bb6b1b783c648af93c01b4928dca4b2ad286fba71f9",
+    "crates/compiler/src/exports.rs": "72a0853f525bdad3031681cfdfe77520b3128b20f43ce586ef376da9544cadfe",
+    "crates/compiler/src/flow.rs": "cc0276b77549393546c8864162385dfbf22c39fafc3ff96730e89093f0b7dcd8",
+    "crates/compiler/src/host.rs": "345ea7e2240284eca4faa9988a172b027a3e5dca28b37e09cbdd6014551226a3",
+    "crates/compiler/src/lexer.rs": "17c7fed08be5cd9f2d92af80adc4f4e5720934302b0abb940e9ff346e722f45f",
+    "crates/compiler/src/lib.rs": "c9b665774feed3283d60636273167e8c5cf61a17dbf0ab7380c15b6597457e66",
+    "crates/compiler/src/lifetime.rs": "c66a71b8ac630d2b10d44c91d46ff0f2837e1bdb6549711424aae9a2535b1af1",
+    "crates/compiler/src/lifetime/conservative_tests.rs": "4f4a98c9671854e17d59a361ba25f01a02230c138304a20f9432a12879878203",
+    "crates/compiler/src/lifetime/diagnostics.rs": "4025ec5698686ab98860ba393c2454da009f9a5f47494fd1e9ab6866fd91aa21",
+    "crates/compiler/src/lifetime/forged_tests.rs": "c4e32b385b8b7a87b255dc713f91351fbf0ced9057c8881c38d936cf75ea62b5",
+    "crates/compiler/src/lifetime/noninterference_tests.rs": "3bd83977347925718949e35adbc470719e7de8d5a2c5e23a7f42eced91dddf38",
+    "crates/compiler/src/lifetime/runtime_tests.rs": "0cb8d9817b8f109650981cbe8c4b580d5a9456bcdd2b453663727305bbfe30a0",
+    "crates/compiler/src/match_patterns.rs": "daa05ede4dfcf5c62b039d06cf83bcdfc232139571fd8a2b44a5cc58f17b1e84",
+    "crates/compiler/src/number_literal.rs": "a901867f388bc8c2d6a4088eb626ed90ce9c9bed54fc0ffc7cac8d8a06b78712",
+    "crates/compiler/src/optimization.rs": "f573e54b32b8eefcdc71cea8d79d6008f712be3c6fd5a26a89ba32ce157d43e3",
+    "crates/compiler/src/parser.rs": "80228a38369097e22f07fecc6c3de47914f510eea28b382439e4d9db0d59d28f",
+    "crates/compiler/src/semantic.rs": "89c669ce286ed9b6c66fbe4264e6c18ab367ea2f6b94fc1774894184e8f0fa1f",
+    "crates/compiler/src/semantic/call_binding.rs": "4d817444b2cb3b8c24f394c29d3b777fdb3b7b6a2857ba68b417c22445d87d79",
+    "crates/compiler/src/semantic/closures.rs": "1ff019b0b106a5cac3ee8e3743e6e82466442a6c54c359d88295ddd6df52ce08",
+    "crates/compiler/src/semantic/defaults.rs": "26230e52479e6ce2e804e201c2d535a190d061d52cd47c6c41ab9b6ab32f93b8",
+    "crates/compiler/src/semantic/inference.rs": "abfe35c7575e6180d16cc92b5ccdcdb8313c769bf884bb41e4ced76f276a8a21",
+    "crates/compiler/src/semantic/placeholders.rs": "b7cb3d7b34ba0a2e7bd78662aa6af4641187f7ad05db1a9f796bf4910cfe7a80",
+    "crates/compiler/src/semantic/pure_expression.rs": "99b46268f0fd178bea818840d27fd6e362cef2224003f48ed591f6a1a89d4f72",
+    "crates/compiler/src/semantic_tests.rs": "560a466d852383f75aed1ccda0507fdbb1b3de6a1801f3831e2d9833877deb71",
+    "crates/compiler/src/tokens.rs": "48594dc60e220389311c72a8187914c7a48991ed5f35bec468b50a697b14cb5b",
+    "crates/compiler/src/typed_ast.rs": "cb554ff7ce6a9ff263fdf77df7c21a0bc6be0a77da5da33cc59e25779dfaf2b1",
+    "crates/compiler/src/typed_ast_tests.rs": "c69b33dfb741284efb5844438b3109bc28dfa9ad94d9bef991a08ca91fad6c87",
+    "crates/compiler/tests/abi.rs": "77db13c81d970144a20d8d81fc4e239b627dbf04e339436e5ad26d60e1dcf414",
+    "crates/compiler/tests/array_equality.rs": "0201a7424ffce78050d02a36f60e6259f88891452146d6200c73923d6eba475e",
+    "crates/compiler/tests/array_for_loops.rs": "ea98ae3853b4c4d9d5799040e0551e0cbcf0f4ce2200b4df4482a7f042622024",
+    "crates/compiler/tests/benchmark_corpus.rs": "ecc1475b1cf3a3d5d51a518a57a73966e1f4208b7457d839434cfda29a451b12",
+    "crates/compiler/tests/block_values.rs": "65a2e23a93d121bc45913b5b732b9d1a55ed7728322a58c0495f230533faad61",
+    "crates/compiler/tests/closures_frontend.rs": "fec053e51a65a3966f6fb0a8f8d880c943ec11a3dbfe1b1f9d3656bc54cac664",
+    "crates/compiler/tests/closures_lowering.rs": "88bb57ac4b7a0a7e50f98a65bcdf1c696851e412f1af2e1f7b77b9f59d723720",
+    "crates/compiler/tests/closures_runtime.rs": "b687a471b802eeb7a2c2c79622a4f0019f65b118eee373586806a6062d680a36",
+    "crates/compiler/tests/comments.rs": "964a285207a364c2533db68b1906be72ca7c25d307fbe023729f2c44e60822b3",
+    "crates/compiler/tests/compound_assignment.rs": "0840b5c96b82346af6ffbea926c84837bb4b6f293fb1a3afa11934925308c473",
+    "crates/compiler/tests/contracts_frontend.rs": "1c60553be9bec518ad530bde75d561ccaa1bb47ab1aa2f931c13af95f41ca98c",
+    "crates/compiler/tests/contracts_lowering.rs": "9aba2023a8302c53cebcd50c8d27917a823ddc45660c4d0de73e67f4bca825f0",
+    "crates/compiler/tests/contracts_runtime.rs": "e972171582a999dc1f3444ea6b2495e9675ca5bd86e02f7e933d8567f1092e6d",
+    "crates/compiler/tests/default_lowering.rs": "a96c5ee90931db1014b0f1da321101c754203824d2a7d305f4d87dc076b3332b",
+    "crates/compiler/tests/default_runtime.rs": "4b98fc442db5e79fa259b3cda60b5aeec78f22b8f7645596512da3599b55ed9d",
+    "crates/compiler/tests/diagnostics.rs": "32060aaefac28aabb804c22a93289339c088955d4e3ea83b19c7c6a47c20322f",
+    "crates/compiler/tests/emitter.rs": "bd1b41c2f8c2cc366f596295e2d841c1de4c74b806f0fd0dc02d1c6323191cbc",
+    "crates/compiler/tests/for_frontend.rs": "507750b9e07ecd6c0aae01c5cd26bb7a068a7726ee301895ebdc093509999f88",
+    "crates/compiler/tests/for_loops.rs": "8d27c91ae7cd6f617c3efb275f4a3a4e0398ceaf648840872ca089f571a11b34",
+    "crates/compiler/tests/for_lowering.rs": "23fbdef3de0bbf78a63f8b2902176be841ca698c40055d447b92ffe0fb0f7776",
+    "crates/compiler/tests/inference.rs": "f4efc3d2e6f51c99a8ab5301c13770bbc2070b348577f0e4a5c03f98ee1cbc01",
+    "crates/compiler/tests/integer_baselines.rs": "eddbd57070d023c0f96c17329be2a212234f99e74884c88b00d78793e8bbf0d7",
+    "crates/compiler/tests/integer_locals.rs": "25ae1de81b08f51936a66220aa367e32e78f7715de3518a12e131b7b78b1323f",
+    "crates/compiler/tests/integer_specialization.rs": "12df486f0d1436cfaa55a0ee1d138d227cc269d2b0df0bc5317d8e65a2c258c0",
+    "crates/compiler/tests/loop_control.rs": "08d6c24b7d45a8e682dff7c0fa37a0ef873e11528a5b69188d918ee796b53d62",
+    "crates/compiler/tests/match_frontend.rs": "e8ee030c978b794e81c2780c830f65e8740f8c1da2a1d127e1c1fbb158bbdf4d",
+    "crates/compiler/tests/match_lowering.rs": "2de42605c9edadda0248e80101e647293880c348bb109abc8b9da0addc6cfc54",
+    "crates/compiler/tests/match_runtime.rs": "b8bf3969ad8eca9c79eb5ba71f45e6a4475053ab6f6e8df7b869a1b9c0bd76e9",
+    "crates/compiler/tests/memory_benchmarks.rs": "c5f3057e8bebeddabce72dbe8db9127aca2a71396adb73d3abd8fc95b7438699",
+    "crates/compiler/tests/named_arguments.rs": "598abfcaf10f0f9d35c1acb63ed24b451609c614f32fe87f9eecf49509cbc616",
+    "crates/compiler/tests/named_call_lowering.rs": "f4ab20d80b29b7670b6b015be080a3ac871aa6e0e9940a8ac1cee5e926b715dc",
+    "crates/compiler/tests/named_call_runtime.rs": "171afe095fc1ec69bf0e6a015ba09bb6a424f30fe66ed4720b8ae35409cf831e",
+    "crates/compiler/tests/named_defaults.rs": "d5464402e93a57db4c16ca4af83c82cf457cbe85558a8d9a54c56e807c86de74",
+    "crates/compiler/tests/pipelines_adapters.rs": "a937ecfc0014813f122d02c3c42524b2a19bb8c37e5afce184b168edbdbed98a",
+    "crates/compiler/tests/pipelines_frontend.rs": "d8fecb6268cecea68e99ec2d90eacaffa673be125f313488b5eb8eef8707144e",
+    "crates/compiler/tests/pipelines_lowering.rs": "6d41c72445ee5e8d876170b8a175ad3445a9ff1ebfb14b42256daad7cda34ed1",
+    "crates/compiler/tests/pipelines_runtime.rs": "6cd727386ee369b669a3c527ad8e46403c9522f920e4d4ede4aeb1c5b9ff565f",
+    "crates/compiler/tests/process.rs": "a6bb52621647aabe8937e16e0e7295a2af936f12f073d7a77ca3b87d68892b15",
+    "crates/compiler/tests/range_frontend.rs": "760f281ea6e6e486c005a7bb10da31a47e9a993ce90962260c8bccd659e4814f",
+    "crates/compiler/tests/range_membership.rs": "cd63bec50e565be53e8b7157479d8813654b9a79ffd937f8bfd23f8552faae1b",
+    "crates/compiler/tests/ranges.rs": "066df864e0acc8869c5d15d201d85db2cd76e9f1a3ec88b23ca79528df7fcee3",
+    "crates/compiler/tests/remainder.rs": "9f76cae329d711f63ab01f302a62c6a9a45d4990127c3364035a6a73310db81b",
+    "crates/compiler/tests/result_inference.rs": "0b290a8b60f72a96b5b6ab63b98e80d517e1dd1b76cd95f354709be9d8a05adf",
+    "crates/compiler/tests/result_inference_adapters.rs": "102115af17acf2b0fc42e9d8bd7ccb3596ac8bfe53534b19b244029a33f85e21",
+    "crates/compiler/tests/result_inference_chains.rs": "aa01e465a88a704a91eb54d56d08cc3ca1e4262677af179a47d099e70f83d465",
+    "crates/compiler/tests/result_inference_combined.rs": "8ae39fe199b952cf5c99f979eb206930de2ee98a60da50bb835663d022549cdb",
+    "crates/compiler/tests/result_inference_combined_checks.rs": "71ee6ec6db0bd9d9ec199d7811d4d132aa2dcc97dcdaadc30a3bc992773124d8",
+    "crates/compiler/tests/result_inference_defaults.rs": "72ae03237c7cff66fed78b8c07d4de54b2f0cc1d34e8e41f200f927c21b72ab5",
+    "crates/compiler/tests/runtime.rs": "e7a292247c70ecc7b352e6a23707de187297728ced103261e63d33a85c0c3a4b",
+    "crates/compiler/tests/typed_array_marshaling.rs": "30f4837a869699b62a5c37f52e48bc97536a13c8fec7d5418ff03cdb8ede9bcb",
+    "crates/compiler/tests/typed_array_measurements.rs": "64e8246867a7335702ed55a02c26b730f656b83493a3c0a16e6ec98860412eca",
+    "crates/compiler/tests/typed_arrays.rs": "3700fb3f724ca09c8ed9d5a46350f2c5a933055d0912bc0743abf6583c11396c",
+    "crates/compiler/tests/typed_arrays_lowering.rs": "e49e6ffc10a1da38be957b9be41073788677d336a9330ac57e795cc1bcc66ee0",
+    "crates/compiler/tests/typed_arrays_runtime.rs": "99d8ada712f4262fb6ed5ba2e33878a91d49d473bb90e32af024c2a5ba7389c4",
+    "crates/compiler/tests/value_loops.rs": "39a48cf7478c505af74dcb9f353dd9f953b05c98666e888e5d8d1c86efb1a213",
+    "crates/compiler/tests/workspace_contract.rs": "3a3001fccc63b691af03683a1768b7cc769c0d03b54c792d058a15d14196dece",
+    "crates/compiler/tests/wp5_interactions.rs": "a0a08a7cc86c55300c1a062e886ab22a5cf21f3de7e5f1c30a66fc379720f2b0",
+    "runtime/abi.cjs": "e9009f554be9f9a154911c2034b7c11d986559c2ecc82913ffa0a656bc1bd9d0",
+    "runtime/index.cjs": "80f44ce9e1c729d7afa1dce5c462155b95c8f88d2fc08ae42a0556cd1442457c",
+    "runtime/run.cjs": "f33e500387fdcc371662913ccb75e632fda385a5230c351f52f9818897ce1925",
+    "tests/browser.cjs": "5716caa031a5eb56cbe7bbefa17afd45147eb7eece3a0761d7f09bd6cb743842",
+    "tests/fixtures/abi/memory.was": "4eaf19f3ac18865bdab46c3635a2b0898b812a4796d20fa0bf12fb78b5b735ea",
+    "tests/fixtures/abi/memory.wasm": "527e0237d1ed32964410044576d1d5db785c5e6eb3d8b71fa2bb49a5df67d4a9",
+    "tests/fixtures/diagnostics/.gitattributes": "a0a28e95755ac39ed98e89e1214771e777d08cf3aafa3199ca932957ada9b203",
+    "tests/fixtures/diagnostics/codegen.stderr": "f05ab6dc337174a6a35d7536055efb65f4a0534dc373a91b9fa238fb2ec70eac",
+    "tests/fixtures/diagnostics/codegen.was": "f79373bf1601c50a1be44864db410792b99f848ad155c3cdceddbe416fb7ff8a",
+    "tests/fixtures/diagnostics/parse.stderr": "7f360773d8bd370c8b1a14046bd6387e818b210870ad830211266eae21509cd4",
+    "tests/fixtures/diagnostics/parse.was": "0973782eed5930bea0becea88bc4e3723ffae71fc30843465f9c609418296999",
+    "tests/fixtures/diagnostics/semantic.stderr": "5b7f6de6cc2e222aef1752b967f80b6dfd6b3fa43cdb62335ce34dbd04484ef2",
+    "tests/fixtures/diagnostics/semantic.was": "0f59182bbf6383dd49fe02c21b1387b2e403fd067ef042e873f5e284a479d9af",
+    "tests/fixtures/diagnostics/unlocated.stderr": "b3215ac3ea0847dde4a613e2ab312205e9839baa78290ba47cf813f38671a07f",
+    "tests/fixtures/diagnostics/unlocated.was": "9281ebfb92788af2efb4cfa0d28dc773e66848e00fefe5b4aed7b0cfeef0e1c1",
+    "tests/fixtures/downstream/Cargo.lock": "d378386c59c76bd53f4c40687313b8176aae67cc2e0409bb879ca8c9d9545516",
+    "tests/fixtures/downstream/Cargo.toml": "66ed206295c0c4edc9ba276a346d65873cdcfcbb462a7ff4065ad6e62257fa5a",
+    "tests/fixtures/downstream/src/main.rs": "0ebe33e574a2f52c7505608c94e8908aed346b1b2464fc7973bddf8b47caece9",
+    "tests/fixtures/emitter/control.was": "e893d2f2fb11f818c6e304630690cc5a5adc34d0c6617bba9870bf32ae17d058",
+    "tests/fixtures/emitter/control.wasm": "f8647e16765695d7c8d3723cc403c6ed687bd53b66578c45faf14db2d0313956",
+    "tests/support/integer_composition_cases.rs": "48ff3ca5cbc12f1da0cc760129ae0ed97e344721b612234d675dd7e30dd75c6f",
+    "tests/support/integer_corpus.rs": "27558830e61f4a7594de5fb763ca795849fcd5913e83b71d40de10f945cda7a2",
+    "tests/support/integer_measure.cjs": "f3c1795f9640e64f9a22fd69bd93a7185c539463ab0acd78a5dc18a622bae2e5",
+    "tests/support/m2_region_measure.cjs": "e98da72b24c2761aace7972f203284d8ec3bda3c4bd51c4b092b7ad9e5bf3156",
+    "tests/support/m3_allocator_measure.cjs": "2b5c3987159b746e2d8a2f38e7438638c65a53f1a00486065efee682a0955cc1",
+    "tests/support/memory_corpus.rs": "11412a9fa731d656d9657956966eeeaa14b7724e7255435a388a2d6f2b3aaba1",
+    "tests/support/memory_measure.cjs": "b3942570f60f10080f7316946f0875d96da48026232c66ebe9a30c2d890ea28d",
+    "tests/support/process.rs": "7ac7ca4356f70ad44951746340f2085eb18e10287e831187a982234a3c23d907",
+    "tests/support/record_integer_baseline.py": "0843b2e28fc6a152ea7303af8d1afe21cd20ddda461ce9a3d0a2ded834e4f39a",
+    "tests/support/record_m3_allocator.py": "8a4b274c1564fca26c0a487a67da3190218334f39796b13b31506ba797563f16",
+    "tests/support/record_memory_m4.py": "261c0f0180adb16720ee96fbda5412f080eb6def4ebb4a3f7734942d52984b55",
+    "tests/support/typed_array_measure.cjs": "36d5af44e25a3fa374ea04380e2306798577694acdb43faa7c541d73b4c86608",
+    "tests/support/typed_array_measure_corpus.rs": "dfbad00cb52b68309458a1653433ceb894e997a0a8c7a619775d9e23d1660727"
+  },
+  "stableMeasurementSourceHashes": true,
+  "historical62SourceAndModuleHashesMatch": true,
+  "measurementEvidence": "benchmarks/m3-allocation-infrastructure-2026-10-28/integrated-63/environment.json",
+  "rebuiltPackage": {
+    "pkg/.gitignore": {
+      "bytes": 1,
+      "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1"
+    },
+    "pkg/package.json": {
+      "bytes": 276,
+      "sha256": "591195391f8f784bef2f9bef9ca42b6cef77f44544d3881121f5626062926afb"
+    },
+    "pkg/was_compiler.d.ts": {
+      "bytes": 2633,
+      "sha256": "d20e53892b4c62b016b2221ccf18fc2c3a1dccf1ac8264b793a0ddac0c1fa58e"
+    },
+    "pkg/was_compiler.js": {
+      "bytes": 11847,
+      "sha256": "32021468012c062c9d5c47e303f58d7fe6dab4e0492067624dc64fdc521bce25"
+    },
+    "pkg/was_compiler_bg.wasm": {
+      "bytes": 2986522,
+      "sha256": "57e89a429368a8abebfc01f2f9345c77e93eea60532eb7939f0233d88e2b2b35"
+    },
+    "pkg/was_compiler_bg.wasm.d.ts": {
+      "bytes": 1229,
+      "sha256": "23d15be5fca9bbef45c457d9de17df1f9f4d3b4f5059e7aac264d561e81131c9"
+    }
+  },
+  "missingPrerequisites": [],
+  "review": {
+    "baseRevision": "fc72d290b0cea1095b0b9df86c476ebc06f1499f",
+    "scope": "All 16 staged documentation/evidence paths; read-only independent reviewers audited existing evidence, without rerunning tests",
+    "standards": {
+      "hardViolations": 0,
+      "judgementCallFindings": 0
+    },
+    "spec": {
+      "findings": 0
+    },
+    "outstandingFindings": 0
+  },
+  "finalChecks": [
+    {
+      "command": "python target/m3-integrated-63/check_evidence.py",
+      "exitCode": 0,
+      "result": "168 local links/paths and 53 named symbols resolve; executable/gate-log/package hashes and measurement provenance match"
+    },
+    {
+      "command": "git --no-pager diff --cached --check",
+      "exitCode": 0
+    },
+    {
+      "command": "git --no-pager diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "git --no-pager diff --exit-code fc72d290b0cea1095b0b9df86c476ebc06f1499f -- crates tests runtime Cargo.toml Cargo.lock",
+      "exitCode": 0
+    }
+  ]
+}

@@ -239,8 +239,12 @@ capacity and counted linear registry search from noninstrumented guest-operation
 timing. Read that record before changing M3 counters, workloads or interpreting
 retained storage. Observations allocate no cursor probes; timing includes JS/Wasm
 transport but excludes setup, warmup, initialization and instrumentation. This is
-private experimental evidence, not ordinary-array reclamation, a speedup gate or
-integrated M3 acceptance; M2 evidence remains unchanged.
+private experimental evidence, not ordinary-array reclamation or a speedup gate.
+[#63's separate final-source reproduction](benchmarks/m3-allocation-infrastructure-2026-10-28/integrated-63/README.md)
+preserves new raw samples without replacing #62's records; executable/module hashes
+match, accounting/search results reproduce and timings vary. [Integrated M3
+validation](m3-allocation-infrastructure.md) records correctness and ordinary/M2
+noninterference acceptance for the private milestone only. M2 evidence remains unchanged.
 
 ## Issue #37 M4: comparative measurements and optimization handoff
 

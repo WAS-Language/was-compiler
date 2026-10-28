@@ -118,6 +118,7 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 | `crates/compiler/src/codegen/place.rs` | Shared checked local/index places, ordinary and compound assignment |
 | `crates/compiler/src/codegen/control_flow.rs`, `crates/compiler/src/codegen/call.rs`, `crates/compiler/src/codegen/values.rs` | Structured control flow, calls, literal values |
 | `crates/compiler/src/codegen/memory.rs`, `crates/compiler/src/codegen/numeric.rs` | Memory planning/helpers and optional floating remainder helper |
+| `crates/compiler/src/codegen/allocator.rs`, `crates/compiler/src/codegen/allocator/` | Private `cfg(test)` M3 allocation/release, observations, decoded/runtime and measurement tests; no production or M2 consumers |
 | `crates/compiler/src/codegen/range.rs` | Private range discovery, construction, record-validation, and exact membership helpers |
 | `crates/compiler/src/codegen/match_.rs` | Private checked match lowering, scrutinee cache, scoped arms and ordered comparison regions |
 | `crates/compiler/tests/match_frontend.rs`, `crates/compiler/tests/match_lowering.rs` | Match syntax/inference and forged-tree/decoded lowering contracts |
@@ -162,7 +163,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Run `cargo test --offline -p was-compiler --lib codegen::allocator -- --include-ignored`.
   Before changing M3 counters, measurement workloads or storage/timing interpretation,
   read [#62's observation boundaries and evidence](docs/benchmarks/m3-allocation-infrastructure-2026-10-28/README.md).
-  Production activation and integrated M3 acceptance remain unauthorized.
+  [Integrated #63 gates passed](docs/m3-allocation-infrastructure.md) on final #58–#62
+  sources, including all private runtimes, M2 noninterference, sequential measurement
+  reproduction and freshly rebuilt ordinary browser compilation. Before changing M3
+  validation or interpreting milestone acceptance, read that contract-to-test map.
+  Production activation, M2 migration and ordinary-array/M4 consumers remain unauthorized.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating

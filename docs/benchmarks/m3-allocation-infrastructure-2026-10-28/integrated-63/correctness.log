@@ -1,0 +1,45 @@
+
+running 38 tests
+test codegen::allocator::failure_order_tests::decoded_acquire_validates_request_and_identity_before_reading_or_removing_free_head ... ok
+test codegen::allocator::failure_order_tests::decoded_classify_checks_signed_request_domain_before_any_narrowing_or_state_access ... ok
+test codegen::allocator::failure_order_tests::decoded_fresh_reservation_checks_widened_size_before_backing_and_commits_after_success ... ok
+test codegen::allocator::failure_order_tests::decoded_real_backing_checks_widened_end_and_growth_failure_before_cursor_commit ... ok
+test codegen::allocator::failure_tests::bounded_memory_preserves_a_multi_page_static_minimum ... ok
+test codegen::allocator::failure_tests::completed_release_survives_later_traps_while_active_blocks_are_never_swept ... ok
+test codegen::allocator::failure_tests::exhausted_identity_never_consumes_free_or_fresh_storage_even_after_releases ... ok
+test codegen::allocator::failure_tests::metadata_plus_payload_address_limit_traps_without_large_memory_or_partial_commit ... ok
+test codegen::allocator::failure_tests::real_backing_growth_failure_preserves_live_free_and_unpublished_storage ... ok
+test codegen::allocator::failure_tests::rejected_request_domain_preserves_all_free_classes_and_live_contents ... ok
+test codegen::allocator::measurement_tests::instrumentation_export_collision_is_private_to_the_requested_variant ... ok
+test codegen::allocator::measurement_tests::instrumentation_is_explicit_and_preserves_calls_and_memory_operations ... ok
+test codegen::allocator::measurement_tests::record_m3_accounting ... ok
+test codegen::allocator::measurement_tests::record_m3_guest_timing ... ok
+test codegen::allocator::measurement_tests::record_m3_registry_search ... ok
+test codegen::allocator::release_tests::decoded_release_guards_exact_provenance_identity_and_state_before_pool_writes ... ok
+test codegen::allocator::release_tests::registry_positions_reject_wrong_double_and_aba_authority_in_same_instance ... ok
+test codegen::allocator::release_tests::unmanaged_descriptors_boundaries_and_forged_interior_headers_have_no_authority ... ok
+test codegen::allocator::runtime_tests::acquisition_reuses_only_exact_class_without_borrowing_larger_free_block ... ok
+test codegen::allocator::runtime_tests::adjacent_free_blocks_are_not_coalesced_split_or_borrowed ... ok
+test codegen::allocator::runtime_tests::backing_limit_failure_preserves_free_availability_and_live_contents ... ok
+test codegen::allocator::runtime_tests::double_release_and_stale_identity_trap_without_corrupting_same_instance ... ok
+test codegen::allocator::runtime_tests::identity_exhaustion_preserves_live_and_free_blocks_without_wrap ... ok
+test codegen::allocator::runtime_tests::live_blocks_reuse_with_new_identity_and_preserve_other_storage ... ok
+test codegen::allocator::runtime_tests::mixed_classes_preserve_live_extents_and_metadata_across_unordered_reuse ... ok
+test codegen::allocator::runtime_tests::real_memory_growth_preserves_initialized_live_blocks_identities_and_free_records ... ok
+test codegen::allocator::runtime_tests::simultaneous_zero_requests_remain_active_until_explicit_release ... ok
+test codegen::allocator::runtime_tests::unknown_interior_and_wrong_identity_release_preserve_live_and_free_state ... ok
+test codegen::allocator::runtime_tests::zero_requests_are_distinct_and_classification_rejects_wide_invalid_requests ... ok
+test codegen::allocator::tests::appended_management_preserves_existing_indices_bodies_and_ordinary_bytes ... ok
+test codegen::allocator::tests::class_helper_checks_wide_domain_before_narrowing_and_globals_are_private ... ok
+test codegen::allocator::tests::decoded_free_list_dispatch_has_one_distinct_global_per_class ... ok
+test codegen::allocator::tests::decoded_reservation_math_preserves_large_capacities_and_unsigned_addresses ... ok
+test codegen::allocator::tests::decoded_rounding_covers_every_capacity_and_adjacent_request ... ok
+test codegen::allocator::tests::management_export_collisions_reject_only_selected_user_exports ... ok
+test codegen::allocator::tests::management_uses_one_backing_call_and_registry_authority_before_header_access ... ok
+test codegen::allocator::tests::private_compilation_emits_valid_management_exports ... ok
+test codegen::allocator::tests::private_compilation_requires_planned_memory_and_preserves_checked_body_errors ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 533 filtered out; finished in 2.02s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-eb8c15a554b28099.exe)

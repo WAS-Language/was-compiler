@@ -530,9 +530,13 @@ Measure reserved pages, region bytes reused, allocation count, execution time, a
 
 The consolidated scope and six-ticket implementation breakdown are confirmed.
 This records the agreed private prototype contract. [#58's first private allocation,
-release and reuse cycle](m3-private-allocator.md) is implemented behind `cfg(test)`;
-this does not claim the remaining M3 evidence gates, integrated release validation
-or approval for production activation.
+release and reuse cycle](m3-private-allocator.md) and #59–#62's coverage/measurement
+slices are implemented behind `cfg(test)`. [#63's integrated contract-to-test and
+validation record](m3-allocation-infrastructure.md) passed on 2026-10-28 against
+final sources, including private runtimes, ordinary/M2 noninterference, portable
+builds and freshly rebuilt browser compilation. [Sequential final-source measurements](benchmarks/m3-allocation-infrastructure-2026-10-28/integrated-63/README.md)
+reproduce backing/metadata plateaus and linear search costs. This accepts the
+characterized private milestone, not production activation or downstream consumers.
 
 - **Initial delivery:** a private experimental allocation/release infrastructure,
   exercised by internal test workloads through the existing checked backend.
@@ -741,6 +745,13 @@ A free list answers **how to reuse released memory**, not **when memory can be r
 - Preserve ordinary compilation and M2 behavior; record validation and measured
   limitations without claiming production activation, general bounded memory,
   constant-time release, or a complete memory manager.
+
+These private exit gates passed under [#63's final-source evidence](m3-allocation-infrastructure.md).
+Fixed-demand storage and metadata stabilize, but free capacity can remain stranded
+across classes, release search is linear, private machinery adds module bytes and
+wall-clock samples vary on unchanged modules. M2 migration, ordinary-array/M4
+consumers, resizing/reallocation, host ownership changes and public activation
+remain separately authorized work; no default or release decision is implied.
 
 ---
 

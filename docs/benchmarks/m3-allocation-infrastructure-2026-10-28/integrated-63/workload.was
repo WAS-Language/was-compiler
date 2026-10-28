@@ -1,0 +1,1 @@
+fn retained() -> number[] { return [17, 29]; }
