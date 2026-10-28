@@ -581,6 +581,8 @@ impl Emitter {
     }
 }
 
+mod failure_order_tests;
+mod failure_tests;
 mod release_tests;
 mod runtime_tests;
 mod tests;

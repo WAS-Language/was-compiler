@@ -196,6 +196,82 @@ workspace runs. No allocator correctness or unauthorized-scope finding was raise
 Both independent reviewers rechecked the correction and reported zero outstanding
 Standards and Spec findings.
 
+## Acquisition failure and trap-retention evidence (#61)
+
+`allocator/failure_tests.rs` adds six bounded Node cases at the private emitted-Wasm
+seam; they remain ignored by default. `allocator/failure_order_tests.rs` adds four
+Validator/independent decoded-order cases. No allocator implementation, production
+ABI, M2 policy, public activation or recovery protocol changes.
+
+| Obligation | Evidence |
+| --- | --- |
+| Signed request rejection before narrowing/mutation, zero and adjacent maximum-class boundaries | `rejected_request_domain_preserves_all_free_classes_and_live_contents`; drains two free classes after every rejected request while keeping another block live |
+| Monotonic unsigned identities through exhaustion on reuse and fresh paths | `exhausted_identity_never_consumes_free_or_fresh_storage_even_after_releases`; fixed initial seed, BigInt authority, final identity issued by reuse, repeated failures and valid subsequent releases without resetting identities |
+| Real backing failure with live/free records present, no partial metadata reservation | `real_backing_growth_failure_preserves_live_free_and_unpublished_storage`; successful growth to two pages followed by actual failed `memory.grow`, unchanged cursor/population/identity/all free heads/records, sentinel at the unreserved cursor, ordinary retained array and live payload checks, subsequent free-block reuse |
+| Checked record-plus-payload address bound without giant allocation | `metadata_plus_payload_address_limit_traps_without_large_memory_or_partial_commit`; test module seeds only its initial ordinary cursor to eight bytes below the 65,535-page address ceiling, then even a zero request's 32+8 reservation fails before growth; no runtime cursor setter |
+| Preserve the actual static memory minimum when capping growth | `bounded_memory_preserves_a_multi_page_static_minimum`; two-page static fixture grows to three, then fails without damaging static/live contents |
+| Completed release and earlier effects survive later traps; active allocations are never swept | `completed_release_survives_later_traps_while_active_blocks_are_never_swept`; a callback in a suspended ordinary guest invocation acquires A/B and releases B, then guest checked indexing traps; four repetitions preserve ordinary writes/host effects, reuse B and retain distinct active A blocks across further successful calls and acquisition traps |
+| Independent ordering oracle | Four `failure_order_tests` cases check signed-domain guards, exhaustion before free-head access, widened capacity+32/unsigned bounds before narrowing, one real backing call before metadata publication, and ordinary widened address/growth checks before cursor commit |
+
+The test-local module cap preserves the original memory minimum and permits one
+additional page; it does not use `Config::backing_limit` to fake real allocator
+failure. The address-bound seed is a separate synthetic initial-state scenario,
+not proof of a reachable small-memory production cursor. Accepted requests cannot
+make `capacity + 32` overflow u32 under the frozen 2^31 domain; the unreachable
+size-overflow guard is checked by decoding, not by widening the request contract.
+All JS views are recreated after possible growth. No memory shrinking, trap
+rollback, automatic release or bounded growth for unlimited retained-active traps
+is promised. The finite trap workload deliberately retains four active blocks.
+
+A sensitivity check temporarily removed the test memory maximum: the real-growth
+failure case failed with a missing expected `WebAssembly.RuntimeError`. Restoring
+the cap made it pass. No production code was changed for this negative control.
+
+Focused reproduction:
+
+```sh
+cargo test --offline -p was-compiler --lib codegen::allocator::failure_tests -- --include-ignored
+cargo test --offline -p was-compiler --lib codegen::allocator::failure_order_tests
+cargo test --offline -p was-compiler --lib codegen::allocator -- --include-ignored
+cargo test --offline -p was-compiler --lib codegen::region -- --include-ignored
+cargo test --offline -p was-compiler --lib codegen::memory_tests -- --include-ignored
+```
+
+### Validation — 2026-10-28 (#61)
+
+- Combined failure filter: 10 passed, none failed/ignored (six Node scenarios and
+  four decoded checks); allocator filter: 33 passed, none failed/ignored.
+- M2 region filter: 23 passed, none failed/ignored. Ordinary memory filter: 21
+  passed, none failed/ignored.
+- `cargo check --offline -p was-compiler --all-targets` and
+  `cargo clippy --offline --all-targets -- -D warnings`: passed.
+- The exact `codegen::allocator::failure_tests` filter selected six Node cases:
+  all passed, none failed/ignored.
+- Explicit `typed_arrays_runtime` case
+  `raw_host_retained_typed_arrays_survive_recursive_reentry_traps_and_rhs_growth`
+  and `closures_runtime` case
+  `reentrant_live_contexts_and_retained_handles_survive_inner_traps_and_growth`:
+  one passed each, none failed/ignored.
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`:
+  passed.
+- `cargo test --offline`: attempted once, timed out after 180 seconds during CLI
+  integration tests; not a completed suite pass. No longer-timeout retry was run.
+  Browser bindings/full ignored workspace gates were not rerun for these test-only
+  changes; they remain part of #63's integrated validation.
+- Edited-file Rust formatting and `git --no-pager diff --check`: passed.
+
+### Two-axis review (#61)
+
+Independent Standards and Spec reviews compared the working tree, including the
+new test files, against starting commit
+`9f4cd20472e9574e00d0be7826c42302a6e04c3b`. Both reported zero findings. Each
+independently reran the ten-case combined failure filter and whitespace check.
+The reentrant callback's completed release followed by a guest indexing trap was
+confirmed to satisfy the release-then-trap retention requirement.
+
+This is #61 failure/continuation evidence, not #62 measurements or #63's integrated
+M3 release gates. Earlier validation records retain their original scope.
+
 ## Size-class and growth evidence (#59)
 
 This slice adds evidence only, through the frozen private transport and observation
