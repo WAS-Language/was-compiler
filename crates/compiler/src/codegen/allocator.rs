@@ -2,7 +2,7 @@
 use crate::{exports::ExportOptions, typed_ast::TypedProgram};
 use wasm_encoder::{
     BlockType, CodeSection, ConstExpr, ExportKind, ExportSection, Function, FunctionSection,
-    GlobalSection, GlobalType, Instruction, MemArg, TypeSection, ValType,
+    GlobalSection, GlobalType, Instruction, TypeSection, ValType,
 };
 
 use super::{
@@ -12,15 +12,8 @@ use super::{
     validation::ValidatedProgram,
 };
 
-// One reusable record per physical block, separate from the usable payload.
-const RECORD_BYTES: i32 = 32;
-const REGISTRY_NEXT: u64 = 0;
-const FREE_NEXT: u64 = 4;
-const CLASS: u64 = 8;
-const ACTIVE: u64 = 12;
-const IDENTITY: u64 = 16;
-const REQUESTED: u64 = 24;
-const CLASS_COUNT: u32 = 29;
+mod core;
+use core::{ACTIVE, CLASS, CLASS_COUNT, HeadAccess, IDENTITY, REQUESTED, emit, mem, trap_if};
 const HELPER_COUNT: u32 = 7;
 const EXPORTS: [&str; 4] = ["__m3_class", "__m3_acquire", "__m3_release", "__m3_observe"];
 
@@ -137,18 +130,9 @@ const FIND: u32 = 4;
 const HEAD: u32 = 5;
 const SET_HEAD: u32 = 6;
 
-enum HeadAccess {
-    Read,
-    Write,
-}
-
 struct Emitter {
-    first_function: FunctionIndex,
-    backing: FunctionIndex,
-    last_identity: u32,
-    registry: u32,
+    core: core::Emitter,
     population: u32,
-    heads: u32,
     config: Config,
     comparisons: Option<u32>,
 }
@@ -170,12 +154,19 @@ pub(super) fn append(
     );
     let first_global = sections.globals.len();
     let emitter = Emitter {
-        first_function,
-        backing: memory.first_function.offset(memory::Helper::Alloc.index()),
-        last_identity: first_global,
-        registry: first_global + 1,
+        core: core::Emitter {
+            classify: first_function.offset(CLASSIFY),
+            find: first_function.offset(FIND),
+            head: first_function.offset(HEAD),
+            set_head: first_function.offset(SET_HEAD),
+            backing: memory.first_function.offset(memory::Helper::Alloc.index()),
+            last_identity: first_global,
+            registry: first_global + 1,
+            heads: std::array::from_fn(|class| {
+                first_global + 3 + u32::try_from(class).expect("bounded class index")
+            }),
+        },
         population: first_global + 2,
-        heads: first_global + 3,
         config,
         comparisons: options
             .comparisons
@@ -241,13 +232,13 @@ pub(super) fn append(
         sections.functions.function(type_index.raw());
     }
     let bodies = [
-        emitter.classify(),
+        emitter.core.classify(),
         emitter.acquire(),
-        emitter.release(),
+        emitter.core.release(),
         emitter.observe(),
         emitter.find(),
-        emitter.head(HeadAccess::Read),
-        emitter.head(HeadAccess::Write),
+        emitter.core.head(HeadAccess::Read),
+        emitter.core.head(HeadAccess::Write),
     ];
     for (slot, body) in bodies.iter().enumerate() {
         let slot = u32::try_from(slot).expect("fixed helper count");
@@ -260,318 +251,42 @@ pub(super) fn append(
     }
 }
 
-fn mem(offset: u64, align: u32) -> MemArg {
-    MemArg {
-        offset,
-        align,
-        memory_index: 0,
-    }
-}
-
-fn emit(body: &mut Function, ops: &[Instruction<'_>]) {
-    for op in ops {
-        body.instruction(op);
-    }
-}
-
-fn trap_if(body: &mut Function) {
-    emit(
-        body,
-        &[
-            Instruction::If(BlockType::Empty),
-            Instruction::Unreachable,
-            Instruction::End,
-        ],
-    );
-}
-
 impl Emitter {
-    fn call(&self, slot: u32) -> Instruction<'static> {
-        Instruction::Call(self.first_function.offset(slot).raw())
-    }
-
-    fn classify(&self) -> Function {
-        use Instruction::*;
-        // request:i64, class:i32, capacity:i64. No truncation before validation.
-        let mut f = Function::new([(1, ValType::I32), (1, ValType::I64)]);
-        emit(
-            &mut f,
-            &[
-                LocalGet(0),
-                I64Const(0),
-                I64LtS,
-                LocalGet(0),
-                I64Const(1 << 31),
-                I64GtU,
-                I32Or,
-            ],
-        );
-        trap_if(&mut f);
-        emit(
-            &mut f,
-            &[
-                I64Const(i64::from(abi::MIN_ALLOCATION_BYTES)),
-                LocalSet(2),
-                Block(BlockType::Empty),
-                Loop(BlockType::Empty),
-                LocalGet(2),
-                LocalGet(0),
-                I64GeU,
-                BrIf(1),
-                LocalGet(2),
-                I64Const(1),
-                I64Shl,
-                LocalSet(2),
-                LocalGet(1),
-                I32Const(1),
-                I32Add,
-                LocalSet(1),
-                Br(0),
-                End,
-                End,
-                LocalGet(1),
-                End,
-            ],
-        );
-        f
-    }
-
-    fn head(&self, access: HeadAccess) -> Function {
-        use Instruction::*;
-        let mut f = Function::new([]);
-        // Wasm globals have static indices; a small bounded dispatch keeps the
-        // class table outside usable linear memory and needs no startup allocator.
-        for class in 0..CLASS_COUNT {
-            emit(
-                &mut f,
-                &[
-                    LocalGet(0),
-                    I32Const(class as i32),
-                    I32Eq,
-                    If(BlockType::Empty),
-                ],
-            );
-            match access {
-                HeadAccess::Write => emit(
-                    &mut f,
-                    &[LocalGet(1), GlobalSet(self.heads + class), Return],
-                ),
-                HeadAccess::Read => emit(&mut f, &[GlobalGet(self.heads + class), Return]),
-            }
-            emit(&mut f, &[End]);
-        }
-        emit(&mut f, &[Unreachable, End]);
-        f
-    }
-
     fn find(&self) -> Function {
         use Instruction::*;
-        let mut f = Function::new([(1, ValType::I32)]);
-        emit(
-            &mut f,
-            &[
-                GlobalGet(self.registry),
-                LocalSet(1),
-                Block(BlockType::Empty),
-                Loop(BlockType::Empty),
-                LocalGet(1),
-                I32Eqz,
-                BrIf(1),
-            ],
-        );
-        // Count attempted exact-payload comparisons, including searches that later trap.
-        if let Some(index) = self.comparisons {
-            emit(
-                &mut f,
-                &[GlobalGet(index), I64Const(1), I64Add, GlobalSet(index)],
-            );
-        }
-        emit(
-            &mut f,
-            &[
-                LocalGet(1),
-                I32Const(RECORD_BYTES),
-                I32Add,
-                LocalGet(0),
-                I32Eq,
-                If(BlockType::Empty),
-                LocalGet(1),
-                Return,
-                End,
-                LocalGet(1),
-                I32Load(mem(REGISTRY_NEXT, 2)),
-                LocalSet(1),
-                Br(0),
-                End,
-                End,
-                I32Const(0),
-                End,
-            ],
-        );
-        f
+        // Count attempted exact-payload comparisons, including searches that trap.
+        let counter = self
+            .comparisons
+            .map(|index| [GlobalGet(index), I64Const(1), I64Add, GlobalSet(index)]);
+        self.core
+            .find(counter.as_ref().map_or(&[], |ops| ops.as_slice()))
     }
 
     fn acquire(&self) -> Function {
         use Instruction::*;
-        // request0:i64; class1, record2:i32; capacity3, total4, identity5:i64.
-        let mut f = Function::new([(2, ValType::I32), (3, ValType::I64)]);
-        emit(
-            &mut f,
-            &[
-                LocalGet(0),
-                self.call(CLASSIFY),
-                LocalSet(1),
-                GlobalGet(self.last_identity),
-                I64Const(-1),
-                I64Eq,
-            ],
-        );
-        trap_if(&mut f);
-        emit(
-            &mut f,
-            &[
-                GlobalGet(self.last_identity),
-                I64Const(1),
-                I64Add,
-                LocalSet(5),
-                I64Const(i64::from(abi::MIN_ALLOCATION_BYTES)),
-                LocalGet(1),
+        // This private ceiling applies only to fresh reservations, before backing.
+        let guard = self.config.backing_limit.map(|limit| {
+            [
+                GlobalGet(0),
                 I64ExtendI32U,
-                I64Shl,
-                LocalSet(3),
-                LocalGet(1),
-                self.call(HEAD),
-                LocalTee(2),
-                I32Eqz,
-                If(BlockType::Empty),
-                LocalGet(3),
-                I64Const(i64::from(RECORD_BYTES)),
+                LocalGet(4),
                 I64Add,
-                LocalSet(4),
-                LocalGet(4),
-                I64Const(i64::from(u32::MAX)),
+                I64Const(limit as i64),
                 I64GtU,
-            ],
-        );
-        trap_if(&mut f);
-        if let Some(limit) = self.config.backing_limit {
-            emit(
-                &mut f,
-                &[
-                    GlobalGet(0),
-                    I64ExtendI32U,
-                    LocalGet(4),
-                    I64Add,
-                    I64Const(limit as i64),
-                    I64GtU,
-                ],
-            );
-            trap_if(&mut f);
-        }
-        // The only fallible backing reservation happens before any publication,
-        // identity advance or free-list mutation. Record and payload are atomic.
-        emit(
-            &mut f,
-            &[
-                LocalGet(4),
-                I32WrapI64,
-                Call(self.backing.raw()),
-                LocalSet(2),
-                LocalGet(2),
-                GlobalGet(self.registry),
-                I32Store(mem(REGISTRY_NEXT, 2)),
-                LocalGet(2),
-                LocalGet(1),
-                I32Store(mem(CLASS, 2)),
-                Else,
-                LocalGet(1),
-                LocalGet(2),
-                I32Load(mem(FREE_NEXT, 2)),
-                self.call(SET_HEAD),
-                End,
-                LocalGet(2),
-                I32Const(0),
-                I32Store(mem(FREE_NEXT, 2)),
-                LocalGet(2),
-                I32Const(1),
-                I32Store(mem(ACTIVE, 2)),
-                LocalGet(2),
-                LocalGet(5),
-                I64Store(mem(IDENTITY, 3)),
-                LocalGet(2),
-                LocalGet(0),
-                I64Store(mem(REQUESTED, 3)),
-            ],
-        );
-        // Publish only fully initialized records. total4 is zero-initialized
-        // and set only on the fresh branch; reuse never adds a registry entry.
-        emit(
-            &mut f,
-            &[
-                LocalGet(4),
-                I64Eqz,
-                I32Eqz,
                 If(BlockType::Empty),
-                LocalGet(2),
-                GlobalSet(self.registry),
+                Unreachable,
+                End,
+            ]
+        });
+        self.core.acquire(
+            guard.as_ref().map_or(&[], |ops| ops.as_slice()),
+            &[
                 GlobalGet(self.population),
                 I64Const(1),
                 I64Add,
                 GlobalSet(self.population),
-                End,
-                LocalGet(5),
-                GlobalSet(self.last_identity),
-                LocalGet(2),
-                I32Const(RECORD_BYTES),
-                I32Add,
-                LocalGet(5),
-                End,
             ],
-        );
-        f
-    }
-
-    fn release(&self) -> Function {
-        use Instruction::*;
-        // payload0:i32, identity1:i64; record2,class3:i32.
-        let mut f = Function::new([(2, ValType::I32)]);
-        emit(&mut f, &[LocalGet(0), self.call(FIND), LocalTee(2), I32Eqz]);
-        trap_if(&mut f);
-        emit(
-            &mut f,
-            &[
-                LocalGet(2),
-                I64Load(mem(IDENTITY, 3)),
-                LocalGet(1),
-                I64Ne,
-                LocalGet(2),
-                I32Load(mem(ACTIVE, 2)),
-                I32Const(1),
-                I32Ne,
-                I32Or,
-            ],
-        );
-        trap_if(&mut f);
-        emit(
-            &mut f,
-            &[
-                LocalGet(2),
-                I32Load(mem(CLASS, 2)),
-                LocalSet(3),
-                LocalGet(2),
-                LocalGet(3),
-                self.call(HEAD),
-                I32Store(mem(FREE_NEXT, 2)),
-                LocalGet(2),
-                I32Const(0),
-                I32Store(mem(ACTIVE, 2)),
-                LocalGet(3),
-                LocalGet(2),
-                self.call(SET_HEAD),
-                End,
-            ],
-        );
-        f
+        )
     }
 
     fn observe(&self) -> Function {
@@ -581,8 +296,11 @@ impl Emitter {
             (0, vec![GlobalGet(0), I64ExtendI32U]),
             (1, vec![MemorySize(0), I64ExtendI32U]),
             (2, vec![GlobalGet(self.population)]),
-            (7, vec![LocalGet(1), self.call(HEAD), I64ExtendI32U]),
-            (8, vec![GlobalGet(self.last_identity)]),
+            (
+                7,
+                vec![LocalGet(1), Call(self.core.head.raw()), I64ExtendI32U],
+            ),
+            (8, vec![GlobalGet(self.core.last_identity)]),
         ] {
             emit(
                 &mut f,
@@ -609,7 +327,7 @@ impl Emitter {
             &mut f,
             &[
                 LocalGet(1),
-                self.call(FIND),
+                Call(self.core.find.raw()),
                 LocalTee(2),
                 I32Eqz,
                 If(BlockType::Empty),
@@ -654,6 +372,7 @@ impl Emitter {
     }
 }
 
+mod core_tests;
 mod failure_order_tests;
 mod failure_tests;
 mod measurement_tests;

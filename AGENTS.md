@@ -167,6 +167,10 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   sources, including all private runtimes, M2 noninterference, sequential measurement
   reproduction and freshly rebuilt ordinary browser compilation. Before changing M3
   validation or interpreting milestone acceptance, read that contract-to-test map.
+  #64 extracts reusable emission into `allocator/core.rs` behind explicit planned
+  indices, still under `cfg(test)`; configuration, observations and instrumentation
+  stay in `allocator.rs`. Before changing that seam, read [its adapter-operation
+  contract](docs/m3-private-allocator.md#reusable-emission-boundary-64).
   Production activation, M2 migration and ordinary-array/M4 consumers remain unauthorized.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.

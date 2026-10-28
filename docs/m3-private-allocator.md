@@ -29,6 +29,72 @@ M2 is not a client: no selection, cache, retirement or quarantine rule changes.
 Ordinary raw descriptors and host-retained handles keep revision-1 lifetime rights.
 Valid memory bounds do not establish release authority.
 
+## Reusable emission boundary (#64)
+
+`allocator/core.rs` separates class, record, registry and exact-class free-list
+emission from the M3 assembly/transport adapter. It remains transitively under
+`codegen::allocator`'s `cfg(test)` gate. Its `Emitter` receives individual planned
+function indices for classification, lookup, head reads/writes and backing
+allocation, plus explicit identity/registry globals and all 29 head-global indices.
+It derives no indices from an append base or ordinary layout.
+
+`allocator.rs` still owns configuration, index planning, section assembly, private
+signatures/exports, collision checks and observations. Small instruction slices
+keep its existing instrumentation outside the reusable implementation:
+
+- `find(before_compare)` inserts stack/local-preserving, nontrapping counter
+  operations once per visited registry record, before the exact-payload comparison.
+- `acquire(before_backing, on_fresh)` inserts the adapter's fresh-reservation guard
+  after widened sizing checks, before the backing call or any mutation. The checked
+  i64 record-plus-capacity size is local 4; the guard preserves stack/locals and may
+  trap. The infallible, stack/local-preserving population increment runs immediately
+  after registry publication. Neither sequence executes for reuse.
+
+These are private emission contracts, not a generic allocator extension API.
+The core owns request/identity checks, renewal, record initialization and release
+validation. It adds no M4 metadata, consumers, production options or dependencies;
+ordinary assembly and M2 are unchanged.
+
+`allocator/core_tests.rs::reusable_emission_uses_explicit_noncontiguous_function_and_global_indices`
+assembles and validates a module with independently selected, noncontiguous helper
+and global indices. Decoded calls and global reads/writes verify the supplied
+wiring without depending on M3's contiguous append layout. Existing decoded and
+runtime suites continue to cover the adapter operations and frozen behavior.
+
+### Validation — 2026-10-28 (#64)
+
+- Before extraction, all 38 existing allocator tests passed, including ignored
+  Node workloads. The new boundary test then failed with the missing core module
+  before passing against the extracted implementation.
+- `cargo test --offline -p was-compiler --lib codegen::allocator -- --include-ignored`:
+  39 passed, none failed or ignored (the original 38 plus the new boundary test).
+- `cargo test --offline -p was-compiler --lib codegen::region -- --include-ignored`:
+  23 passed, none failed or ignored.
+- `cargo test --offline -p was-compiler --test abi -- --include-ignored`:
+  all 3 passed, including Node marshaling.
+- `cargo test --offline`: 1,213 passed, none failed, 241 ignored across 70 targets;
+  ignored tests are not covered by this default run. The explicit runs above
+  establish the private allocator, M2 and ABI runtime evidence.
+- `cargo clippy --offline --all-targets -- -D warnings` and
+  `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown` passed.
+- Edited Rust files were formatted; `git --no-pager diff --check` passed.
+
+The measurement fixture's ordinary, private and instrumented Wasm modules were
+captured before extraction and compared byte-for-byte after the 39-test run;
+all three were identical. This is fixture-specific emitted-byte evidence, not an
+exhaustive historical comparison. Aggregate execution of measurement recorders is
+not isolated timing evidence. No performance improvement or M4 activation is claimed.
+The browser package was not rebuilt: production code and adapters were unchanged;
+#63's rebuilt-browser results remain historical evidence, not a fresh #64 run.
+
+### Two-axis review (#64)
+
+Independent standards and specification reviews against starting commit `8b1b71e`
+returned zero findings on both axes, with no deferred suggestions. The specification
+review independently reproduced the allocator, M2, ABI, default-suite, clippy and
+portable-build checks; it did not repeat the pre/post-extraction byte comparison.
+Pre-existing uncommitted M4 design work was excluded from review and the commit.
+
 ## Frozen private Wasm transport
 
 These exports exist only in explicitly compiled experimental modules:
