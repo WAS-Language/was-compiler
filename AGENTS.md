@@ -160,7 +160,9 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Before changing its transport, records, acquisition/release or observations, read
   [the M3 interface and failure-ordering contract](docs/m3-private-allocator.md).
   Run `cargo test --offline -p was-compiler --lib codegen::allocator -- --include-ignored`.
-  Production activation and the remaining M3 evidence gates are not authorized by #58.
+  Before changing M3 counters, measurement workloads or storage/timing interpretation,
+  read [#62's observation boundaries and evidence](docs/benchmarks/m3-allocation-infrastructure-2026-10-28/README.md).
+  Production activation and integrated M3 acceptance remain unauthorized.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating

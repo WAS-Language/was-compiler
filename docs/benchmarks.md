@@ -231,6 +231,17 @@ changing counters or interpreting capacity as reuse; it includes bounded failure
 accounting, module-size overhead, provenance and measurement limits. The ordinary
 memory corpus and public storage policy are unchanged; #57 integration is separate.
 
+## Memory roadmap M3 — 2026-10-28 private allocator measurements
+
+[#62 evidence and definitions](benchmarks/m3-allocation-infrastructure-2026-10-28/README.md)
+separate fixed-demand backing/record plateaus, active rounding waste, stranded free
+capacity and counted linear registry search from noninstrumented guest-operation
+timing. Read that record before changing M3 counters, workloads or interpreting
+retained storage. Observations allocate no cursor probes; timing includes JS/Wasm
+transport but excludes setup, warmup, initialization and instrumentation. This is
+private experimental evidence, not ordinary-array reclamation, a speedup gate or
+integrated M3 acceptance; M2 evidence remains unchanged.
+
 ## Issue #37 M4: comparative measurements and optimization handoff
 
 The M4 measurement portion is recorded in

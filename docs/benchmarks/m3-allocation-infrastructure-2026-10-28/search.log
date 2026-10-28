@@ -1,0 +1,279 @@
+
+running 1 test
+test codegen::allocator::measurement_tests::record_m3_registry_search ... {
+  "schema": 1,
+  "mode": "search",
+  "recordedUtc": "2026-10-28T19:11:44.139Z",
+  "environment": {
+    "node": "v24.12.0",
+    "v8": "13.6.233.17-node.37",
+    "platform": "win32",
+    "release": "10.0.26300",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra 5 125H"
+  },
+  "source": {
+    "sha256": "43e6de92ad8d1b9c778325ee4d1b62bd8fc0f1f26b832440a6213c8e27ab1cd4",
+    "bytes": 46
+  },
+  "harness": {
+    "sha256": "2b5c3987159b746e2d8a2f38e7438638c65a53f1a00486065efee682a0955cc1"
+  },
+  "modules": {
+    "prototype": {
+      "sha256": "39767d0825417f7c1fe4e100ffea7c025b0b0b0587eb94b3be698d24d7cdb963",
+      "bytes": 2186
+    },
+    "instrumented": {
+      "sha256": "ba52d0f505a522a5714edde7116f32c1085440b83ea0d73370add604b54fbb2c",
+      "bytes": 2226
+    }
+  },
+  "workload": {
+    "requests": [
+      0,
+      9,
+      17,
+      33,
+      65
+    ],
+    "capacities": [
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "persistentPerClass": 1,
+    "transientPerClass": 3,
+    "cycles": 256
+  },
+  "results": {
+    "samples": [
+      {
+        "population": 0,
+        "position": "absent",
+        "rank": 0,
+        "comparisons": "0",
+        "traps": true
+      },
+      {
+        "population": 1,
+        "position": "head",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": false
+      },
+      {
+        "population": 1,
+        "position": "middle",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": false
+      },
+      {
+        "population": 1,
+        "position": "tail",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": false
+      },
+      {
+        "population": 1,
+        "position": "wrong-identity",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": true
+      },
+      {
+        "population": 1,
+        "position": "double-release",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": true
+      },
+      {
+        "population": 1,
+        "position": "absent",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": true
+      },
+      {
+        "population": 8,
+        "position": "head",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": false
+      },
+      {
+        "population": 8,
+        "position": "middle",
+        "rank": 5,
+        "comparisons": "5",
+        "traps": false
+      },
+      {
+        "population": 8,
+        "position": "tail",
+        "rank": 8,
+        "comparisons": "8",
+        "traps": false
+      },
+      {
+        "population": 8,
+        "position": "wrong-identity",
+        "rank": 5,
+        "comparisons": "5",
+        "traps": true
+      },
+      {
+        "population": 8,
+        "position": "double-release",
+        "rank": 8,
+        "comparisons": "8",
+        "traps": true
+      },
+      {
+        "population": 8,
+        "position": "absent",
+        "rank": 8,
+        "comparisons": "8",
+        "traps": true
+      },
+      {
+        "population": 32,
+        "position": "head",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": false
+      },
+      {
+        "population": 32,
+        "position": "middle",
+        "rank": 17,
+        "comparisons": "17",
+        "traps": false
+      },
+      {
+        "population": 32,
+        "position": "tail",
+        "rank": 32,
+        "comparisons": "32",
+        "traps": false
+      },
+      {
+        "population": 32,
+        "position": "wrong-identity",
+        "rank": 17,
+        "comparisons": "17",
+        "traps": true
+      },
+      {
+        "population": 32,
+        "position": "double-release",
+        "rank": 32,
+        "comparisons": "32",
+        "traps": true
+      },
+      {
+        "population": 32,
+        "position": "absent",
+        "rank": 32,
+        "comparisons": "32",
+        "traps": true
+      },
+      {
+        "population": 128,
+        "position": "head",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": false
+      },
+      {
+        "population": 128,
+        "position": "middle",
+        "rank": 65,
+        "comparisons": "65",
+        "traps": false
+      },
+      {
+        "population": 128,
+        "position": "tail",
+        "rank": 128,
+        "comparisons": "128",
+        "traps": false
+      },
+      {
+        "population": 128,
+        "position": "wrong-identity",
+        "rank": 65,
+        "comparisons": "65",
+        "traps": true
+      },
+      {
+        "population": 128,
+        "position": "double-release",
+        "rank": 128,
+        "comparisons": "128",
+        "traps": true
+      },
+      {
+        "population": 128,
+        "position": "absent",
+        "rank": 128,
+        "comparisons": "128",
+        "traps": true
+      },
+      {
+        "population": 512,
+        "position": "head",
+        "rank": 1,
+        "comparisons": "1",
+        "traps": false
+      },
+      {
+        "population": 512,
+        "position": "middle",
+        "rank": 257,
+        "comparisons": "257",
+        "traps": false
+      },
+      {
+        "population": 512,
+        "position": "tail",
+        "rank": 512,
+        "comparisons": "512",
+        "traps": false
+      },
+      {
+        "population": 512,
+        "position": "wrong-identity",
+        "rank": 257,
+        "comparisons": "257",
+        "traps": true
+      },
+      {
+        "population": 512,
+        "position": "double-release",
+        "rank": 512,
+        "comparisons": "512",
+        "traps": true
+      },
+      {
+        "population": 512,
+        "position": "absent",
+        "rank": 512,
+        "comparisons": "512",
+        "traps": true
+      }
+    ]
+  }
+}
+
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 570 filtered out; finished in 0.15s
+
+    Finished `release` profile [optimized] target(s) in 0.14s
+     Running unittests src\lib.rs (target\release\deps\was_compiler-6253a06a24eabbca.exe)

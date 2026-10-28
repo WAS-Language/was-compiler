@@ -134,7 +134,9 @@ free-list links may be inspected in exported memory by trusted test code using t
 independent layout above. Cursor is consumed backing storage, not live payload;
 population times 32 is record storage, not all module metadata. Pages alone cannot
 establish a storage plateau. No performance or search-cost counters are added here;
-#62 can derive or explicitly add its separate measurement instrumentation.
+#62 adds its separate explicitly requested measurement instrumentation, described
+in [the measurement record](benchmarks/m3-allocation-infrastructure-2026-10-28/README.md#registry-comparisons-and-instrumentation-isolation).
+The frozen selectors and noninstrumented compilation remain unchanged.
 
 ## Tests and reproduction
 
@@ -195,6 +197,18 @@ findings, corrected before the final focused allocator, Clippy and full ignored
 workspace runs. No allocator correctness or unauthorized-scope finding was raised.
 Both independent reviewers rechecked the correction and reported zero outstanding
 Standards and Spec findings.
+
+## Storage plateaus and allocator costs (#62)
+
+[The dated evidence](benchmarks/m3-allocation-infrastructure-2026-10-28/README.md)
+defines current/peak/cumulative accounting, fixed-demand mixed-class reuse,
+stranded free capacity, linear registry comparisons including failed releases,
+and separate noninstrumented guest-operation timings. `compile_instrumented`
+privately opts into one comparison counter; ordinary and uninstrumented modules
+remain unchanged. The finite recorder uses stable-source hashes, fresh instances,
+nonmutating cursor observations and sequential release-profile measurements.
+This does not change release authority, activate production consumers or complete
+integrated M3 acceptance.
 
 ## Acquisition failure and trap-retention evidence (#61)
 

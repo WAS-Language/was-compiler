@@ -39,10 +39,45 @@ enum Error {
     MissingMemory,
 }
 
+pub(super) struct AppendConfig {
+    config: Config,
+    comparisons: bool,
+}
+
 fn compile(
     program: &TypedProgram,
     exports: &ExportOptions,
     config: Config,
+) -> Result<Vec<u8>, Error> {
+    compile_variant(
+        program,
+        exports,
+        AppendConfig {
+            config,
+            comparisons: false,
+        },
+    )
+}
+
+fn compile_instrumented(
+    program: &TypedProgram,
+    exports: &ExportOptions,
+    config: Config,
+) -> Result<Vec<u8>, Error> {
+    compile_variant(
+        program,
+        exports,
+        AppendConfig {
+            config,
+            comparisons: true,
+        },
+    )
+}
+
+fn compile_variant(
+    program: &TypedProgram,
+    exports: &ExportOptions,
+    options: AppendConfig,
 ) -> Result<Vec<u8>, Error> {
     let validated = ValidatedProgram::with_policy(program, exports, NumericPolicy::Baseline)?;
     let layout = validated.layout();
@@ -74,7 +109,10 @@ fn compile(
         })?;
 
     for (user, plan) in program.functions.iter().zip(&layout.users) {
-        if plan.exported && EXPORTS.contains(&user.name.as_str()) {
+        if plan.exported
+            && (EXPORTS.contains(&user.name.as_str())
+                || (options.comparisons && user.name == "__m3_registry_comparisons"))
+        {
             return Err(CodegenError::DuplicateExportName {
                 name: user.name.clone(),
             }
@@ -82,7 +120,7 @@ fn compile(
         }
     }
 
-    Ok(super::assemble_inner(&validated, Some(config)))
+    Ok(super::assemble_inner(&validated, Some(options)))
 }
 
 pub(super) struct Sections<'a> {
@@ -112,9 +150,15 @@ struct Emitter {
     population: u32,
     heads: u32,
     config: Config,
+    comparisons: Option<u32>,
 }
 
-pub(super) fn append(validated: &ValidatedProgram<'_>, config: Config, sections: Sections<'_>) {
+pub(super) fn append(
+    validated: &ValidatedProgram<'_>,
+    options: AppendConfig,
+    sections: Sections<'_>,
+) {
+    let config = options.config;
     let memory = validated
         .layout()
         .memory
@@ -133,6 +177,9 @@ pub(super) fn append(validated: &ValidatedProgram<'_>, config: Config, sections:
         population: first_global + 2,
         heads: first_global + 3,
         config,
+        comparisons: options
+            .comparisons
+            .then_some(first_global + 3 + CLASS_COUNT),
     };
 
     for (ty, init) in [
@@ -163,6 +210,20 @@ pub(super) fn append(validated: &ValidatedProgram<'_>, config: Config, sections:
             },
             &ConstExpr::i32_const(0),
         );
+    }
+
+    if let Some(index) = emitter.comparisons {
+        sections.globals.global(
+            GlobalType {
+                val_type: ValType::I64,
+                mutable: true,
+                shared: false,
+            },
+            &ConstExpr::i64_const(0),
+        );
+        sections
+            .exports
+            .export("__m3_registry_comparisons", ExportKind::Global, index);
     }
 
     use ValType::{I32, I64};
@@ -316,6 +377,18 @@ impl Emitter {
                 LocalGet(1),
                 I32Eqz,
                 BrIf(1),
+            ],
+        );
+        // Count attempted exact-payload comparisons, including searches that later trap.
+        if let Some(index) = self.comparisons {
+            emit(
+                &mut f,
+                &[GlobalGet(index), I64Const(1), I64Add, GlobalSet(index)],
+            );
+        }
+        emit(
+            &mut f,
+            &[
                 LocalGet(1),
                 I32Const(RECORD_BYTES),
                 I32Add,
@@ -583,6 +656,7 @@ impl Emitter {
 
 mod failure_order_tests;
 mod failure_tests;
+mod measurement_tests;
 mod release_tests;
 mod runtime_tests;
 mod tests;

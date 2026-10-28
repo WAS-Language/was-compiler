@@ -348,7 +348,7 @@ fn assemble(validated: &validation::ValidatedProgram<'_>) -> Vec<u8> {
 
 fn assemble_inner(
     validated: &validation::ValidatedProgram<'_>,
-    #[cfg(test)] allocator: Option<allocator::Config>,
+    #[cfg(test)] allocator: Option<allocator::AppendConfig>,
 ) -> Vec<u8> {
     let program = validated.program();
     let layout = validated.layout();
