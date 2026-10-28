@@ -34,6 +34,12 @@ A proposed extension of arrays whose length can change while all aliases continu
 to refer to the same collection. Resizing is not currently supported.
 _Avoid_: Growable list, separate list type
 
+**Resize authority**:
+Permission to change a particular array's length or relocate its element storage.
+It belongs to the collection shared by its aliases, not to its bindings or array type;
+a structurally valid array does not necessarily have this permission.
+_Avoid_: Descriptor validity, array ownership
+
 **Pure expression**:
 An expression admitted by the WAS default/contract whitelist that performs no writes
 or runtime allocation; it may read shared array contents or trap.

@@ -1,0 +1,24 @@
+## What to build
+
+Prove all M4 operations work through the CLI, freshly rebuilt compiler-in-Wasm/browser adapter and explicit Node/raw-host integration, with matching native/browser diagnostics and bytes within each optimization level. Preserve fixed-storage host encoding and copy-based decoding; add no host ownership-registration protocol.
+
+## Acceptance criteria
+
+- [ ] Exercise constructor/reserve/push/pop/remove for all three array types via CLI bytes/WAT and browser compile/compileWat, with host declarations, selected/no exports, captures and nested effects. Match library bytes per preset, enabled-preset byte identity and semantic/diagnostic parity across presets, not blanket O0–O3 identity.
+- [ ] Verify malformed syntax, receiver/arity/types, `resizable` global-name reservation and host-language registration rejection render consistently without changing existing output destinations on CLI compilation failure. Host module/field names remain unrestricted by language reservation.
+- [ ] Node plain-array encoding remains fixed-storage, isolated from native mutation, and rejected by resize methods before argument effects. Hosts obtain movable arrays through exported guest construction. Decode current logical contents to a copy after resizing.
+- [ ] Raw hosts retain stable handles across resize/reentry/traps and later calls. Reacquire movable payload pointer/length after possible resize, independently refresh views after memory growth, and verify values through actual growth. Legacy fixed-storage lifetime guarantees and existing accessor-snapshot/copy accounting stay unchanged.
+- [ ] Add bounded reentry/caught-trap cases and preserve Node/browser ignored-test policy. Rebuild `pkg/` from current sources before claiming browser evidence. Do not add required host wrappers, cleanup APIs or production allocator-management exports.
+- [ ] Document the opt-in pointer contract and newly reserved global name as implemented subset evidence, without claiming final M4 acceptance.
+
+## Implementation handoff
+
+- **Main files (existing):** `crates/cli/tests/typed_arrays_adapters.rs::{cli_typed_array_hosts_selected_exports_and_contextual_source_match_core, cli_typed_array_diagnostics_match_core_without_touching_output}` and `crates/browser/tests/typed_arrays_adapters.rs::rebuilt_browser_typed_array_hosts_bytes_diagnostics_and_execution_match_core` are verified adapter patterns. Add **proposed new** `crates/{cli,browser}/tests/resizable_arrays_adapters.rs`, keeping package ownership. `runtime/abi.cjs::{createAbi,readDescriptor,snapshotArray}`, `runtime/index.cjs`, `tests/browser.cjs`, `tests/support/process.rs` own raw/copy integration and bounded child execution; prefer new coverage over unnecessary production adapter rewrites.
+- **Read first:** `AGENTS.md`, `GLOSSARY.md`, roadmap §8, ADR 0009, `docs/{validation,memory-abi,typed-arrays,runtime-integration,browser}.md`; completed push and pop/remove outputs. Read workspace boundary ADR 0005 before any package-boundary change; no such change is expected.
+- **Test anchors:** existing typed-array CLI/browser adapter tests above, compiler `typed_arrays_runtime.rs` retained-host/reentry tests, and predecessor M4 runtime target. Keep independent expected results and decoded imports/exports/memory surface checks.
+- **Validation:** `cargo test --offline -p was-compiler-cli --test resizable_arrays_adapters --test typed_arrays_adapters -- --include-ignored`; `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline`; `cargo test --offline -p was-compiler-browser --test resizable_arrays_adapters --test typed_arrays_adapters -- --include-ignored`; `node tests/browser.cjs pkg`; `cargo test --offline -p was-compiler --test resizable_arrays_runtime -- --include-ignored`; `git --no-pager diff --check`. New adapter targets must be created in this ticket before those commands. Node 24+, installed compatible wasm tooling/target and cached dependencies are prerequisites; report missing tools without fetching.
+- **Direction/open questions:** existing Node copy limits/accounting and accessor snapshots are unchanged. Layout compatibility does not grant old-payload-address rights for opt-in arrays. Recheck current method interfaces from blockers; no unresolved language decision or parent issue needs modification.
+- **Suggested model:** `zed.dev/gpt-5.3-codex`.
+- **Thinking effort:** medium, provisional; effort controls are not exposed by the model catalog.
+- **Rationale:** established package-owned adapter patterns with explicit expected behavior.
+- **Escalation trigger:** raw-host lifetime contradiction, unexplained native/browser byte/diagnostic divergence or need to change marshaling ownership; investigate/replan before broad production changes.

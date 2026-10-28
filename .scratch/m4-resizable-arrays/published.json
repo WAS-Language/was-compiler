@@ -1,0 +1,93 @@
+{
+  "1": {
+    "number": 64,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/64",
+    "title": "M4: Extract the reusable allocator core without activation",
+    "blocked_by": [],
+    "id": 6089155748,
+    "verified": true
+  },
+  "2": {
+    "number": 65,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/65",
+    "title": "M4: Implement the explicit resizable-array copy constructor",
+    "blocked_by": [
+      64
+    ],
+    "id": 6089157121,
+    "verified": true
+  },
+  "3": {
+    "number": 66,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/66",
+    "title": "M4: Implement reserve with relocation-safe indexed writes",
+    "blocked_by": [
+      65
+    ],
+    "id": 6089159729,
+    "verified": true
+  },
+  "4": {
+    "number": 67,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/67",
+    "title": "M4: Implement push across spare-capacity and growth paths",
+    "blocked_by": [
+      66
+    ],
+    "id": 6089161230,
+    "verified": true
+  },
+  "5": {
+    "number": 68,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/68",
+    "title": "M4: Implement pop and order-preserving remove",
+    "blocked_by": [
+      66
+    ],
+    "id": 6089162791,
+    "verified": true
+  },
+  "6": {
+    "number": 69,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/69",
+    "title": "M4: Prove CLI, browser and raw-host compatibility",
+    "blocked_by": [
+      67,
+      68
+    ],
+    "id": 6089164485,
+    "verified": true
+  },
+  "7": {
+    "number": 70,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/70",
+    "title": "M4: Verify authority and failure recovery under composition",
+    "blocked_by": [
+      67,
+      68
+    ],
+    "id": 6089166321,
+    "verified": true
+  },
+  "8": {
+    "number": 71,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/71",
+    "title": "M4: Measure growth, reuse and retained-storage costs",
+    "blocked_by": [
+      70
+    ],
+    "id": 6089168216,
+    "verified": true
+  },
+  "9": {
+    "number": 72,
+    "url": "https://github.com/WAS-Language/was-compiler/issues/72",
+    "title": "M4: Run integrated gates and record release readiness",
+    "blocked_by": [
+      69,
+      71
+    ],
+    "id": 6089169768,
+    "verified": true
+  }
+}

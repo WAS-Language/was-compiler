@@ -151,9 +151,12 @@ of later milestones; future-feature constraints below remain proposals.
   but payload addresses need not. Hosts must reacquire payload addresses after
   calls/reentrant callbacks that may resize, separately from refreshing JavaScript
   views after memory growth. M0 adds no pinning API and does not weaken current
-  fixed-storage lifetime guarantees. Future lowering must preserve pre-RHS checked
-  assignment-place semantics: moving storage must not invalidate or silently
-  retarget an outstanding checked write.
+  fixed-storage lifetime guarantees. The original proposal required future lowering
+  to preserve pre-RHS checked assignment places across relocation. M4's confirmed
+  opt-in design explicitly revises this proposal for resizable arrays: validate
+  before the RHS, then revalidate the captured handle/index and resolve current
+  storage before the final store (see §8). Existing fixed-storage writes retain
+  their saved checked-address semantics.
 - **Contract revision:** identify the existing memory/ownership contract as
   revision 1 in a dated compatibility section of `memory-abi.md`. This is a
   documentation revision, not a new binary ABI, version export, descriptor tag or
@@ -759,7 +762,158 @@ remain separately authorized work; no default or release decision is implied.
 
 **Goal:** Add collection operations without changing the current alias model.
 
-### Recommended representation
+### M4 interview decisions (2026-10-28; confirmed)
+
+The user confirmed the consolidated design below on 2026-10-28, closing the interview.
+These decisions define the intended milestone, not implementation authorization or
+release evidence.
+
+- **Production target:** implement source-language resizing across the compiler,
+  CLI, browser adapter and Node marshaling for all three existing array types.
+  Develop bounded private slices before explicit integrated release gates. M3's
+  completed private gates do not authorize production consumers; general reclamation,
+  M2 migration and a host ownership protocol are not implicitly included.
+- **Public layout:** preserve the eight-byte pointer/length descriptor and stable
+  array handles. Capacity and resize authority require separate private metadata.
+  Structural validity alone grants no management rights. This is a layout decision,
+  not a promise of unchanged bytes for M4-using programs. The opt-in payload-lifetime
+  contract is specified below.
+- **Operation scope:** include push, pop, reserve and order-preserving remove for
+  number, bool and string arrays, alongside existing len. Reserve changes capacity,
+  not length. Syntax, results and failure/evaluation ordering are specified below.
+  Exclude insertion, slicing/views, capacity shrinking, nested arrays and a separate
+  collection type.
+- **Iteration:** capture the handle and initial length once, then read current
+  elements through checked indices without snapshots or cached payload addresses.
+  Appended indices beyond the initial length are not visited; shrinking that
+  invalidates a later read traps. Shifting removal affects subsequent indexed reads,
+  with no exactly-once guarantee for original elements.
+
+- **Opt-in movability:** introduce explicit creation of resize-authorized arrays
+  using the existing array types, not a separate collection type. Ordinary literals
+  and existing host-created arrays retain fixed-storage guarantees; resizing them
+  traps rather than implicitly adopting their storage. Aliases preserve the same
+  collection identity and authority.
+- **Indexed writes (replaces the initial pinning selection):** fixed-storage arrays
+  retain their saved pre-RHS checked-address contract. For explicitly created
+  resizable arrays, capture the array object and index once and validate the
+  destination before the RHS. Numeric compounds also retain the old numeric value.
+  After evaluating the RHS once, revalidate that captured array/index and resolve
+  its current payload address before storing. Shrink-invalidated indices trap after
+  completed RHS effects; shifting removal makes the store target the current element
+  at that index, not the original element. Reassignment of the receiver binding does
+  not change the captured array. This explicitly amends M0's proposed future place
+  guarantee only for opt-in resizable arrays, not existing fixed-storage arrays.
+  Runtime pinning was rejected because ordinary Wasm traps can abandon pins without
+  cleanup, indistinguishably from live outer pins suspended during host reentry.
+  No host invocation wrapper, cleanup obligation or permanent resize quarantine is
+  introduced.
+- **Operation results:** push and reserve return void; pop and order-preserving
+  remove return the removed element. Empty pop and invalid remove indices trap.
+  Reserve requests at least length plus additional elements, never reduces capacity,
+  and accepts only finite integral nonnegative numbers with checked sizing before
+  mutation. No coercions, optional/sentinel results or fluent returns are introduced.
+
+- **Construction:** `resizable(source)` makes a fresh resize-authorized copy of
+  any supported array, including another resizable array. Source aliases are
+  unaffected; string-array copies may share immutable string values. Existing
+  contextual literal typing applies, including the unconstrained empty-array
+  number fallback. No in-place adoption or separate collection type is introduced.
+- **Surface:** use built-in push/pop/reserve/remove methods on identifier receivers,
+  with positional arguments only; keep len and add the resizable constructor.
+  Capture the receiver object before argument evaluation; rebinding the receiver
+  during arguments does not redirect the operation. No general methods, callable
+  properties, named/default method arguments or postfix chaining are introduced.
+- **Host boundary:** resizable handles may be retained, but payload pointer and
+  length must be reacquired after calls or reentrant callbacks that may resize.
+  This is separate from refreshing views after memory growth. Existing fixed-storage
+  guarantees remain unchanged. Node encoding continues to create fixed-storage
+  arrays; decoding copies current logical elements. Hosts obtain resizable arrays
+  through guest construction, not descriptor fabrication or ownership registration.
+
+- **Storage integration:** promote only the required M3 allocation core into an
+  internally planned production path for explicitly resizable arrays. Acquire/copy
+  replacement payloads, publish, then release displaced owned payloads. Retain
+  descriptors and authority records for the instance lifetime; do not release
+  referenced strings or reclaim unreachable arrays. Ordinary allocation and M2
+  behavior remain unchanged. Private management exports, observations and test
+  configuration do not become production APIs.
+- **Capacity:** use existing exact power-of-two byte classes, minimum eight bytes,
+  including empty arrays. Element capacity is byte capacity divided by element width.
+  Acquire the entire capacity extent, not merely live length or unauthorized rounding
+  slack. Retain the checked 2^31-byte request ceiling, without promising allocation
+  success. Growth temporarily retains old and new buffers; pop/remove do not shrink
+  capacity. Spare slots are unreadable until initialized and made live.
+- **Method order:** capture and validate the receiver, including resize authority,
+  before argument effects. Evaluate arguments once left-to-right, then validate
+  current state and mutate without callbacks during copy/publication. Fixed-storage
+  receivers trap even for reserve(0). Push appends to post-argument contents;
+  reserve uses post-argument length; remove checks against post-argument length.
+  Completed argument effects survive subsequent failure.
+- **Naming and grammar:** resizable follows len's ordinary-identifier built-in
+  resolution, reserves the global function/host-language name and permits normal
+  lexical shadowing. Existing global uses require migration. Method names remain
+  contextual and otherwise legal identifiers. Accept exactly identifier.method(...),
+  not parenthesized/call-result receivers or chaining; preserve ranges and rejection
+  of .5 and 1. Direct built-in pipeline stages are not added.
+- **Typing and purity:** resizable preserves its source array type and forwards
+  expected array context into its source; unconstrained empty arrays still default
+  to number[]. Methods derive element types from receivers. Placeholder constraints
+  remain exact and region-local with reachable evidence; resizable(_) alone remains
+  ambiguous and callers supply no refinement. Reject the constructor and all four
+  methods in defaults/contracts, including skipped operands; retain independent
+  forged-tree backend checks.
+
+- **Consumed validation:** construction validates all copied logical elements;
+  push validates its new element; pop/remove validate their returned element before
+  mutation. Internal growth/reserve copies and shifting unreturned elements do not
+  scan otherwise unconsumed bool bytes or string handles. Existing len, equality,
+  indexing and iteration consumption rules remain unchanged.
+- **Failure:** preserve published logical state on operation failure, without
+  invocation-wide rollback. Perform sizing, element and other expected-to-fail
+  checks before publication; replacement-allocation failure leaves the old array
+  usable. No user code runs between final copy, publication and old-buffer release.
+  Completed argument effects and successful earlier allocations remain; failed
+  construction may retain unpublished allocations, without sweeping or trap recovery.
+- **Authority checks:** require exact handle registry membership and consistency
+  with private metadata before management mutation, including element kind,
+  payload, logical length/capacity and current acquisition authority. Fabricated
+  valid descriptors remain fixed-storage. Arbitrary host corruption of private
+  metadata remains unsupported; this is not a security boundary.
+- **Acceptance:** require frontend, forged-tree, independent decoded lowering and
+  Wasm validation evidence; all element types, alias/capture/recursion/reentry,
+  post-RHS indexed-write revalidation, iteration mutation, lazy consumption,
+  fixed-storage rejection and deterministic failure/recovery coverage. Preserve
+  existing-program compatibility fixtures, preset parity and CLI bytes; rebuild
+  browser output and explicitly run ignored runtimes with full offline integrated
+  gates. Historical M3/default-suite success does not establish M4 acceptance.
+- **Measurements:** measure append/reserve/remove workloads, geometric growth and
+  reuse across arrays. Distinguish length, capacity, active/free payload storage,
+  allocator records, authority metadata, bump consumption and pages. Separate fresh
+  uninstrumented timing from instrumented observations. Explain fragmentation and
+  retained object/failed-construction storage without claiming generally bounded
+  memory or inferring storage plateaus from pages alone.
+
+- **Numeric boundaries:** remove uses existing checked index rules: finite,
+  integral, nonnegative and in bounds, accepting negative zero as zero. Reserve
+  accepts negative zero as zero and rejects other negative, fractional and nonfinite
+  values. Check length addition and byte sizing before narrowing, including the
+  allocator-domain ceiling. Capacity is private; no capacity query or exact reserve
+  capacity guarantee is added.
+- **Stage boundaries:** malformed syntax is a parser error; wrong receiver types,
+  arity and element types are semantic errors; absent resize authority traps at
+  runtime even when fixed provenance is statically apparent. No ownership type or
+  static resize-effect system is added. Preserve Never compatibility, flow, spans,
+  skipped/unreachable checking and independent malformed typed-input rejection.
+- **Isolation:** programs without M4 construction/operations retain existing bytes
+  and gain no new allocator/authority machinery. Discover M4 structurally, including
+  nested callables and skipped/unreachable nodes; plan indices before checked body
+  lowering and emit deterministically. Ordinary literals stay fixed-storage even
+  in M4 modules; storage semantics do not depend on numeric presets.
+- **Architecture record:** [ADR 0009](adr/0009-opt-in-resizable-array-storage.md)
+  records the descriptor, authority, pending-write and reclamation trade-offs.
+
+### Selected representation (proposed; not implemented)
 
 ```text
 Stable array handle
@@ -768,32 +922,51 @@ Stable array handle
 +--------------------------+
 | data_ptr : u32   (+0)    |
 | length   : u32   (+4)    |
-| capacity : u32   (+8)    |  <- Proposed private/ABI-v2 layout
-| reserved/padding (+12)   |
 +--------------------------+
         |
         v
 [ element 0 ][ element 1 ] ... [ capacity - 1 ]
+
+Private authority metadata, keyed by stable handle:
+element kind, capacity, current owned payload and acquisition identity
 ```
 
-**ABI choice required:** Either (A) adopt a new 16-byte descriptor and version all public consumers, or (B) preserve the public 8-byte descriptor while storing capacity in separately managed metadata. Option A is simpler internally; Option B may preserve more compatibility but can be significantly harder to implement safely. Do not treat the diagram above as the final ABI until this decision is made.
+The interview selected the existing eight-byte public descriptor with separate
+private capacity/authority metadata over a sixteen-byte ABI revision. This preserves
+public layout, but opt-in payload relocation has its own explicit host and indexed-write
+contracts above. The diagram describes proposed M4 storage, not current implementation.
 
 ### Compatibility constraints for deferred ownership work
 
-Preserve the existing 8-byte public descriptor by default unless a separately approved ABI revision explicitly migrates consumers. Capacity may initially be represented in private metadata. No raw host-visible descriptor is automatically managed or movable merely because it validates. Only resize storage with proven rights; host-originated or unproven descriptors must have a documented safe behavior (for example, reject the resize without invalidating them). A raw handle remains stable and retained handle rights remain intact; payload-address refresh after resize is a distinct contract. Decide this before implementing the resizing operation, even though the optional host ownership protocol is deferred until M11.
+Preserve the existing eight-byte public descriptor and store capacity/authority
+privately. Only explicit construction establishes movable storage. Structurally
+valid host-originated or otherwise unproven descriptors remain fixed-storage;
+methods trap before argument effects without invalidating them. Raw handles remain
+stable. Existing fixed-storage lifetime rights remain intact, while opt-in payload
+addresses must be reacquired after possible resize. This is distinct from JavaScript
+view refresh and does not introduce M11's deferred host ownership protocol.
 
 ### Growth algorithm
 
-1. Evaluate the array receiver and new element exactly once in a specified order.
-2. Validate the handle, type and capacity arithmetic.
-3. If `length < capacity`, write the new element and increment the length.
-4. Otherwise allocate a larger backing buffer (a geometric growth policy is a reasonable starting point).
-5. Copy live elements using the correct element width; update the stable descriptor only after successful allocation/copy.
-6. Retire the old owned buffer **only if** no supported alias can independently retain it.
+1. Capture and validate the receiver and resize authority before argument effects.
+2. Evaluate the new element once, then validate it and the receiver's current state;
+   check length/capacity arithmetic without truncation or overflow.
+3. If `length < capacity`, write the element and publish the increased length.
+4. Otherwise acquire a fitting power-of-two backing buffer for its full capacity extent.
+5. Copy live storage with the correct element width and initialize the appended element;
+   publish the replacement only after expected-to-fail checks and successful preparation.
+6. Release the displaced owned payload using its saved private authority, without
+   callbacks during publication/release. Stable handles and post-RHS revalidation
+   preserve language aliases; opt-in host payload borrows cannot span possible resize.
+
+Reserve uses the same replacement path without changing logical length. Pop/remove
+validate the returned element before mutation and retain capacity. A failed allocation
+preserves the old published array, not prior argument effects or allocator history.
 
 ### Proposed API
 
 ```text
+resizable(source)
 values.push(item)
 values.pop()
 values.reserve(additional)
@@ -801,7 +974,9 @@ values.remove(index)
 len(values)
 ```
 
-The exact syntax and `pop` return behavior (particularly for empty arrays) require a separate language-design decision. These examples are target behaviors, not confirmed features.
+The interview selected identifier-receiver method syntax and the explicit copy
+constructor `resizable(source)`. Push/reserve return void; pop/remove return an element,
+with empty pop trapping. These are confirmed design choices, not implemented features.
 
 ### Specific tests
 
