@@ -213,6 +213,11 @@ pub(super) fn walk_expression<'ast, V: Visitor<'ast>>(
             walk_expression(additional, visitor)?;
         }
 
+        TypedExprKind::Push { receiver, item } => {
+            walk_expression(receiver, visitor)?;
+            walk_expression(item, visitor)?;
+        }
+
         TypedExprKind::Index { expr, index } => {
             walk_expression(expr, visitor)?;
             walk_expression(index, visitor)?;

@@ -4,6 +4,336 @@ use was_compiler::typed_ast::{BuiltinFunction, FunctionRef, TypedExprKind, Typed
 use was_compiler::{ArrayElementType, CompileError, Compiler, Type};
 
 #[test]
+fn push_raw_syntax_retains_receiver_argument_and_utf8_method_span() {
+    use was_compiler::{
+        ast::{Expr, StatementKind},
+        lexer::Lexer,
+        parser::Parser,
+        tokens::Span,
+    };
+    let source = "fn main(a: string[]) { /* λ */ a.push(\"雪\"); }";
+    let tokens = Lexer::new(source).tokenize();
+    let program = Parser::new(&tokens).parse_program().unwrap();
+    let StatementKind::Expression(Expr::Push {
+        receiver,
+        args,
+        span,
+    }) = &program.functions[0].body[0].kind
+    else {
+        panic!("expected dedicated raw push")
+    };
+    assert_eq!(receiver.as_ref(), &Expr::Identifier("a".into()));
+    assert_eq!(args.len(), 1);
+    assert_eq!(args[0].name, None);
+    assert_eq!(args[0].value, Expr::String("雪".into()));
+    let start = source.find("a.push").unwrap();
+    assert_eq!(*span, Span::new(start, start + "a.push(\"雪\")".len()));
+}
+
+#[test]
+fn push_accepts_each_exact_array_element_with_a_void_result() {
+    for (ty, item) in [
+        ("number[]", "3"),
+        ("bool[]", "true"),
+        ("string[]", "\"hello\""),
+    ] {
+        let source = format!("fn main(values: {ty}) {{ values.push({item}); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        let TypedStatementKind::Expression(value) = &program.functions[0].body[0].kind else {
+            panic!()
+        };
+        assert_eq!(value.ty, Type::Void);
+        let TypedExprKind::Push { receiver, item } = &value.kind else {
+            panic!("expected push operation")
+        };
+        let Type::Array(element) = receiver.ty.value_type().unwrap() else {
+            panic!("expected array receiver")
+        };
+        assert_eq!(item.ty, element.value_type());
+        assert!(matches!(receiver.kind, TypedExprKind::Identifier { .. }));
+    }
+}
+
+#[test]
+fn push_placeholder_types_follow_the_exact_region_local_array_element_relationship() {
+    for (array, scalar, item) in [
+        ("number[]", Type::Number, "1"),
+        ("bool[]", Type::Bool, "true"),
+        ("string[]", Type::String, "\"x\""),
+    ] {
+        let source = format!("fn main(a: {array}) {{ let append = a.push(_); append({item}); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        let TypedStatementKind::Closure(closure) = &program.functions[0].body[0].kind else {
+            panic!()
+        };
+        assert_eq!(closure.params[0].ty, scalar);
+        assert_eq!(closure.return_type, Type::Void);
+        let source = format!(
+            "fn main() {{ let append = {{ let a = _; a.push({item}); }}; append([{item}]); }}"
+        );
+        let program = Compiler::new().analyze(&source).unwrap();
+        let TypedStatementKind::Closure(closure) = &program.functions[0].body[0].kind else {
+            panic!()
+        };
+        let element = match scalar {
+            Type::Number => ArrayElementType::Number,
+            Type::Bool => ArrayElementType::Bool,
+            Type::String => ArrayElementType::String,
+            _ => unreachable!(),
+        };
+        assert_eq!(closure.params[0].ty, Type::Array(element));
+    }
+}
+
+#[test]
+fn push_requires_identifier_receivers_and_does_not_add_chaining_or_method_pipeline_stages() {
+    for expression in [
+        "(a).push(1)",
+        "make().push(1)",
+        "a[0].push(1)",
+        "[1].push(1)",
+        "a.push(1).push(2)",
+        "a.reserve(1).push(2)",
+        "a.push(1)[0]",
+        "a.push(1)()",
+        "a.push",
+        "a.push(,)",
+        "1 |> a.push(1)",
+        "a |> push(1)",
+    ] {
+        let source = format!("fn main(a: number[]) {{ {expression}; }}");
+        assert!(Compiler::new().analyze(&source).is_err(), "{source}");
+    }
+    Compiler::new().analyze("fn main(a: number[]) { a /* receiver */ . /* method */ push /* item */ (1); 0..1; 0..=1; 1.5; }").unwrap();
+}
+
+#[test]
+fn push_is_contextual_without_callable_resolution_or_new_pipeline_discard_permissions() {
+    assert!(
+        matches!(semantic_error("fn push(n: number) -> number { return n; } fn main(push: number[]) { push.push(push(1)); }"), SemanticError::NotCallable { name, .. } if name == "push")
+    );
+    Compiler::new().analyze("fn push(n: number) -> number { return n; } fn main(a: number[]) { a.push(push(1)); let push = (a: bool[]) => a.push(true); [true] |> push; }").unwrap();
+    let mut compiler = Compiler::new();
+    compiler
+        .register_host_function("push", "env", "push", vec![], Type::String)
+        .unwrap();
+    compiler
+        .analyze("fn main(a: string[]) { a.push(push()); }")
+        .unwrap();
+    assert!(matches!(
+        semantic_error("fn stage(n: number) {} fn main(a: number[]) { a.push(1 |> stage); }"),
+        SemanticError::InvalidPipeline { .. }
+    ));
+}
+
+#[test]
+fn push_checks_call_structure_before_receiver_and_item() {
+    for (args, count) in [("", 0), ("missing, other", 2)] {
+        let source = format!("fn main() {{ unknown.push({args}); }}");
+        assert!(
+            matches!(semantic_error(&source), SemanticError::ArgumentCountMismatch { name, expected: 1, found, .. } if name == "push" && found == count)
+        );
+    }
+    for args in ["item: missing", "1, item: missing", "item: 1, 2"] {
+        let source = format!("fn main() {{ unknown.push({args}); }}");
+        assert!(
+            matches!(semantic_error(&source), SemanticError::NamedArgumentsNotSupported { name, .. } if name == "push")
+        );
+    }
+}
+
+#[test]
+fn push_checks_receiver_then_exact_scalar_without_proving_runtime_authority() {
+    for ty in ["number", "bool", "string", "range"] {
+        let source = format!("fn main(a: {ty}) {{ a.push(missing); }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::TypeMismatch {
+                    expected: Type::Array(_),
+                    ..
+                }
+            ),
+            "{source}"
+        );
+    }
+    for (array, expected, wrong) in [
+        ("number[]", Type::Number, "true"),
+        ("bool[]", Type::Bool, "1"),
+        ("string[]", Type::String, "false"),
+    ] {
+        for item in [wrong, "[]", "0..1", "empty()"] {
+            let source = format!("fn empty() {{}} fn main(a: {array}) {{ a.push({item}); }}");
+            assert!(
+                matches!(semantic_error(&source), SemanticError::TypeMismatch { expected: found, .. } if found == expected),
+                "{source}"
+            );
+        }
+    }
+    Compiler::new().analyze("fn main() { let a = [1]; a.push(-0); a.push(0 / 0); a.push(1 / 0); let b = [true]; b.push(false); let s = [\"x\"]; s.push(\"λ\"); }").unwrap();
+    assert!(matches!(
+        semantic_error("fn main(a: number[]) { let result = a.push(1); }"),
+        SemanticError::InvalidVoidType { .. }
+    ));
+}
+
+#[test]
+fn push_preserves_never_and_checks_every_unreachable_or_skipped_child() {
+    use was_compiler::typed_ast::ExprResult;
+    for (array, tail) in [("number[]", "true"), ("bool[]", "1"), ("string[]", "false")] {
+        let source = format!("fn main(a: {array}) -> number {{ a.push({{ return 7; {tail} }}); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        let TypedStatementKind::Expression(value) = &program.functions[0].body[0].kind else {
+            panic!()
+        };
+        assert_eq!(value.ty, ExprResult::Never);
+    }
+    for body in [
+        "a.push({ return; let invalid: number = true; 1 });",
+        "return; a.push(true);",
+        "false && { a.push(true); true };",
+        "if false { a.push(true); }",
+        "a.push({ return; missing });",
+    ] {
+        let source = format!("fn main(a: number[]) {{ {body} }}");
+        assert!(Compiler::new().analyze(&source).is_err(), "{source}");
+    }
+}
+
+#[test]
+fn push_is_forbidden_in_pure_defaults_and_contracts_including_skipped_operands() {
+    for source in [
+        "fn main(a: number[], n: bool = false && a.push(1)) {}",
+        "fn main(a: bool[]) requires true || a.push(true) {}",
+    ] {
+        assert!(matches!(
+            semantic_error(source),
+            SemanticError::InvalidDefaultExpression { .. }
+                | SemanticError::InvalidContractExpression { .. }
+        ));
+    }
+}
+
+#[test]
+fn push_item_participates_in_named_result_dependencies_and_nested_capture_discovery() {
+    use was_compiler::typed_ast::TypedClosureBody;
+    let program = Compiler::new().analyze("fn main(a: string[]) { a.push(item()); let outer = () => { let inner = () => a.push({ let make = () => \"x\"; make() }); inner(); }; outer(); } fn item() { return \"y\"; }").unwrap();
+    assert_eq!(program.functions[1].return_type, Type::String);
+    let TypedStatementKind::Closure(outer) = &program.functions[0].body[1].kind else {
+        panic!()
+    };
+    let TypedClosureBody::Block(block) = &outer.body else {
+        panic!()
+    };
+    let TypedStatementKind::Closure(inner) = &block.statements[0].kind else {
+        panic!()
+    };
+    assert_eq!(inner.captures, outer.captures);
+    assert_eq!(outer.captures.len(), 1);
+    let TypedClosureBody::Expression(value) = &inner.body else {
+        panic!()
+    };
+    let TypedExprKind::Push { receiver, .. } = &value.kind else {
+        panic!()
+    };
+    assert!(
+        matches!(receiver.kind, TypedExprKind::Captured { owner, id, .. } if owner == outer.captures[0].owner && id == outer.captures[0].variable)
+    );
+}
+
+#[test]
+fn push_placeholder_evidence_does_not_come_from_callers_or_unreachable_items() {
+    for source in [
+        "fn main() { let append = { let a = _; a.push(_); }; append([true], true); }",
+        "fn main() { let append = { let a = _; a.push(_); }; true |> append(true); }",
+        "fn main(a: bool[]) { let append = { return; a.push(_); }; append(true); }",
+        "fn main() { let append = { let a = _; return; a.push(true); }; append([true]); }",
+        "fn main() { let append = { let a = _; a.push({ return; true }); }; append([true]); }",
+    ] {
+        assert!(
+            matches!(
+                semantic_error(source),
+                SemanticError::CannotInferPlaceholderParameter { .. }
+            ),
+            "{source}"
+        );
+    }
+    for source in [
+        "fn main() { let append = { let a = _; a.push(true); a.push(1); }; }",
+        "fn main() { let append = { let a = _; a + 1; a.push(true); }; }",
+    ] {
+        assert!(
+            matches!(
+                semantic_error(source),
+                SemanticError::ConflictingPlaceholderConstraints { .. }
+            ),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn push_placeholder_relationship_propagates_delayed_evidence_and_preserves_region_boundaries() {
+    for source in [
+        "fn main() { let append = { let a = _; a.push(_); a == [true]; }; append([false], true); }",
+        "fn main() { let append = { let a = _; a.push(_); a == [\"x\"]; }; append([\"y\"], \"z\"); }",
+        "fn main() { let append = { let a = _; false && { a.push(true); true }; }; append([true]); }",
+        "fn main() { let append = { let a = _; a.push(true); return; }; append([true]); }",
+        "fn main(a: bool[]) { true |> (a.push(_)); }",
+        "fn main() { let append = { let a = _; a.push(true); let inner = () => a.push(false); inner(); }; append([true]); }",
+    ] {
+        Compiler::new()
+            .analyze(source)
+            .unwrap_or_else(|error| panic!("{source}: {error:?}"));
+    }
+    assert!(matches!(
+        semantic_error(
+            "fn main() { let append = { let a = _; let inner = () => a.push(true); inner(); }; append([true]); }"
+        ),
+        SemanticError::CannotInferPlaceholderParameter { .. }
+    ));
+    assert!(matches!(
+        semantic_error("fn main(a: bool[]) { let append = { a.push(_); return; a.push(1); }; }"),
+        SemanticError::TypeMismatch {
+            expected: Type::Bool,
+            found: Type::Number,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn push_diagnostics_preserve_utf8_spans_and_optimization_parity() {
+    use was_compiler::{OptimizationLevel, tokens::Span};
+    let source = "fn main(a: bool[]) { /* λ */ a.push(1); missing; }";
+    let start = source.find("a.push").unwrap();
+    let expected = CompileError::Semantic(SemanticError::TypeMismatch {
+        expected: Type::Bool,
+        found: Type::Number,
+        span: Span::new(start, start + "a.push(1);".len()),
+    });
+    let mut compiler = Compiler::new();
+    for level in [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        compiler.set_optimization_level(level);
+        assert_eq!(compiler.analyze(source).unwrap_err(), expected);
+        compiler
+            .analyze("fn main(a: bool[]) { a.push(true); }")
+            .unwrap();
+    }
+    let source = "fn main(a: number[]) { /* λ */ a.push(item: 1); }";
+    let start = source.find("item:").unwrap();
+    assert_eq!(
+        semantic_error(source).span(),
+        Some(Span::new(start, start + "item: 1".len()))
+    );
+}
+
+#[test]
 fn reserve_accepts_each_array_kind_and_fixed_storage_with_a_void_result() {
     for ty in ["number[]", "bool[]", "string[]"] {
         let source = format!("fn main(values: {ty}) {{ values.reserve(3); }}");
@@ -34,7 +364,6 @@ fn reserve_keeps_identifier_receivers_without_general_postfix_syntax() {
         "values.reserve(1).reserve(1)",
         "values.reserve(1)[0]",
         "values.reserve(1)()",
-        "values.push(1)",
         "values.reserve",
         "values.reserve(,)",
         ".5",

@@ -891,18 +891,36 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
                         span: self.span_since(start),
                     })
                 } else if self.consume(TokenKind::Dot) {
-                    if !matches!(self.peek().map(|token| &token.kind), Some(TokenKind::Identifier(method)) if method == "reserve")
-                    {
-                        return Err(self.unexpected("reserve"));
+                    enum ArrayMethod {
+                        Reserve,
+                        Push,
                     }
+                    let method = match self.peek().map(|token| &token.kind) {
+                        Some(TokenKind::Identifier(method)) if method == "reserve" => {
+                            ArrayMethod::Reserve
+                        }
+                        Some(TokenKind::Identifier(method)) if method == "push" => {
+                            ArrayMethod::Push
+                        }
+                        _ => return Err(self.unexpected("reserve or push")),
+                    };
                     self.advance();
                     self.expect(TokenKind::LeftParen)?;
                     let args = self.parse_call_arguments()?;
 
-                    Ok(Expr::Reserve {
-                        receiver: Box::new(Expr::Identifier(name)),
-                        args,
-                        span: self.span_since(start),
+                    let receiver = Box::new(Expr::Identifier(name));
+                    let span = self.span_since(start);
+                    Ok(match method {
+                        ArrayMethod::Push => Expr::Push {
+                            receiver,
+                            args,
+                            span,
+                        },
+                        ArrayMethod::Reserve => Expr::Reserve {
+                            receiver,
+                            args,
+                            span,
+                        },
                     })
                 } else if self.consume(TokenKind::LeftBracket) {
                     let index = Box::new(self.parse_expression()?);

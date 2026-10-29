@@ -1,4 +1,4 @@
-//! Private opt-in array construction, authority checks and payload relocation.
+//! Private opt-in array construction, authority checks, relocation and append.
 use std::ops::ControlFlow;
 
 use crate::{
@@ -40,6 +40,7 @@ pub(super) struct Plan {
     elements: Vec<ArrayElementType>,
     constructors: Vec<ArrayElementType>,
     reserves: Vec<ArrayElementType>,
+    pushes: Vec<ArrayElementType>,
 }
 
 enum AuthorityHelper {
@@ -76,6 +77,7 @@ impl Plan {
             elements: [bool; 3],
             constructors: [bool; 3],
             reserves: [bool; 3],
+            pushes: [bool; 3],
         }
         impl Visitor<'_> for Discovery {
             type Break = std::convert::Infallible;
@@ -83,7 +85,12 @@ impl Plan {
                 if let Some(element) = expr.array_element_type() {
                     self.elements[ordinal(element)] = true;
                 }
-                if let TypedExprKind::Reserve { receiver, .. } = &expr.kind {
+                if let TypedExprKind::Push { receiver, .. } = &expr.kind {
+                    self.pushes[ordinal(array::element(receiver))] = true;
+                }
+                if let TypedExprKind::Reserve { receiver, .. }
+                | TypedExprKind::Push { receiver, .. } = &expr.kind
+                {
                     let element = array::element(receiver);
                     self.reserves[ordinal(element)] = true;
                     self.elements[ordinal(element)] = true;
@@ -119,12 +126,17 @@ impl Plan {
         };
         let constructors = select(discovery.constructors);
         let reserves = select(discovery.reserves);
+        let pushes = select(discovery.pushes);
         if constructors.is_empty() && reserves.is_empty() {
             return Ok(None);
         }
         let elements = select(discovery.elements);
         let count = super::checked_u32(
-            AllocatorHelper::ALL.len() + constructors.len() + 2 * elements.len() + reserves.len(),
+            AllocatorHelper::ALL.len()
+                + constructors.len()
+                + 2 * elements.len()
+                + reserves.len()
+                + pushes.len(),
             "M4 helper count",
         )?;
         first_function
@@ -147,6 +159,7 @@ impl Plan {
                 ]
             }))
             .chain(reserves.iter().map(|_| abi::resizable_reserve_signature()))
+            .chain(pushes.iter().copied().map(abi::resizable_push_signature))
             .map(&mut intern)
             .collect::<Result<Vec<_>, _>>()?;
         let first_function = FunctionIndex::new(first_function);
@@ -170,6 +183,7 @@ impl Plan {
             elements,
             constructors,
             reserves,
+            pushes,
         }))
     }
 
@@ -204,6 +218,24 @@ impl Plan {
                 AllocatorHelper::ALL.len()
                     + self.constructors.len()
                     + 2 * self.elements.len()
+                    + slot,
+            )
+            .expect("bounded helpers"),
+        )
+    }
+
+    pub(super) fn push(&self, element: ArrayElementType) -> FunctionIndex {
+        let slot = self
+            .pushes
+            .iter()
+            .position(|e| *e == element)
+            .expect("push discovered structurally");
+        self.first_function.offset(
+            u32::try_from(
+                AllocatorHelper::ALL.len()
+                    + self.constructors.len()
+                    + 2 * self.elements.len()
+                    + self.reserves.len()
                     + slot,
             )
             .expect("bounded helpers"),
@@ -286,6 +318,9 @@ impl Plan {
         }
         for &element in &self.reserves {
             code.function(&self.emit_reserve(element));
+        }
+        for &element in &self.pushes {
+            code.function(&self.emit_push(element, memory));
         }
     }
 
@@ -551,6 +586,68 @@ impl Plan {
         f
     }
 
+    fn emit_push(&self, element: ArrayElementType, memory: &MemoryLayout) -> Function {
+        use Instruction::*;
+        // handle0:i32, item1:scalar; record2, length3:i32.
+        let mut f = Function::new([(2, ValType::I32)]);
+        emit(
+            &mut f,
+            &[LocalGet(0), Call(self.validate(element).raw()), LocalSet(2)],
+        );
+        if let Some(consumer) = array::consumer(element) {
+            emit(
+                &mut f,
+                &[
+                    LocalGet(1),
+                    Call(
+                        memory
+                            .first_function
+                            .offset(memory.plan.helper_index(consumer))
+                            .raw(),
+                    ),
+                    Drop,
+                ],
+            );
+        }
+        emit(
+            &mut f,
+            &[
+                // Reserve owns all sizing, acquisition, raw copy and release logic.
+                LocalGet(0),
+                F64Const(1.0.into()),
+                Call(self.reserve(element).raw()),
+                // No callbacks or expected failures remain: reserve proved this slot
+                // fits the current owned extent. Initialize it before either length.
+                LocalGet(2),
+                I32Load(mem(LENGTH, 2)),
+                LocalSet(3),
+                LocalGet(2),
+                I32Load(mem(PAYLOAD, 2)),
+                LocalGet(3),
+                I32Const(i32::try_from(array::width(element)).expect("element width")),
+                I32Mul,
+                I32Add,
+                LocalGet(1),
+                array::store(element, 0),
+                LocalGet(0),
+                LocalGet(3),
+                I32Const(1),
+                I32Add,
+                I32Store(mem(
+                    abi::DESCRIPTOR_LENGTH_OFFSET,
+                    abi::DESCRIPTOR_FIELD_ALIGN_LOG2,
+                )),
+                LocalGet(2),
+                LocalGet(3),
+                I32Const(1),
+                I32Add,
+                I32Store(mem(LENGTH, 2)),
+                End,
+            ],
+        );
+        f
+    }
+
     fn emit_constructor(&self, element: ArrayElementType, memory: &MemoryLayout) -> Function {
         use Instruction::*;
         // source0, length1, payload2, object3, record4, index5:i32;
@@ -698,5 +795,93 @@ impl Plan {
             ],
         );
         f
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Compiler;
+    use wasmparser::{Operator, Parser, Payload, Validator};
+
+    #[test]
+    fn push_only_selects_reserve_and_preserves_existing_helper_bodies() {
+        for ty in ["number", "bool", "string"] {
+            let compile = |method: &str, argument: &str| {
+                Compiler::new()
+                    .compile_source(&format!(
+                        "fn main(a: {ty}[], item: {ty}) {{ a.{method}({argument}); }}"
+                    ))
+                    .unwrap()
+            };
+            let reserve = compile("reserve", "1");
+            let push = compile("push", "item");
+            Validator::new().validate_all(&push).unwrap();
+            let bodies = |bytes: &[u8]| {
+                Parser::new(0)
+                    .parse_all(bytes)
+                    .filter_map(|payload| match payload.unwrap() {
+                        Payload::CodeSectionEntry(body) => Some(body.as_bytes().to_vec()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let before = bodies(&reserve);
+            let after = bodies(&push);
+            assert_eq!(after.len(), before.len() + 1);
+            // The changed user body is followed by byte-identical existing helpers;
+            // push adds only its own helper after the selected reserve helper.
+            assert_eq!(&after[1..before.len()], &before[1..]);
+            let push_body = Parser::new(0)
+                .parse_all(&push)
+                .filter_map(|payload| match payload.unwrap() {
+                    Payload::CodeSectionEntry(body) => Some(body),
+                    _ => None,
+                })
+                .last()
+                .unwrap();
+            let ops = push_body
+                .get_operators_reader()
+                .unwrap()
+                .into_iter()
+                .map(Result::unwrap)
+                .collect::<Vec<_>>();
+            let calls = ops
+                .iter()
+                .filter_map(|op| match op {
+                    Operator::Call { function_index } => Some(*function_index),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(calls.len(), if ty == "number" { 2 } else { 3 });
+            assert_eq!(
+                *calls.last().unwrap(),
+                u32::try_from(before.len() - 1).unwrap()
+            );
+            let reserve_call = ops
+                .iter()
+                .rposition(|op| matches!(op, Operator::Call { .. }))
+                .unwrap();
+            let stores = ops
+                .iter()
+                .enumerate()
+                .filter_map(|(index, op)| match op {
+                    Operator::F64Store { memarg }
+                    | Operator::I32Store8 { memarg }
+                    | Operator::I32Store { memarg } => Some((index, memarg.offset)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(stores.len(), 3);
+            assert!(reserve_call < stores[0].0);
+            // Independent expected offsets: slot, public length, private length.
+            assert_eq!(
+                stores.iter().map(|(_, offset)| *offset).collect::<Vec<_>>(),
+                [0, 4, 12]
+            );
+            assert!(!ops[reserve_call + 1..].iter().any(|op| matches!(
+                op,
+                Operator::Unreachable | Operator::MemoryGrow { .. } | Operator::Call { .. }
+            )));
+        }
     }
 }

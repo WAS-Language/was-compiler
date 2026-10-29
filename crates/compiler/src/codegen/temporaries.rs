@@ -138,7 +138,10 @@ impl Visitor<'_> for TemporaryVisitor {
     }
 
     fn enter_expression(&mut self, expr: &TypedExpr) -> ControlFlow<CodegenError> {
-        if matches!(expr.kind, TypedExprKind::Reserve { .. }) {
+        if matches!(
+            expr.kind,
+            TypedExprKind::Reserve { .. } | TypedExprKind::Push { .. }
+        ) {
             self.reserve(&[ValType::I32])?;
         }
 
@@ -232,6 +235,13 @@ mod tests {
                     index: Box::new(array()),
                 }),
                 2,
+            ),
+            (
+                expr(TypedExprKind::Push {
+                    receiver: Box::new(array()),
+                    item: Box::new(array()),
+                }),
+                3,
             ),
         ] {
             let block = vec![statement(TypedStatementKind::Expression(value))];

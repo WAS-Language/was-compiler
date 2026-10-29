@@ -353,6 +353,41 @@ pub(super) fn emit_as(
             (flow, result(flow, Type::Void))
         }
 
+        TypedExprKind::Push { receiver, item } => {
+            if !matches!(
+                receiver.kind,
+                TypedExprKind::Identifier { .. } | TypedExprKind::Captured { .. }
+            ) {
+                return Err(CodegenError::InvalidAssignmentTarget {
+                    function: function.into(),
+                    span,
+                });
+            }
+            let element = super::array::element(receiver);
+            expect_operand(function, Type::Array(element), receiver.ty, span)?;
+            expect_operand(function, element.value_type(), item.ty, span)?;
+            expect_result(
+                function,
+                eager_result(Type::Void, &[receiver, item]),
+                expr.ty,
+                span,
+            )?;
+            let captured = body.temporary(ValType::I32);
+            let receiver_flow = body.emit_expr(receiver, span)?;
+            body.local_set(captured);
+            body.local_get(captured);
+            body.call(
+                body.movable_arrays()
+                    .expect("push planned")
+                    .validate(element),
+            );
+            body.instruction(&Instruction::Drop);
+            body.local_get(captured);
+            let flow = receiver_flow.then(body.emit_expr(item, span)?);
+            body.call(body.movable_arrays().expect("push planned").push(element));
+            (flow, result(flow, Type::Void))
+        }
+
         TypedExprKind::Index { expr: base, index } => {
             values::expect_index_types(base, index, expr.ty, body, span)?;
             let flow = values::emit_address(base, index, body, span)?;

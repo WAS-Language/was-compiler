@@ -1,4 +1,6 @@
-# Resizable arrays — #65 construction and #66 reserve
+<a id="resizable-arrays--65-construction-and-66-reserve"></a>
+
+# Resizable arrays — #65 construction, #66 reserve and #67 push
 
 ## Scope and status
 
@@ -8,14 +10,16 @@ explicit fresh-copy constructor `resizable(source)` for `number[]`, `bool[]` and
 [Issue #66](https://github.com/LuanRoger/was-compiler/issues/66) adds only
 `values.reserve(additional)` and relocation-safe indexed writes for all three types.
 Reserve may relocate payload storage and release its displaced owned buffer, but
-never changes logical length. Push, pop, remove and shrinking remain proposed;
-there is no public capacity or authority query.
+never changes logical length. [Issue #67](https://github.com/LuanRoger/was-compiler/issues/67)
+adds `values.push(item)` for all three array types. Pop, remove and shrinking remain
+unimplemented; there is no public capacity or authority query.
 [Memory roadmap §8](was_compiler_memory_and_optimization_roadmap.md#8-milestone-m4--resizable-typed-arrays)
 retains the full milestone design; [ADR 0009](adr/0009-opt-in-resizable-array-storage.md)
 records the design trade-offs, not release evidence.
 
-This document describes construction and narrow reserve support, not an integrated
+This document describes construction, reserve and push support, not an integrated
 M4 release. [#66 final validation and review passed](#issue-66-validation);
+that record does not validate #67. [#67 validation and review passed](#issue-67-validation);
 integrated M4 release acceptance remains pending. The #65 record below and
 historical #37 typed-array/#63 M3 release records retain their original scope.
 
@@ -94,6 +98,44 @@ fn main() -> number[] {
 }
 ```
 
+## Push contract (#67)
+
+- Only `identifier.push(item)` is supported on `number[]`, `bool[]` and `string[]`,
+  with exactly one positional argument of the receiver's exact scalar element type.
+  It returns Void, or Never when evaluation cannot complete; it returns neither an
+  element nor a length. `push` is contextual, not a reserved global/host-language
+  name. Parenthesized/indexed/call-result receivers, named/default arguments and
+  postfix chaining remain unsupported.
+- Receiver-derived scalar constraints are exact and region-local for placeholders;
+  callers and pipeline inputs supply no refinement. Push is forbidden in pure
+  defaults/contracts, including skipped operands, with independent backend checks.
+  It introduces no direct builtin pipeline stage or broader discard permission.
+- Capture the receiver handle and validate storage/resize authority **before** item
+  effects. Fixed-storage receivers trap before evaluating the item. Evaluate the
+  item exactly once, then revalidate the captured object's current authority/storage
+  after nested push/reserve, captures or host reentry. Receiver rebinding cannot
+  redirect the append; it uses the captured object's post-item logical length.
+- Consume only the new value: require a canonical bool or structurally valid string
+  handle before growth. Existing live bool/string elements are not scanned. Numeric
+  items retain ordinary `f64` semantics, including NaN, infinities and signed zero.
+- Reuse shared `reserve(handle, 1)` for checked sizing, full-capacity acquisition,
+  raw live-slot copy, replacement publication and displaced-payload release. Once
+  reserve succeeds, initialize the typed new slot before publishing the increased
+  public and private logical lengths. No callbacks or expected-to-fail checks occur
+  between reserve success and append completion. Earlier item effects survive failure;
+  there is no trap rollback.
+- Pending indexed writes revalidate current storage after RHS push just as after
+  reserve, retaining pre-RHS compound values. Array iteration retains its initial
+  length and reads current elements: appends do not extend an active iteration.
+
+```text
+fn main() -> bool[] {
+    let values: bool[] = resizable([]);
+    values.push(true);
+    return values;
+}
+```
+
 ## Relocation-safe writes and host borrows (#66)
 
 Fixed-storage indexed assignments retain the original pre-RHS checked address,
@@ -102,7 +144,7 @@ and index once and validate the destination before the RHS. After evaluating the
 RHS once, revalidate the captured array's authority and index and resolve its
 **current** payload before storing. Numeric compounds preserve the pre-RHS old
 numeric value, including for `%=`. Receiver rebinding cannot redirect the store;
-RHS reserve through aliases, captures or reentry cannot leave it targeting a
+RHS reserve or push through aliases, captures or reentry cannot leave it targeting a
 released/reused buffer. If the RHS traps, no final store occurs and completed
 reserve effects remain. Future shrink/remove semantics are not implemented here.
 
@@ -112,7 +154,9 @@ the stable descriptor afterward. This is separate from recreating JavaScript vie
 after possible memory growth. Fixed-storage host lifetime guarantees are unchanged;
 ordinary literals and host encoding do not gain resize authority.
 
-## Rust source/typed-node migration (#66)
+<a id="rust-sourcetyped-node-migration-66"></a>
+
+## Rust source/typed-node migration (#66/#67)
 
 Public raw syntax adds `Expr::Reserve { receiver, args, span }`; typed syntax adds
 `TypedExprKind::Reserve { receiver, additional }`. Update exhaustive matches and
@@ -122,6 +166,12 @@ and numeric argument; checked lowering independently validates identifier/captur
 receiver shapes, operand/result annotations, purity and skipped/unreachable nodes.
 The structural walker visits receiver then additional, preserving separate planning
 policies and owner-local scratch for pending writes.
+
+#67 adds raw `Expr::Push { receiver, args, span }` and typed
+`TypedExprKind::Push { receiver, item }`. Semantic checking derives the exact scalar
+item type from the receiver; checked lowering independently validates receiver
+shape, item/result annotations, purity and skipped/unreachable nodes. The walker
+visits receiver then item; planning retains separate policies and owner-local scratch.
 
 ## Contextual typing
 
@@ -147,12 +197,13 @@ eight-byte public descriptor and a private 40-byte authority record. The record
 tracks exact handle, element kind, logical length, full byte capacity, owned payload
 and acquisition identity. Descriptor validity alone never establishes authority.
 
-`codegen/resizable.rs` structurally discovers constructors and `Reserve` nodes
+`codegen/resizable.rs` structurally discovers constructors, `Reserve` and `Push` nodes
 (including nested callables and skipped/unreachable nodes), plans helper/type/global
 indices before checked body lowering, and selects helpers deterministically in
 number/bool/string order. It plans per-element authority lookup/validation helpers
 for array kinds used in an M4 module, constructors for constructed kinds and reserve
-helpers for reserved kinds; reserve-only discovery also activates the M4 plan.
+helpers for reserved or pushed kinds; reserve-only or push-only discovery also
+activates the M4 plan. Push reuses reserve helpers rather than a separate growth path.
 Only the required M3 core is promoted to production-internal
 `codegen/allocator_core.rs`; the M3 adapter, test configuration, instrumentation and
 management exports remain `cfg(test)`. Core acquisition returns payload and identity
@@ -200,7 +251,54 @@ follow [the validation workflow](validation.md) and [root validation commands](.
 including current-source browser rebuilding before browser/full ignored runs.
 Bounded execution must cover copy identity/isolation, consumed-value traps, failure
 ordering and preset parity; keep Node/browser-dependent cases ignored by default.
-No historical record substitutes for those runs on final #66 sources.
+For #67, also cover all three push item types, authority-before-item traps,
+post-item alias/reentry state, lazy old-element consumption, pending writes and
+initial-length iteration. No historical record substitutes for runs on final #67
+sources; the #65/#66 evidence below retains its original scope.
+
+<a id="issue-67-validation"></a>
+
+## #67 validation and review — 2026-10-29
+
+Push was implemented at the confirmed frontend, checked-lowering and bounded-runtime
+seams. Frontend and runtime tracers first failed at the unsupported `.push` syntax.
+Additional forged-tree and decoded-ordering cases were added after implementation.
+
+Passed offline on the completed sources:
+
+- `cargo check --offline --workspace --all-targets`.
+- `cargo test --offline -p was-compiler --test resizable_arrays_frontend --test resizable_arrays_lowering`:
+  40 frontend and 23 lowering tests passed, including exact placeholder constraints,
+  forged annotations/purity, captured receivers, decoded ordering and preset parity.
+- `cargo test --offline -p was-compiler --test resizable_arrays_runtime --test array_for_loops --test typed_arrays_runtime -- --include-ignored`:
+  all passed, including all 24 resizable runtime tests. Push cases cover spare/growth
+  paths, all element types, numeric special values, new-item/lazy-old consumption,
+  post-item state, reentry, actual displaced-buffer reuse, pending writes, initial-length
+  iteration and bounded allocation failure preserving completed item effects.
+- `cargo test --offline -p was-compiler --test closures_frontend placeholder`:
+  19 passed. Focused walker, temporary and helper compatibility tests also passed.
+- `cargo clippy --offline --all-targets -- -D warnings`.
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`.
+- `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline`,
+  followed by `cargo test --offline --workspace -- --include-ignored`:
+  **1,556 passed, 0 failed, 0 ignored across 84 targets**, including doc-tests.
+- `node tests/browser.cjs pkg`: **25 smoke groups passed** on the freshly rebuilt
+  package. These existing browser groups are compatibility evidence, not dedicated
+  browser push scenarios.
+- `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings`.
+- Edited-file Rust formatting and `git --no-pager diff --check`.
+
+Independent standards/spec reviews examined the working diff against
+`2b612e1a8468bee52047be9d8e2758ebdba6ad44`. Spec findings: zero. Standards review
+found one minor boolean-discriminator violation, corrected with an explicit method
+sum type and verified by follow-up review. Its duplicated argument-check suggestion
+was also resolved with a shared checker preserving diagnostic ordering. One
+low-priority suggestion to name integer-indexed forged-tree scenarios is deferred,
+consistent with neighboring fixtures; no hard findings remain.
+
+This validates the #67 push slice and existing compatibility, not the complete M4
+milestone, pop/remove/shrink support, new measurements or a release decision.
+Historical #65/#66 evidence below retains its original scope.
 
 ## #66 focused validation — 2026-10-29
 

@@ -36,7 +36,8 @@ implemented guarantees to regression tests and current-source adapter evidence.
 
 Revision 1 did not implement resizable arrays, payload relocation/reclamation or
 string-edit operations. Later #65 adds explicit resizable construction and #66 adds
-narrow reserve/relocation-safe writes under [the opt-in authority contract](#private-resizable-array-authority-65),
+narrow reserve/relocation-safe writes, followed by #67 push, under
+[the opt-in authority contract](#private-resizable-array-authority-65),
 without changing the public descriptor. Revision 1's fixed-storage lifetime rights
 remain unchanged; opt-in payload borrows must be reacquired after possible relocation.
 Only displaced owned payloads are released; there is no general reclamation.
@@ -254,10 +255,11 @@ Structural validity alone grants no resize authority; fabricating a valid descri
 or using ordinary literals/host encoding does not register it. These private fields
 are not a host construction API or protection against malicious memory mutation.
 
-Private `codegen/resizable.rs` discovers constructors and `Reserve` structurally,
+Private `codegen/resizable.rs` discovers constructors, `Reserve` and `Push` structurally,
 including nested/skipped/unreachable nodes, and plans helper/type/global indices
 before checked body lowering. Per-element authority lookup/validation, selected
-constructors and reserve helpers are emitted in deterministic element order. It uses the required production-internal `codegen/allocator_core.rs`
+constructors and reserve helpers (also used by push) are emitted in deterministic
+element order. It uses the required production-internal `codegen/allocator_core.rs`
 emission, acquiring the **entire capacity** as the requested extent, not treating
 allocator rounding slack as authorized storage. Current payload/acquisition/extent
 validation uses allocator-owned registry access, not duplicated allocator-record
@@ -268,9 +270,10 @@ Publication follows successful copy/validation with no callbacks during preparat
 and publication. Failure can retain earlier successful unpublished allocations;
 there is no rollback or sweeping. Descriptors, authority records, current payloads
 and unreachable arrays remain retained. #65's constructor validation record remains
-historical; #66 adds only reserve and relocation-safe writes. [#66 final validation
-and review passed](resizable-arrays.md#issue-66-validation); integrated M4 release
-acceptance remains pending.
+historical; #66 adds reserve and relocation-safe writes, and #67 adds push.
+[#66 final validation and review passed](resizable-arrays.md#issue-66-validation);
+that evidence does not validate #67. No #67 evidence is recorded here yet;
+integrated M4 release acceptance remains pending.
 
 `identifier.reserve(additional)` supports all three array types and returns void.
 Capture and validate the exact receiver authority before argument evaluation, even
@@ -287,15 +290,28 @@ or string handles, and publish descriptor/private-authority replacement before
 releasing the displaced owned payload. Spare slots remain unreadable. No callbacks
 occur during copy/publication/release. Pre-publication failure preserves the
 post-argument published array; prior effects and allocator history are not rolled
-back. Immutable strings themselves are not released. Push/pop/remove and shrinking
-remain proposed; there is no general reclamation or public management API.
+back. Immutable strings themselves are not released. Pop/remove and shrinking
+remain unimplemented; there is no general reclamation or public management API.
+
+#67 `identifier.push(item)` supports all three array types with one exact scalar
+item and Void/Never result. Capture and validate authority before item effects,
+evaluate the item once, then revalidate the captured object's current authority/storage.
+Validate only the newly consumed bool/string value before growth; do not scan old
+slots. Shared `reserve(handle, 1)` performs checked sizing, full-capacity acquisition,
+raw live-slot copy, replacement publication and displaced-payload release. After
+reserve succeeds, write the new typed slot at the current logical end before
+publishing both public and private increased lengths. No callbacks or expected-to-fail
+checks occur after reserve success. Receiver rebinding cannot redirect the append;
+item effects survive a later failure. The public descriptor layout is unchanged.
 
 Fixed-storage writes retain their original pre-RHS checked address, even in M4
 modules. Opt-in indexed writes capture and validate the handle/index before the
 RHS, preserve the old numeric value for compounds, and after RHS evaluation
 revalidate authority/index and resolve the current payload for the final store.
 Receiver rebinding does not redirect the store; RHS relocation cannot leave it
-writing into a released/reused buffer. Completed effects survive traps.
+writing into a released/reused buffer, including after RHS push. Completed effects
+survive traps. Array iteration retains the initial length and checked current-element
+reads, so appended elements do not extend an active iteration.
 
 Hosts may retain opt-in stable handles, but must reacquire payload pointers and
 lengths after calls or reentrant callbacks that may relocate storage. These payload

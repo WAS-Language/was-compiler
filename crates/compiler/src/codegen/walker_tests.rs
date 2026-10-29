@@ -216,6 +216,7 @@ impl Visitor<'_> for Recorder {
             TypedExprKind::Binary { .. } => "binary".into(),
             TypedExprKind::Range { .. } => "range".into(),
             TypedExprKind::Reserve { .. } => "reserve".into(),
+            TypedExprKind::Push { .. } => "push".into(),
             TypedExprKind::Call { .. } => "call".into(),
             TypedExprKind::LexicalCall { .. } => "lexical-call".into(),
             TypedExprKind::NormalizedCall(_) => "normalized-call".into(),
@@ -236,44 +237,55 @@ impl Visitor<'_> for Recorder {
 }
 
 #[test]
-fn reserve_visits_receiver_then_additional_and_obeys_abort_and_skip_hooks() {
-    let block = vec![statement(
-        0,
-        TypedStatementKind::Expression(expr(TypedExprKind::Reserve {
-            receiver: Box::new(identifier("receiver")),
-            additional: Box::new(identifier("additional")),
-        })),
-    )];
-    let expected = [
-        "block+1",
-        "statement:0",
-        "reserve",
-        "identifier:receiver",
-        "identifier:additional",
-        "block-1",
-    ];
-    let mut recorder = Recorder::default();
-    assert!(walk_block(&block, &mut recorder).is_continue());
-    assert_eq!(recorder.events, expected);
+fn array_methods_visit_receiver_then_argument_and_obey_abort_and_skip_hooks() {
+    for (method, kind) in [
+        (
+            "reserve",
+            TypedExprKind::Reserve {
+                receiver: Box::new(identifier("receiver")),
+                additional: Box::new(identifier("additional")),
+            },
+        ),
+        (
+            "push",
+            TypedExprKind::Push {
+                receiver: Box::new(identifier("receiver")),
+                item: Box::new(identifier("additional")),
+            },
+        ),
+    ] {
+        let block = vec![statement(0, TypedStatementKind::Expression(expr(kind)))];
+        let expected = [
+            "block+1",
+            "statement:0",
+            method,
+            "identifier:receiver",
+            "identifier:additional",
+            "block-1",
+        ];
+        let mut recorder = Recorder::default();
+        assert!(walk_block(&block, &mut recorder).is_continue());
+        assert_eq!(recorder.events, expected);
 
-    for stop_at in 1..=expected.len() {
+        for stop_at in 1..=expected.len() {
+            let mut recorder = Recorder {
+                stop_at: Some(stop_at),
+                ..Recorder::default()
+            };
+            assert_eq!(
+                walk_block(&block, &mut recorder),
+                ControlFlow::Break(stop_at)
+            );
+            assert_eq!(recorder.events, expected[..stop_at]);
+        }
+
         let mut recorder = Recorder {
-            stop_at: Some(stop_at),
+            skip_expressions: true,
             ..Recorder::default()
         };
-        assert_eq!(
-            walk_block(&block, &mut recorder),
-            ControlFlow::Break(stop_at)
-        );
-        assert_eq!(recorder.events, expected[..stop_at]);
+        assert!(walk_block(&block, &mut recorder).is_continue());
+        assert_eq!(recorder.events, ["block+1", "statement:0", "block-1"]);
     }
-
-    let mut recorder = Recorder {
-        skip_expressions: true,
-        ..Recorder::default()
-    };
-    assert!(walk_block(&block, &mut recorder).is_continue());
-    assert_eq!(recorder.events, ["block+1", "statement:0", "block-1"]);
 }
 
 #[test]

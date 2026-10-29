@@ -173,15 +173,20 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   only. The M3 adapter, configuration, observations and instrumentation remain
   `cfg(test)` in `allocator.rs`. Before changing shared emission, read [the adapter
   contract](docs/m3-private-allocator.md#reusable-emission-boundary-64); before changing
-  constructor/reserve typing, authority, relocation, pending writes or host payload
-  borrows, read [the #65/#66 contract](docs/resizable-arrays.md).
-  #66 adds narrow reserve and relocation-safe writes; preserve structural `Reserve`
-  discovery, planned per-element authority helpers, full-capacity acquisition and
+  constructor/reserve/push typing, authority, relocation, pending writes or host payload
+  borrows, read [the #65–#67 contract](docs/resizable-arrays.md).
+  #66 adds narrow reserve and relocation-safe writes; #67 adds push for all three
+  array types. Preserve structural `Reserve`/`Push` discovery, shared reserve growth,
+  planned per-element authority helpers, full-capacity acquisition and
   publish-before-release ordering. Fixed writes retain saved addresses; resizable
   writes revalidate captured handle/index after RHS effects, preserving compound old
-  values. Push/pop/remove, M2 migration, ordinary-array management and general
+  values. Push checks authority before its once-only item, revalidates current state,
+  consumes only the new bool/string value, and initializes the typed slot before
+  public/private length publication; no callbacks or expected failures follow reserve
+  success. Pop/remove/shrink, M2 migration, ordinary-array management and general
   reclamation remain outside this slice. [#66 final validation/review passed](docs/resizable-arrays.md#issue-66-validation);
-  integrated M4 release remains pending. Expose no M3 controls or observations.
+  that record does not validate #67. Integrated M4 release remains pending.
+  Expose no M3 controls or observations.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating
@@ -330,13 +335,20 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   and #66 adds identifier-receiver `reserve(additional)` for all three types without
   changing length or exposing a capacity/authority query. Fixed receivers trap before
   argument effects even for reserve(0); captured receivers are revalidated afterward.
+  #67 adds identifier-only `push(item)`, exactly one positional receiver-derived
+  scalar with Void/Never result and exact region-local placeholder inference.
+  Push is forbidden in pure defaults/contracts; pipeline/discard rules are unchanged.
+  Receiver rebinding does not redirect it; pending writes remain relocation-safe and
+  iteration retains its initial length. Pop/remove/shrink remain unimplemented.
   `resizable` newly reserves global/host-language names,
   permits lexical shadowing, and is forbidden in pure defaults/contracts and direct
   builtin pipeline stages. Programs without M4 retain existing bytes/helper order;
-  see [the construction/reserve contract](docs/resizable-arrays.md) for numeric bounds,
+  see [the construction/reserve/push contract](docs/resizable-arrays.md) for numeric bounds,
   raw unconsumed-slot copying, source/typed-node migration and focused evidence.
   [#66 final validation/review passed](docs/resizable-arrays.md#issue-66-validation);
-  integrated M4 release remains pending. Historical #65 gates retain their scope.
+  integrated M4 release remains pending. Historical #65/#66 gates retain their scope;
+  [#67 validation/review passed](docs/resizable-arrays.md#issue-67-validation), including
+  all ignored workspace tests and freshly rebuilt browser compatibility.
 - `//` line comments and non-nesting `/* ... */` block comments are supported
   between tokens anywhere whitespace can appear; delimiters inside strings remain text.
 - Statement/value `loop` supports all concrete result types through value breaks;

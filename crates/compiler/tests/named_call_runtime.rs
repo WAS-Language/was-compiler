@@ -341,6 +341,10 @@ fn normalize_value_block(block: &mut TypedValueBlock, next_id: &mut usize) {
 
 fn normalize_expr(expr: &mut TypedExpr, next_id: &mut usize) {
     match &mut expr.kind {
+        TypedExprKind::Push { receiver, item } => {
+            normalize_expr(receiver, next_id);
+            normalize_expr(item, next_id);
+        }
         TypedExprKind::Unary { expr, .. } => normalize_expr(expr, next_id),
         TypedExprKind::Binary { left, right, .. } => {
             normalize_expr(left, next_id);

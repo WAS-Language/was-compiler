@@ -298,6 +298,11 @@ impl Scan<'_> {
                 self.expr(receiver);
                 self.expr(additional);
             }
+            TypedExprKind::Push { receiver, item } => {
+                self.reason(UnprovenReason::HandleUse);
+                self.expr(receiver);
+                self.expr(item);
+            }
             TypedExprKind::Index { expr, index } => {
                 self.expr(expr);
                 self.expr(index);

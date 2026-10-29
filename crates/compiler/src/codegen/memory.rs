@@ -313,6 +313,7 @@ impl Visitor<'_> for MemoryVisitor<'_> {
             }
 
             TypedExprKind::Reserve { .. }
+            | TypedExprKind::Push { .. }
             | TypedExprKind::Array(_, _)
             | TypedExprKind::Index { .. }
             | TypedExprKind::Range { .. }

@@ -6,7 +6,8 @@ See the [compilation roadmap](docs/compilation-roadmap.md) for the architecture,
 host ABI, milestones, and acceptance criteria. The [memory ABI](docs/memory-abi.md)
 documents string/array layouts, allocation, ownership, and host examples.
 Its [revision 1 baseline](docs/m0-memory-baseline.md) records memory-contract
-coverage and validation; resizing and general reclamation remain future roadmap work.
+coverage and validation. [Opt-in construction, reserve and push](docs/resizable-arrays.md)
+are implemented; integrated M4 release and general reclamation remain pending.
 A [private test-only M2 prototype](docs/m2-region-prototype.md) reuses proven temporary
 array storage; it adds no public compiler option or adapter activation.
 
@@ -289,7 +290,9 @@ and [optimization handoff](docs/benchmarks/m4-typed-arrays/handoff.md) retain th
 historical pre-fix runtime hash; final hashes are recorded separately. Earlier
 extension release evidence remains historical.
 
-### Resizable arrays (#65 construction; #66 reserve)
+<a id="resizable-arrays-65-construction-66-reserve"></a>
+
+### Resizable arrays (#65 construction; #66 reserve; #67 push)
 
 `resizable(source)` creates a fresh copy of a `number[]`, `bool[]` or `string[]`,
 with independent mutable slots and private resize authority. It evaluates the
@@ -319,7 +322,19 @@ defaults/contracts (even skipped operands), and is not a direct pipeline stage.
 plus additional without changing length or the stable eight-byte descriptor handle;
 there is no public capacity/authority query. Additional must be finite, integral and
 nonnegative (`-0` is zero), with checked byte sizing within the 2^31-byte request
-ceiling. Allocation may still fail. Push, pop, remove and shrinking remain proposed.
+ceiling. Allocation may still fail. Pop, remove and shrinking remain unimplemented.
+
+#67 adds `copy.push(item)` for all three array types: exactly one positional item
+of the receiver's exact scalar type, returning void (or Never on divergence).
+Only identifier receivers are supported. Item placeholder inference is exact and
+region-local; push is forbidden in pure defaults/contracts and adds no direct builtin
+pipeline stage or broader discard permission. Authority is checked before item
+execution; the item runs once, then the captured object's current state is revalidated.
+Receiver rebinding cannot redirect the append. Only the new bool/string value is
+consumed; shared reserve growth raw-copies old slots without scanning them. The new
+typed slot is initialized before public/private length publication, with no callbacks
+or expected failures after reserve succeeds. Pending indexed writes remain relocation-safe;
+active array iteration retains its initial length, so appended elements are not visited.
 
 Reserve captures and validates receiver authority before argument effects: even
 fixed-array `reserve(0)` traps before evaluating its argument. It revalidates after
@@ -336,7 +351,8 @@ Ordinary literals and host encoding remain fixed-storage, even in M4 modules;
 programs without M4 retain existing bytes/helper order. See [contracts and Rust node
 migration](docs/resizable-arrays.md). [#66 final validation and review passed](docs/resizable-arrays.md#issue-66-validation);
 integrated M4 release acceptance remains pending.
-Historical #65/#37/M3 records retain their original scope.
+Historical #65/#66/#37/M3 records retain their original scope; no #67 validation
+evidence is recorded here yet.
 
 ### Local callables and shared captures (WP11; release gates passed)
 

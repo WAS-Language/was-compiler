@@ -26,9 +26,10 @@ The [memory ABI](memory-abi.md) owns layout and consumption rules;
 [ADR 0006](adr/0006-typed-array-layout-and-lazy-element-validation.md) records the
 untagged-layout/lazy-validation decision. This extension improves extensibility,
 not reclamation or optimization; ordinary array allocation remains monotonic.
-Later [#65 construction and #66 reserve](resizable-arrays.md) add opt-in fresh
-copies, length-preserving reserve and relocation-safe writes for all three types.
-Push/pop/remove remain proposed; these additions do not extend #37 release evidence.
+Later [#65 construction, #66 reserve and #67 push](resizable-arrays.md) add opt-in fresh
+copies, length-preserving reserve, single-element append and relocation-safe writes
+for all three types. Pop/remove/shrink remain unimplemented; these additions do not
+extend #37 release evidence.
 [#66 final validation/review passed](resizable-arrays.md#issue-66-validation);
 integrated M4 release remains pending.
 
@@ -83,7 +84,9 @@ There are no nested arrays, `range[]`, `void[]`, growable lists, slices, chained
 indexing, implicit coercions, first-class callables, or new anonymous-result
 annotation syntax. String `len`/indexing/concatenation remain unsupported.
 
-## Resizable arrays (#65 construction; #66 reserve)
+<a id="resizable-arrays-65-construction-66-reserve"></a>
+
+## Resizable arrays (#65 construction; #66 reserve; #67 push)
 
 `resizable(source)` accepts any of the three array types and returns a fresh copy
 of the exact same type with private resize authority. Source evaluation happens
@@ -102,9 +105,20 @@ byte sizing within the 2^31-byte request ceiling; allocation may still fail.
 
 Growth acquires the full selected capacity, raw-copies live slots without consuming
 otherwise unconsumed bool bytes or string handles, then publishes the replacement
-before releasing the displaced owned payload. Push/pop/remove, shrinking and general
-reclamation remain proposed. See [the narrow #66 contract](resizable-arrays.md#reserve-contract-66)
+before releasing the displaced owned payload. Pop/remove, shrinking and general
+reclamation remain unimplemented. See [the reserve contract](resizable-arrays.md#reserve-contract-66)
 for complete ordering and failure rules.
+
+#67 adds `identifier.push(item)` with exactly one positional scalar of the receiver's
+exact element type, returning Void/Never. Receiver-derived placeholder inference is
+exact and region-local, never caller-refined. Push is forbidden in pure defaults/contracts
+and adds no pipeline/discard permission or general postfix chaining. Capture and check
+authority before item effects; evaluate the item once, then revalidate current state.
+Only the new bool/string item is consumed. Shared `reserve(handle, 1)` handles growth
+without scanning old elements; initialize the typed slot before publishing public/private
+length, with no callbacks or expected failures after reserve succeeds. Rebinding cannot
+redirect the append; pending writes revalidate current storage, and iteration keeps its
+initial length. See [the push contract](resizable-arrays.md#push-contract-67).
 
 Expected array context reaches the source: `let flags: bool[] = resizable([]);`
 works, including through nested constructors. Unconstrained `resizable([])` retains
@@ -122,11 +136,11 @@ stage. A lexical callable shadowing that name uses normal callable rules.
 
 Ordinary literals/host copies stay fixed-storage even in M4 modules; fixed-storage
 host lifetime rights are unchanged. No-M4 programs retain existing bytes and helper
-order. See [the construction/reserve contract and focused evidence](resizable-arrays.md)
+order. See [the construction/reserve/push contract](resizable-arrays.md)
 and [private authority layout](memory-abi.md#private-resizable-array-authority-65).
-The #37 and #65 release/validation records retain their historical scope. Use
-[the final #66 validation/review record](resizable-arrays.md#issue-66-validation)
-for this slice; integrated M4 release acceptance remains pending.
+The #37, #65 and [#66 validation/review records](resizable-arrays.md#issue-66-validation)
+retain their historical scope and do not validate #67. No #67 evidence is recorded
+here yet; integrated M4 release acceptance remains pending.
 
 ## Contextual literal typing and stable inference
 

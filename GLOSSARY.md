@@ -31,14 +31,19 @@ _Avoid_: List, growable list
 
 **Resizable array**:
 An array explicitly created as a fresh copy with resize authority, using the same
-array type as its source. Construction and length-preserving reserve are supported;
-length-changing operations remain proposed.
+array type as its source. Construction, length-preserving reserve and single-element
+push are supported; pop, remove and shrinking remain proposed.
 _Avoid_: Growable list, separate list type
 
 **Reserve**:
 A length-preserving request for room for additional array elements beyond the
 current length; it may move storage without changing the collection's identity.
 _Avoid_: Resize length, append
+
+**Push**:
+An append of one element of the array's exact element type to a resize-authorized
+collection, preserving its identity and making the new length visible to all aliases.
+_Avoid_: Concatenation, fluent append
 
 **Resize authority**:
 Permission to change a particular array's length or relocate its element storage.

@@ -1481,7 +1481,7 @@ impl SemanticAnalyzer {
                 args,
                 span: method_span,
             } => {
-                Self::check_reserve_arguments(args, *method_span)?;
+                Self::check_single_method_argument("reserve", args, *method_span)?;
                 let (receiver, receiver_flow) = self.analyze_expr(receiver, span, return_type)?;
                 let element = Self::array_element(&receiver);
                 self.expect_type(Type::Array(element), receiver.ty, span)?;
@@ -1494,6 +1494,30 @@ impl SemanticAnalyzer {
                     TypedExprKind::Reserve {
                         receiver: Box::new(receiver),
                         additional: Box::new(additional),
+                    },
+                    ExprResult::Void,
+                )
+            }
+
+            Expr::Push {
+                receiver,
+                args,
+                span: method_span,
+            } => {
+                Self::check_single_method_argument("push", args, *method_span)?;
+                let (receiver, receiver_flow) = self.analyze_expr(receiver, span, return_type)?;
+                let element = Self::array_element(&receiver);
+                self.expect_type(Type::Array(element), receiver.ty, span)?;
+                let expected = element.value_type();
+                let (item, item_flow) =
+                    self.analyze_expected(&args[0].value, span, return_type, Some(expected))?;
+                self.expect_type(expected, item.ty, span)?;
+                flow = receiver_flow.then(item_flow);
+
+                (
+                    TypedExprKind::Push {
+                        receiver: Box::new(receiver),
+                        item: Box::new(item),
                     },
                     ExprResult::Void,
                 )
@@ -1558,19 +1582,20 @@ impl SemanticAnalyzer {
         Ok((TypedExpr { kind, ty }, flow))
     }
 
-    fn check_reserve_arguments(
+    fn check_single_method_argument(
+        name: &str,
         args: &[crate::ast::CallArgument],
         span: Span,
     ) -> Result<(), SemanticError> {
         if let Some(arg) = args.iter().find(|arg| arg.name.is_some()) {
             return Err(SemanticError::NamedArgumentsNotSupported {
-                name: "reserve".into(),
+                name: name.into(),
                 span: arg.span,
             });
         }
         if args.len() != 1 {
             return Err(SemanticError::ArgumentCountMismatch {
-                name: "reserve".into(),
+                name: name.into(),
                 expected: 1,
                 found: args.len(),
                 span,

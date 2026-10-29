@@ -205,6 +205,11 @@ pub enum TypedExprKind {
         additional: Box<TypedExpr>,
     },
 
+    Push {
+        receiver: Box<TypedExpr>,
+        item: Box<TypedExpr>,
+    },
+
     NormalizedCall(TypedNormalizedCall),
 
     LexicalCall {

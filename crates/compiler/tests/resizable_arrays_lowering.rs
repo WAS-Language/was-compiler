@@ -71,6 +71,423 @@ fn expression(program: &mut was_compiler::typed_ast::TypedProgram) -> &mut Typed
     value
 }
 
+fn levels() -> [OptimizationLevel; 4] {
+    [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ]
+}
+
+fn rejected_push(program: &was_compiler::typed_ast::TypedProgram) -> CodegenError {
+    let mut baseline = None;
+    for level in levels() {
+        let mut compiler = Compiler::new();
+        compiler.set_exports(ExportOptions::None);
+        compiler.set_optimization_level(level);
+        let error = compiler.compile(program).expect_err("forged Push");
+        if let Some(expected) = &baseline {
+            assert_eq!(&error, expected, "{level:?}");
+        } else {
+            baseline = Some(error);
+        }
+    }
+    baseline.unwrap()
+}
+
+#[test]
+fn forged_push_checks_receiver_item_and_result_even_when_unexported() {
+    for case in 0..23 {
+        let mut program = Compiler::new()
+            .analyze("fn main(a: bool[]) { a.push(true); }")
+            .unwrap();
+        let span = program.functions[0].body[0].span;
+        let value = expression(&mut program);
+        let TypedExprKind::Push { receiver, item } = &mut value.kind else {
+            panic!("push")
+        };
+        match case {
+            0 => receiver.ty = Type::Number.into(),
+            1 => receiver.ty = Type::Array(ArrayElementType::String).into(),
+            2 => receiver.ty = ExprResult::Never,
+            3 => receiver.ty = ExprResult::Void,
+            4 => receiver.ty = ExprResult::Value(Type::Void),
+            5 => receiver.kind = TypedExprKind::Array(vec![], ArrayElementType::Bool),
+            6 => **receiver = constructor((**receiver).clone()),
+            7 | 8 => {
+                let source = if case == 7 {
+                    "fn main(a: bool[]) -> bool[] { return { a }; }"
+                } else {
+                    "fn main(a: bool[]) -> bool[] { return if true { a } else { a }; }"
+                };
+                let mut other = Compiler::new().analyze(source).unwrap();
+                **receiver = result(&mut other).clone();
+            }
+            9 => receiver.kind = TypedExprKind::Number("1".into()),
+            10 => item.ty = Type::Number.into(),
+            11 => item.ty = ExprResult::Never,
+            12 => item.ty = ExprResult::Void,
+            13 => item.ty = ExprResult::Value(Type::Void),
+            14 => item.kind = TypedExprKind::Number("1".into()),
+            15 => value.ty = Type::Bool.into(),
+            16 => value.ty = ExprResult::Never,
+            17 => value.ty = ExprResult::Value(Type::Void),
+            // Claiming divergence on both nodes must not hide a completing child.
+            18 => {
+                receiver.ty = ExprResult::Never;
+                value.ty = ExprResult::Never;
+            }
+            19 => {
+                item.ty = ExprResult::Never;
+                value.ty = ExprResult::Never;
+            }
+            20 => {
+                let mut other = Compiler::new()
+                    .analyze("fn main(a: bool[]) -> void { main(a); }")
+                    .unwrap();
+                **item = expression(&mut other).clone();
+            }
+            21 => item.ty = Type::Array(ArrayElementType::Bool).into(),
+            22 => item.ty = Type::String.into(),
+            _ => unreachable!(),
+        }
+        if matches!(case, 1 | 2 | 18) {
+            let TypedExprKind::Push { item, .. } = &mut value.kind else {
+                unreachable!()
+            };
+            **item = if case == 1 {
+                TypedExpr {
+                    kind: TypedExprKind::String("x".into()),
+                    ty: Type::String.into(),
+                }
+            } else {
+                TypedExpr {
+                    kind: TypedExprKind::Number("1".into()),
+                    ty: Type::Number.into(),
+                }
+            };
+        }
+        let error = rejected_push(&program);
+        assert_eq!(error.span(), Some(span), "case {case}");
+        match case {
+            5..=9 => assert!(
+                matches!(error, CodegenError::InvalidAssignmentTarget { .. }),
+                "case {case}: {error:?}"
+            ),
+            0 | 1 | 3 | 10 | 12 | 14 | 15 | 20..=22 => assert!(
+                matches!(error, CodegenError::TypeMismatch { .. }),
+                "case {case}: {error:?}"
+            ),
+            _ => assert!(
+                matches!(error, CodegenError::ExprResultMismatch { .. }),
+                "case {case}: {error:?}"
+            ),
+        }
+    }
+}
+
+#[test]
+fn forged_push_captures_check_annotations_and_original_binding_metadata() {
+    use was_compiler::typed_ast::{
+        BindingOwner, CaptureMutability, FunctionId, TypedClosureBody, VariableId,
+    };
+
+    for case in 0..9 {
+        let mut program = Compiler::new()
+            .analyze("fn main(a: bool[]) { let grow = () => a.push(true); grow(); }")
+            .unwrap();
+        let TypedStatementKind::Closure(closure) = &mut program.functions[0].body[0].kind else {
+            panic!("closure")
+        };
+        let TypedClosureBody::Expression(value) = &mut closure.body else {
+            panic!("expression")
+        };
+        let TypedExprKind::Push { receiver, .. } = &mut value.kind else {
+            panic!("push")
+        };
+        assert!(matches!(receiver.kind, TypedExprKind::Captured { .. }));
+        match case {
+            0 => receiver.ty = Type::Number.into(),
+            1 => receiver.ty = Type::Array(ArrayElementType::String).into(),
+            2 => receiver.ty = ExprResult::Never,
+            3 => receiver.ty = ExprResult::Void,
+            4 => receiver.ty = ExprResult::Value(Type::Void),
+            5 => {
+                // Internally consistent forged metadata still disagrees with the original bool[] parameter.
+                closure.captures[0].ty = Type::Array(ArrayElementType::String);
+                receiver.ty = closure.captures[0].ty.into();
+                let TypedExprKind::Push { item, .. } = &mut value.kind else {
+                    unreachable!()
+                };
+                **item = TypedExpr {
+                    kind: TypedExprKind::String("x".into()),
+                    ty: Type::String.into(),
+                };
+            }
+            6 => closure.captures[0].variable = VariableId(999),
+            7 => closure.captures[0].owner = BindingOwner::Function(FunctionId(999)),
+            8 => closure.captures[0].mutability = CaptureMutability::ReadOnly,
+            _ => unreachable!(),
+        }
+        if matches!(case, 1 | 2) {
+            let TypedExprKind::Push { item, .. } = &mut value.kind else {
+                unreachable!()
+            };
+            **item = if case == 1 {
+                TypedExpr {
+                    kind: TypedExprKind::String("x".into()),
+                    ty: Type::String.into(),
+                }
+            } else {
+                TypedExpr {
+                    kind: TypedExprKind::Number("1".into()),
+                    ty: Type::Number.into(),
+                }
+            };
+        }
+        let error = rejected_push(&program);
+        match case {
+            0 | 3 => assert!(
+                matches!(error, CodegenError::TypeMismatch { .. }),
+                "{error:?}"
+            ),
+            2 | 4 => assert!(
+                matches!(error, CodegenError::ExprResultMismatch { .. }),
+                "{error:?}"
+            ),
+            _ => assert!(
+                matches!(error, CodegenError::InvalidClosure { .. }),
+                "{error:?}"
+            ),
+        }
+    }
+}
+
+#[test]
+fn forged_push_is_checked_in_skipped_and_unreachable_children() {
+    for source in [
+        "fn main(a: bool[]) { if false { a.push(true); } }",
+        "fn main(a: bool[]) { return; a.push(true); }",
+        "fn main(a: bool[]) -> bool { return false && { a.push(true); true }; }",
+    ] {
+        let mut program = Compiler::new().analyze(source).unwrap();
+        let index = usize::from(matches!(
+            program.functions[0].body[0].kind,
+            TypedStatementKind::Return(None)
+        ));
+        let statement = match &mut program.functions[0].body[index].kind {
+            TypedStatementKind::If { then, .. } => &mut then[0],
+            TypedStatementKind::Return(Some(value)) => {
+                let TypedExprKind::Binary { right, .. } = &mut value.kind else {
+                    panic!()
+                };
+                let TypedExprKind::Block(block) = &mut right.kind else {
+                    panic!()
+                };
+                &mut block.statements[0]
+            }
+            _ => &mut program.functions[0].body[index],
+        };
+        let span = statement.span;
+        let TypedStatementKind::Expression(value) = &mut statement.kind else {
+            panic!()
+        };
+        let TypedExprKind::Push { item, .. } = &mut value.kind else {
+            panic!()
+        };
+        **item = TypedExpr {
+            kind: TypedExprKind::Number("1".into()),
+            ty: Type::Number.into(),
+        };
+        assert!(
+            matches!(rejected_push(&program), CodegenError::TypeMismatch { expected: Type::Bool, found: Type::Number, span: found, .. } if found == span),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn forged_push_is_forbidden_in_defaults_and_skipped_contracts() {
+    let mut program = Compiler::new()
+        .analyze("fn target(a: bool[], n: number = 1) {} fn main(a: bool[]) { target(a); }")
+        .unwrap();
+    let TypedStatementKind::Expression(value) = &mut program.functions[1].body[0].kind else {
+        panic!()
+    };
+    let TypedExprKind::NormalizedCall(sequence) = &mut value.kind else {
+        panic!()
+    };
+    let mut source = Compiler::new()
+        .analyze("fn main(a: bool[]) -> number { return { a.push(true); 1 }; }")
+        .unwrap();
+    // Keep the default's numeric result valid so only purity forbids it.
+    sequence.bindings[1].value = result(&mut source).clone();
+    assert!(matches!(
+        rejected_push(&program),
+        CodegenError::InvalidNormalizedCall { .. }
+    ));
+
+    let mut source = Compiler::new()
+        .analyze("fn main(a: bool[]) -> bool { return false && { a.push(true); true }; }")
+        .unwrap();
+    let forbidden = result(&mut source).clone();
+    let mut program = Compiler::new().analyze("fn main(a: bool[]) {}").unwrap();
+    program.functions[0].contracts.push(TypedContract {
+        span: Span::new(10, 20),
+        value: forbidden,
+    });
+    assert!(
+        matches!(rejected_push(&program), CodegenError::InvalidContractExpression { span, .. } if span == Span::new(10, 20))
+    );
+}
+
+#[test]
+fn push_accepts_genuine_never_and_original_captured_receivers_with_preset_parity() {
+    for source in [
+        "fn main(a: number[]) { a.push(loop {}); }",
+        "fn main(a: bool[]) -> number { a.push({ return 7; true }); }",
+        "fn main(a: string[]) { a.push(loop {}); }",
+        "fn main(a: number[]) { let grow = () => a.push(1); grow(); }",
+        "fn main(a: bool[]) { let outer = () => { let inner = () => a.push(true); inner(); }; outer(); }",
+        "fn main(a: string[]) { let grow = () => a.push(\"x\"); grow(); }",
+    ] {
+        let program = Compiler::new().analyze(source).unwrap();
+        let mut enabled = None;
+        for level in levels() {
+            let mut compiler = Compiler::new();
+            compiler.set_exports(ExportOptions::None);
+            compiler.set_optimization_level(level);
+            let bytes = compiler
+                .compile(&program)
+                .unwrap_or_else(|error| panic!("{source}: {error}"));
+            Validator::new().validate_all(&bytes).unwrap();
+            if level != OptimizationLevel::None {
+                if let Some(expected) = &enabled {
+                    assert_eq!(&bytes, expected, "{source}, {level:?}");
+                } else {
+                    enabled = Some(bytes);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn push_saves_validates_and_evaluates_item_once_before_the_typed_helper() {
+    for (ty, literal, ordinary_helpers, consumer, width) in [
+        ("number", "3", 7, None, 8),
+        ("bool", "true", 12, Some(9), 1),
+        ("string", "\"x\"", 11, Some(3), 4),
+    ] {
+        for captured in [false, true] {
+            let body = if captured {
+                "let grow = () => a.push(item()); grow();"
+            } else {
+                "a.push(item());"
+            };
+            let source = format!(
+                "fn item() -> {ty} {{ return {literal}; }} fn main(a: {ty}[]) {{ {body} }}"
+            );
+            let mut enabled = None;
+            for level in levels() {
+                let mut compiler = Compiler::new();
+                compiler.set_optimization_level(level);
+                let bytes = compiler.compile_source(&source).unwrap();
+                let bodies = operators(&bytes);
+                // Independent layout: two users, ordinary helpers, optional callable,
+                // seven allocator helpers, lookup, authority validation, reserve, push.
+                let callable = 2 + ordinary_helpers;
+                let first = callable + usize::from(captured);
+                let validate = (first + 8) as u32;
+                let reserve = (first + 9) as u32;
+                let push = (first + 10) as u32;
+                assert_eq!(bodies.len(), first + 11, "{ty}, captured={captured}");
+                let body = &bodies[if captured { callable } else { 1 }];
+                let body_calls = calls(body);
+                assert_eq!(&body_calls[body_calls.len() - 3..], [validate, 0, push]);
+                for callee in [validate, 0, push] {
+                    assert_eq!(
+                        body_calls.iter().filter(|&&index| index == callee).count(),
+                        1
+                    );
+                }
+                let validation = body.iter().position(|op| matches!(op, Operator::Call { function_index } if *function_index == validate)).unwrap();
+                let saved = match &body[validation - 2..validation] {
+                    [
+                        Operator::LocalSet { local_index: saved },
+                        Operator::LocalGet { local_index: read },
+                    ] if saved == read => *saved,
+                    _ => panic!("receiver must be saved and reloaded before authority validation"),
+                };
+                assert!(
+                    matches!(&body[validation + 1..validation + 5], [Operator::Drop, Operator::LocalGet { local_index }, Operator::Call { function_index: 0 }, Operator::Call { function_index }] if *local_index == saved && *function_index == push)
+                );
+                if captured {
+                    assert!(
+                        matches!(&body[validation - 3], Operator::I32Load { memarg } if memarg.offset == 0)
+                    );
+                }
+
+                let helper = &bodies[push as usize];
+                let mut expected = vec![validate];
+                expected.extend(consumer);
+                expected.push(reserve);
+                assert_eq!(
+                    calls(helper),
+                    expected,
+                    "{ty}: authority, consumed item, shared reserve"
+                );
+                assert!(
+                    matches!(&helper[..3], [Operator::LocalGet { local_index: 0 }, Operator::Call { function_index }, Operator::LocalSet { local_index: 2 }] if *function_index == validate)
+                );
+                if let Some(consumer) = consumer {
+                    assert!(
+                        matches!(&helper[3..6], [Operator::LocalGet { local_index: 1 }, Operator::Call { function_index }, Operator::Drop] if *function_index == consumer)
+                    );
+                }
+                let growth = helper.iter().position(|op| matches!(op, Operator::Call { function_index } if *function_index == reserve)).unwrap();
+                assert!(
+                    matches!(&helper[growth - 2..growth], [Operator::LocalGet { local_index: 0 }, Operator::F64Const { value }] if value.bits() == 1.0_f64.to_bits())
+                );
+                // Current private length/payload are read only after shared reserve.
+                assert!(matches!(&helper[growth + 1..growth + 10], [
+                    Operator::LocalGet { local_index: 2 }, Operator::I32Load { memarg: length }, Operator::LocalSet { local_index: 3 },
+                    Operator::LocalGet { local_index: 2 }, Operator::I32Load { memarg: payload }, Operator::LocalGet { local_index: 3 },
+                    Operator::I32Const { value }, Operator::I32Mul, Operator::I32Add
+                ] if length.offset == 12 && payload.offset == 24 && *value == width));
+                assert!(matches!(
+                    helper[growth + 10],
+                    Operator::LocalGet { local_index: 1 }
+                ));
+                match &helper[growth + 11] {
+                    Operator::F64Store { memarg } if ty == "number" => {
+                        assert_eq!((memarg.offset, memarg.align), (0, 3))
+                    }
+                    Operator::I32Store8 { memarg } if ty == "bool" => {
+                        assert_eq!((memarg.offset, memarg.align), (0, 0))
+                    }
+                    Operator::I32Store { memarg } if ty == "string" => {
+                        assert_eq!((memarg.offset, memarg.align), (0, 2))
+                    }
+                    op => panic!("wrong {ty} slot store: {op:?}"),
+                }
+                assert!(matches!(&helper[growth + 12..], [
+                    Operator::LocalGet { local_index: 0 }, Operator::LocalGet { local_index: 3 }, Operator::I32Const { value: 1 }, Operator::I32Add, Operator::I32Store { memarg: public },
+                    Operator::LocalGet { local_index: 2 }, Operator::LocalGet { local_index: 3 }, Operator::I32Const { value: 1 }, Operator::I32Add, Operator::I32Store { memarg: private }, Operator::End
+                ] if public.offset == 4 && private.offset == 12));
+                if level != OptimizationLevel::None {
+                    if let Some(expected) = &enabled {
+                        assert_eq!(&bytes, expected, "{ty}, {captured}, {level:?}");
+                    } else {
+                        enabled = Some(bytes);
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn forged_reserve_checks_operand_shapes_types_and_result_even_when_unexported() {
     for case in 0..18 {

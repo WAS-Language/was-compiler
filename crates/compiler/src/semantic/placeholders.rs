@@ -120,7 +120,7 @@ fn visit_owned(expression: &Expr, visit: &mut impl FnMut(&Expr)) {
                 }
             }
         }
-        Expr::Reserve { receiver, args, .. } => {
+        Expr::Reserve { receiver, args, .. } | Expr::Push { receiver, args, .. } => {
             visit_owned(receiver, visit);
             for arg in args {
                 visit_owned(&arg.value, visit);
@@ -885,7 +885,7 @@ impl Region<'_> {
                 args,
                 span: method_span,
             } => {
-                SemanticAnalyzer::check_reserve_arguments(args, *method_span)?;
+                SemanticAnalyzer::check_single_method_argument("reserve", args, *method_span)?;
                 let (receiver, receiver_flow) = self.expression(receiver, span, None, reachable)?;
                 if reachable
                     && receiver_flow.can_fall_through()
@@ -907,6 +907,35 @@ impl Region<'_> {
                     reachable && receiver_flow.can_fall_through(),
                 )?;
                 flow = receiver_flow.then(additional_flow);
+                Some(self.constraints.concrete(Type::Void))
+            }
+            Expr::Push {
+                receiver,
+                args,
+                span: method_span,
+            } => {
+                SemanticAnalyzer::check_single_method_argument("push", args, *method_span)?;
+                let (receiver, receiver_flow) = self.expression(receiver, span, None, reachable)?;
+                let element = self.constraints.variable();
+                let active = reachable && receiver_flow.can_fall_through();
+                if active && let Some(receiver) = receiver {
+                    let relationship = self.constraints.connect(
+                        receiver,
+                        element,
+                        Relationship::ArrayElement,
+                        Site { order: site, span },
+                    );
+                    self.record(relationship, site, span);
+                }
+                let expected = self.constraints.types[element.0];
+                let (item, item_flow) = self.expression(&args[0].value, span, expected, active)?;
+                if active
+                    && item_flow.can_fall_through()
+                    && let Some(item) = item
+                {
+                    self.relate(element, item, site, span);
+                }
+                flow = receiver_flow.then(item_flow);
                 Some(self.constraints.concrete(Type::Void))
             }
             Expr::Call {

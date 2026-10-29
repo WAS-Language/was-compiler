@@ -141,6 +141,7 @@ fn remap_default(value: &TypedExpr, mapping: &[Option<VariableId>]) -> TypedExpr
             args: args.iter().map(|arg| remap_default(arg, mapping)).collect(),
         },
         TypedExprKind::Reserve { .. }
+        | TypedExprKind::Push { .. }
         | TypedExprKind::Captured { .. }
         | TypedExprKind::Call { .. }
         | TypedExprKind::LexicalCall { .. }

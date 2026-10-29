@@ -116,6 +116,12 @@ pub enum Expr {
         span: Span,
     },
 
+    Push {
+        receiver: Box<Expr>,
+        args: Vec<CallArgument>,
+        span: Span,
+    },
+
     Lambda(Lambda),
 
     Loop {

@@ -111,6 +111,16 @@ pub(super) fn resizable_handle_signature() -> Signature {
     }
 }
 
+pub(super) fn resizable_push_signature(element: crate::ast::ArrayElementType) -> Signature {
+    Signature {
+        params: vec![
+            ValType::I32,
+            value_type("<push>", "item", element.value_type()).expect("scalar element"),
+        ],
+        results: vec![],
+    }
+}
+
 pub(super) fn resizable_reserve_signature() -> Signature {
     Signature {
         params: vec![ValType::I32, ValType::F64],
