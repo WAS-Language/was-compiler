@@ -1,6 +1,6 @@
 <a id="resizable-arrays--65-construction-and-66-reserve"></a>
 
-# Resizable arrays — #65–#69 construction, mutations and adapters
+# Resizable arrays — #65–#70 construction, mutations and verification
 
 ## Scope and status
 
@@ -28,6 +28,8 @@ focused, default-suite, portable-build and browser compatibility checks, plus ze
 findings on both review axes. The broader ignored workspace run timed out after
 120 seconds; full ignored workspace success is not established. Integrated M4
 release acceptance remains pending. Historical #65–#67, #37 typed-array and #63 M3 records retain their scope.
+[#70 adversarial verification](#issue-70-validation) adds private deterministic
+failure and public composition coverage without changing production behavior.
 
 ## Source contract and naming migration
 
@@ -327,6 +329,86 @@ For #68, also cover exact scalar/placeholder relations, authority-before-index a
 post-index current-state checks, empty/invalid-index traps, returned-value-only
 consumption before mutation, raw shifts, retained capacity/identity, pending writes
 and shrinking iteration. Historical #65–#67 runs do not validate #68.
+
+<a id="issue-70-validation"></a>
+
+## #70 authority and failure recovery under composition — 2026-10-29
+
+This verification slice adds no language, ABI, production helper, adapter option,
+measurement instrumentation or reclamation policy. No production regression fix
+was needed. It supplements, rather than replaces, the #65–#69 focused evidence;
+integrated M4 release acceptance remains pending.
+
+### Private failure seam
+
+`crates/compiler/src/codegen/resizable_failure_tests.rs` is a child of
+`codegen::resizable` under `cfg(test)`. Its fixtures pass through the existing
+`ValidatedProgram` and section assembly before test-only section rewriting:
+
+- Seed the identity global at instantiation; never reset identities at runtime.
+- Optionally replace only the planned acquire body with the same core emitter,
+  adding its existing before-backing guard with a fixed absolute cursor ceiling.
+  The guard runs only for fresh storage; it neither blocks reuse nor caps ordinary
+  allocations. Its checked i64 reservation local is inherited from the M3 seam.
+- Append private global observation exports only to these unit fixtures. Tests
+  read them; there is no source/public option or integration-test activation.
+  All fixtures pass `wasmparser::Validator` and use bounded Node subprocesses.
+
+The default transport's non-export sections are byte-identical to ordinary
+compilation. Configured fixtures change only globals, exports and the acquire
+body. Ordinary compilation has neither the observation exports nor M3 controls.
+
+### Contract-to-test map
+
+Prefixes below are **F**: `src/codegen/resizable_failure_tests.rs`, **L**:
+`tests/resizable_arrays_lowering.rs`, **R**: `tests/resizable_arrays_runtime.rs`,
+all relative to `crates/compiler/`. Existing predecessor tests are included where
+this ticket deliberately reuses their coverage.
+
+| Obligation | Named evidence |
+| --- | --- |
+| Bounded identity exhaustion before free-list removal or fresh allocation; later nonallocating use in the same instance, all three types | F: `exhausted_identity_preserves_free_payloads_and_allows_later_nonallocating_mutations` |
+| Deterministic fresh backing failure preserves post-argument removal, live contents, identity and free availability; later successful reuse and smaller fresh growth | F: `backing_failure_preserves_post_argument_state_free_reuse_and_later_fresh_acquisition` |
+| Exact registered handle, kind, public/private payload and length, capacity and current active acquisition before every management operation | F: `exact_authority_preflight_rejects_fabrication_and_inconsistent_records_before_mutation`; L: `authority_lookup_checks_exact_registered_handle_and_current_metadata_without_mutation`, `current_acquisition_preflight_requires_exact_live_registered_payload_identity_and_extent` |
+| Preflight before capacity-sufficient early return or replacement, replacement validation before copy and publication | L: `reserve_preflights_current_acquisition_before_noop_or_replacement_and_validates_new_before_copy`; existing `reserve_relocation_raw_copies_before_publication_and_releases_only_after` |
+| Constructor consumes every logical element; failed copy publishes no array but retains successful unpublished allocations without sweeping | F: `failed_constructor_keeps_unpublished_acquisition_without_sweeping_published_arrays`; R: `construction_consumes_every_logical_element_and_preserves_source_after_traps` |
+| Width-scaled 2^31-byte limits and adjacent requests, 2^32 and safe-integer bounds without giant allocation; post-argument effects retained | R: expanded `bounded_allocation_failure_preserves_post_argument_published_arrays`; negative-zero reserve/remove coverage also executes in F |
+| Recursive suspended ordinary/all-five-compound writes, aliases, rebinding, captures, once-only indices, actual displaced-payload reuse, reentry, caught inner trap and later calls | R: `recursive_suspended_stores_and_all_compounds_survive_reuse_reentry_and_caught_traps` |
+| Post-RHS public descriptor inconsistency traps before any final store; same-instance recovery after explicit descriptor restoration, all types/all numeric compounds | R: `pending_stores_reject_post_rhs_authority_mismatch_and_recover_after_descriptor_restoration` |
+| Pop/remove validates returned bool/string before mutation; raw relocation/shift does not scan unreturned slots | R: existing `pop_remove_validate_only_returned_bool_or_string_before_any_mutation`, `reserve_copies_unconsumed_bool_and_string_slots_without_scanning`, `push_copies_old_bool_and_string_slots_lazily_but_consumes_new_items` |
+| Shrink-invalidated and shifted-current-index stores, saved compound old values, initial-count iteration in all types | R: existing `pop_remove_pending_numeric_stores_and_all_compounds_use_saved_old_value_and_current_index`, `pop_remove_pending_bool_and_string_stores_shift_current_index_or_trap_after_shrink`, `pop_remove_iteration_keeps_initial_count_checks_later_yields_and_observes_shifts`, `push_iteration_uses_initial_length_and_current_elements_for_all_types` |
+| Forged unexported/skipped/unreachable/pure-context rejection, non-M4 byte compatibility and private transport isolation | Existing L forged constructor/reserve/push/pop/remove cases and `no_m4_source_compilation_preserves_the_independent_emitter_golden`; F: `test_transport_changes_only_requested_fixture_sections_and_never_ordinary_compilation` |
+
+Private metadata damage is deliberate fault injection, outside supported host
+behavior and not a security claim. These tests restore the injected field before
+asserting later successful management. For ordinary operation failures, arrays
+remain usable without repair. Neither case promises rollback, heap rewinding,
+recovery of unpublished allocations or automatic cleanup after traps.
+
+### Validation
+
+- `cargo test --offline -p was-compiler --lib -- --include-ignored`: 579 passed,
+  including all new private checks and existing M2/M3 suites; no failures or ignored
+  cases. Aggregate execution of measurement recorders is not timing evidence.
+- `cargo test --offline -p was-compiler --test resizable_arrays_frontend --test resizable_arrays_lowering`:
+  46 frontend and 33 lowering tests passed.
+- `cargo test --offline -p was-compiler --test resizable_arrays_runtime --test typed_arrays_runtime --test compound_assignment --test array_for_loops -- --include-ignored`:
+  58 passed (38 resizable, 6 typed arrays, 4 compounds, 10 array iteration).
+- `cargo test --offline -p was-compiler --test abi -- --include-ignored`: 3 passed.
+- `cargo test --offline`: passed for the default compiler/CLI workspace members;
+  ignored runtimes remain excluded from this default run. The explicit runs above
+  provide the selected runtime evidence.
+- `cargo clippy --offline --all-targets -- -D warnings`: passed.
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`:
+  passed. Edited Rust files were formatted and diff whitespace checks passed.
+
+Browser artifacts were not rebuilt: the only implementation-file change is a
+`cfg(test)` module declaration; production emission and adapters are unchanged.
+This ticket does not claim a full ignored workspace run or integrated M4 release.
+The two-axis review against starting commit `7d11c92` reported zero hard standards
+violations and zero specification findings. Its one low-priority duplicated-fixture
+suggestion was addressed by a module-local test-case constant, then focused checks
+and Clippy were rerun.
 
 <a id="issue-69-validation"></a>
 

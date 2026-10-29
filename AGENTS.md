@@ -199,7 +199,10 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   not final M4 acceptance. Keep Node encoding fixed-storage and decoding copy-based;
   hosts obtain movable arrays through guest construction and reacquire payload/length
   after possible resizing, separately from refreshing views after memory growth.
-  Expose no M3 controls or observations.
+  Expose no M3 controls or observations. Before changing M4 failure injection or
+  interpreting authority/recovery coverage, read [#70's private seam and evidence](docs/resizable-arrays.md#issue-70-validation).
+  Its `cfg(test)` fixture controls do not change production compilation or establish
+  integrated M4 release acceptance.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating

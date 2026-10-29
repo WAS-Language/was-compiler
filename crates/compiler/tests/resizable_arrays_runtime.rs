@@ -1473,6 +1473,136 @@ fn failed_rhs_retains_completed_reserve_and_reused_payload_without_final_store()
 
 #[test]
 #[ignore = "requires Node.js"]
+fn recursive_suspended_stores_and_all_compounds_survive_reuse_reentry_and_caught_traps() {
+    for (operator, expected) in [
+        ("=", "4"),
+        ("+=", "21"),
+        ("-=", "13"),
+        ("*=", "68"),
+        ("/=", "4.25"),
+        ("%=", "1"),
+    ] {
+        let source = r#"
+            fn seed() -> number[] { return resizable([17, 17, 17]); }
+            fn reuse() -> number[] { return resizable([7, 7, 7]); }
+            fn reset(a: number[]) { a[0] = 17; }
+            fn write(a: number[], b: number[], depth: number, marker: number) -> number[] {
+                let receiver = a;
+                let alias = receiver;
+                let rhs = () => {
+                    if depth > 0 { write(alias, b, depth - 1, marker); }
+                    else { alias.reserve(100); effect(marker); }
+                    receiver = b;
+                    return 4;
+                };
+                receiver[{ effect(depth + 10); depth }] OP rhs();
+                return receiver;
+            }
+            fn fail(a: number[]) { a[0] OP { a.reserve(100); effect(3); a[99] }; }
+        "#
+        .replace("OP", operator);
+        let script = r#"
+            const assert=require('node:assert/strict'),events=[],reused=[];
+            let outer,inner,failed,replacement;const old=new Map();
+            const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+                {env:{effect:n=>{
+                    events.push(n);
+                    if(n>=1&&n<=3) {
+                        const h=n===1?outer:n===2?inner:failed;
+                        assert.notEqual(word(h),old.get(h));
+                        const copy=e.reuse();assert.equal(word(copy),old.get(h),'must actually reuse each displaced payload');
+                        reused.push(copy);
+                        for(let i=0;i<3;i++)v().setFloat64(word(h)+8*i,999,true);
+                        if(n===1) {
+                            assert.equal(e.write(inner,replacement,0,2),replacement);
+                            assert.throws(()=>e.fail(failed),WebAssembly.RuntimeError);
+                            e.__alloc(70000);
+                        }
+                    }
+                }}}).exports;
+            const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+            const values=h=>Array.from({length:word(h+4)},(_,i)=>v().getFloat64(word(h)+8*i,true));
+            outer=e.seed();inner=e.seed();failed=e.seed();replacement=e.seed();
+            for(const h of [outer,inner,failed])old.set(h,word(h));
+            assert.equal(e.write(outer,replacement,2,1),replacement);
+            assert.deepEqual(events,[12,11,10,1,10,2,3]);
+            assert.deepEqual(values(outer),[EXPECTED,EXPECTED,EXPECTED]);
+            assert.deepEqual(values(inner),[EXPECTED,999,999]);
+            assert.deepEqual(values(failed),[999,999,999],'caught RHS trap retains effects but performs no final store');
+            assert.deepEqual(values(replacement),[17,17,17]);
+            e.reset(failed);assert.equal(e.write(failed,replacement,0,4),replacement);
+            assert.deepEqual(values(failed),[EXPECTED,999,999]);
+            assert.deepEqual(events,[12,11,10,1,10,2,3,10,4]);
+            for(const h of reused)assert.deepEqual(values(h),[7,7,7],'no suspended or abandoned store may touch reused storage');
+        "#
+        .replace("EXPECTED", expected);
+        run(&source, &script);
+    }
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn pending_stores_reject_post_rhs_authority_mismatch_and_recover_after_descriptor_restoration() {
+    for (kind, ty, seed, rhs, operators) in [
+        (
+            "numbers",
+            "number[]",
+            "17",
+            "4",
+            vec!["=", "+=", "-=", "*=", "/=", "%="],
+        ),
+        ("flags", "bool[]", "true", "false", vec!["="]),
+        ("texts", "string[]", "\"old\"", "\"new\"", vec!["="]),
+    ] {
+        for operator in operators {
+            let source = format!(
+                r#"
+                fn seed() -> {ty} {{ return resizable([{seed}]); }}
+                fn reserve(a: {ty}) {{ a.reserve(100); }}
+                fn write(a: {ty}) {{ a[{{ effect(10); 0 }}] {operator} {{ effect(20); {rhs} }}; }}
+                "#
+            );
+            let expected = match (kind, operator) {
+                ("numbers", "=") => "4",
+                ("numbers", "+=") => "21",
+                ("numbers", "-=") => "13",
+                ("numbers", "*=") => "68",
+                ("numbers", "/=") => "4.25",
+                ("numbers", "%=") => "1",
+                ("flags", _) => "0",
+                ("texts", _) => "'new'",
+                _ => unreachable!(),
+            };
+            let script = r#"
+                const assert=require('node:assert/strict'),events=[];let mutate=()=>{};
+                const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+                    {env:{effect:n=>{events.push(n);if(n===20)mutate();}}}).exports;
+                const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true),put=(p,n)=>v().setUint32(p,n,true);
+                const text=h=>Buffer.from(e.memory.buffer,word(h),word(h+4)).toString('utf8');
+                const read=h=>KIND==='numbers'?v().getFloat64(word(h),true):KIND==='flags'?v().getUint8(word(h)):text(word(word(h)));
+                for(const offset of [0,4]) {
+                    const a=e.seed(),b=e.seed(),p=word(a),original=read(a),other=read(b);
+                    const bad=offset===0?word(b):0;
+                    mutate=()=>put(a+offset,bad);
+                    assert.throws(()=>e.write(a),WebAssembly.RuntimeError);
+                    assert.deepEqual(events,[10,20]);assert.equal(word(a+offset),bad);
+                    assert.equal(read(b),other,'failed store must not target the substituted payload');
+                    put(a,p);put(a+4,1);assert.equal(read(a),original,'failed store must not touch the original payload');
+                    mutate=()=>{};events.length=0;
+                    e.reserve(a);assert.notEqual(word(a),p);
+                    e.write(a);assert.deepEqual(events,[10,20]);assert.equal(read(a),EXPECTED);
+                    assert.equal(read(b),other);assert.equal(word(a+4),1);events.length=0;
+                }
+            "#
+            .replace("KIND", &format!("'{kind}'"))
+            .replace("EXPECTED", expected);
+            run(&source, &script);
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires Node.js"]
 fn fixed_storage_pending_writes_remain_bound_to_the_original_place_in_m4_modules() {
     run(
         r#"
@@ -1538,17 +1668,22 @@ fn bounded_allocation_failure_preserves_post_argument_published_arrays() {
         const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
         const text=h=>Buffer.from(e.memory.buffer,word(h),word(h+4)).toString('utf8');
         const initialBytes=e.memory.buffer.byteLength;
-        for(const [kind,event] of [['numbers',1],['flags',2],['texts',3]]) {
-            active=e[kind]();const old=word(active);events.length=0;
-            assert.throws(()=>e['reserve_'+kind](active,1000000),WebAssembly.RuntimeError);
-            assert.deepEqual(events,[event]);assert.notEqual(prepared,old);
-            assert.equal(word(active),prepared);assert.equal(word(active+4),1);
-            assert.equal(e.memory.buffer.byteLength,initialBytes);
-            if(kind==='numbers') assert.equal(v().getFloat64(word(active),true),19);
-            if(kind==='flags') assert.equal(v().getUint8(word(active)),0);
-            if(kind==='texts') assert.equal(text(word(word(active))),'changed');
-            e['reserve_'+kind](active,0);assert.equal(word(active),prepared);
-            assert.equal(word(active+4),1);assert.deepEqual(events,[event,event]);
+        for(const [kind,event,width] of [['numbers',1,8],['flags',2,1],['texts',3,4]]) {
+            // With length one, ceiling-1 additional elements reaches the exact byte ceiling.
+            // The patched memory maximum also bounds otherwise-valid requests below it.
+            const ceiling=2**31/width;
+            for(const additional of [1000000,ceiling-2,ceiling-1,ceiling,ceiling+1,2**32-1,2**32,2**53-1]) {
+                active=e[kind]();const old=word(active);events.length=0;
+                assert.throws(()=>e['reserve_'+kind](active,additional),WebAssembly.RuntimeError);
+                assert.deepEqual(events,[event]);assert.notEqual(prepared,old);
+                assert.equal(word(active),prepared);assert.equal(word(active+4),1);
+                assert.equal(e.memory.buffer.byteLength,initialBytes);
+                if(kind==='numbers') assert.equal(v().getFloat64(word(active),true),19);
+                if(kind==='flags') assert.equal(v().getUint8(word(active)),0);
+                if(kind==='texts') assert.equal(text(word(word(active))),'changed');
+                e['reserve_'+kind](active,0);assert.equal(word(active),prepared);
+                assert.equal(word(active+4),1);assert.deepEqual(events,[event,event]);
+            }
         }
         assert(!Object.keys(e).some(name=>name.startsWith('__m3_')));
         "#,

@@ -1566,6 +1566,205 @@ fn no_m4_source_compilation_preserves_the_independent_emitter_golden() {
 }
 
 #[test]
+fn authority_lookup_checks_exact_registered_handle_and_current_metadata_without_mutation() {
+    for (ty, kind, width, first, lookup_index, outer_validator) in [
+        ("number", 0, 8, 8, 15, 3),
+        ("bool", 1, 1, 13, 20, 9),
+        ("string", 2, 4, 12, 19, 8),
+    ] {
+        let bytes = Compiler::new()
+            .compile_source(&format!("fn main(a: {ty}[]) {{ a.reserve(0); }}"))
+            .unwrap();
+        let bodies = operators(&bytes);
+        let lookup = &bodies[lookup_index];
+        // Independent ABI expectations: follow the private registry, comparing its
+        // exact handle field, rather than deriving authority from handle arithmetic.
+        assert!(matches!(&lookup[..22], [
+            Operator::GlobalGet { global_index: 32 },
+            Operator::LocalSet { local_index: 1 },
+            Operator::Block { .. }, Operator::Loop { .. },
+            Operator::LocalGet { local_index: 1 }, Operator::I32Eqz,
+            Operator::BrIf { relative_depth: 1 },
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: handle },
+            Operator::LocalGet { local_index: 0 }, Operator::I32Eq,
+            Operator::If { .. },
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: element },
+            Operator::I32Const { value }, Operator::I32Ne,
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: reserved },
+            Operator::I32Or, Operator::If { .. }, Operator::Unreachable, Operator::End,
+        ] if handle.offset == 4 && element.offset == 8 && *value == kind && reserved.offset == 28));
+        assert!(matches!(&lookup[22..25], [
+            Operator::LocalGet { local_index: 0 },
+            Operator::Call { function_index }, Operator::Drop,
+        ] if *function_index == outer_validator));
+        let metadata = lookup.windows(33).position(|ops| matches!(ops, [
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: length },
+            Operator::LocalGet { local_index: 0 }, Operator::I32Load { memarg: public_length },
+            Operator::I32Ne,
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: payload },
+            Operator::LocalGet { local_index: 0 }, Operator::I32Load { memarg: public_payload },
+            Operator::I32Ne, Operator::I32Or,
+            Operator::LocalGet { local_index: 1 }, Operator::I64Load { memarg: minimum },
+            Operator::I64Const { value: 8 }, Operator::I64LtU, Operator::I32Or,
+            Operator::LocalGet { local_index: 1 }, Operator::I64Load { memarg: maximum },
+            Operator::I64Const { value: 2_147_483_648 }, Operator::I64GtU, Operator::I32Or,
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: live_length },
+            Operator::I64ExtendI32U, Operator::I64Const { value }, Operator::I64Mul,
+            Operator::LocalGet { local_index: 1 }, Operator::I64Load { memarg: capacity },
+            Operator::I64GtU, Operator::I32Or,
+            Operator::If { .. }, Operator::Unreachable, Operator::End,
+        ] if length.offset == 12 && public_length.offset == 4
+            && payload.offset == 24 && public_payload.offset == 0
+            && minimum.offset == 16 && maximum.offset == 16
+            && live_length.offset == 12 && *value == width && capacity.offset == 16))
+            .expect("public/private length and payload agreement, capacity bounds and live-byte fit must trap together");
+        assert_eq!(metadata, 25);
+        assert!(matches!(&lookup[metadata + 33..], [
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: payload },
+            Operator::LocalGet { local_index: 1 }, Operator::I64Load { memarg: identity },
+            Operator::LocalGet { local_index: 1 }, Operator::I64Load { memarg: capacity },
+            Operator::Call { function_index },
+            Operator::LocalGet { local_index: 1 }, Operator::Return, Operator::End,
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: next },
+            Operator::LocalSet { local_index: 1 }, Operator::Br { relative_depth: 0 },
+            Operator::End, Operator::End, Operator::I32Const { value: 0 }, Operator::End,
+        ] if payload.offset == 24 && identity.offset == 32 && capacity.offset == 16
+            && *function_index == first + 5 && next.offset == 0));
+        assert_eq!(calls(lookup), [outer_validator, first + 5]);
+        assert!(!lookup.iter().any(|op| matches!(
+            op,
+            Operator::I32Store { .. }
+                | Operator::I64Store { .. }
+                | Operator::I32Store8 { .. }
+                | Operator::GlobalSet { .. }
+                | Operator::MemoryGrow { .. }
+        )));
+    }
+}
+
+#[test]
+fn current_acquisition_preflight_requires_exact_live_registered_payload_identity_and_extent() {
+    let bytes = Compiler::new()
+        .compile_source("fn main(a: number[]) { a.reserve(0); }")
+        .unwrap();
+    let bodies = operators(&bytes);
+    // One user and seven memory helpers precede the core. Check the emitted
+    // allocator contract independently, rather than trusting a call to Validate.
+    let find = &bodies[10];
+    assert!(matches!(find.as_slice(), [
+        Operator::GlobalGet { global_index: 2 }, Operator::LocalSet { local_index: 1 },
+        Operator::Block { .. }, Operator::Loop { .. },
+        Operator::LocalGet { local_index: 1 }, Operator::I32Eqz,
+        Operator::BrIf { relative_depth: 1 },
+        Operator::LocalGet { local_index: 1 }, Operator::I32Const { value: 32 }, Operator::I32Add,
+        Operator::LocalGet { local_index: 0 }, Operator::I32Eq, Operator::If { .. },
+        Operator::LocalGet { local_index: 1 }, Operator::Return, Operator::End,
+        Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg: next },
+        Operator::LocalSet { local_index: 1 }, Operator::Br { relative_depth: 0 },
+        Operator::End, Operator::End, Operator::I32Const { value: 0 }, Operator::End,
+    ] if next.offset == 0));
+    let validate = &bodies[13];
+    assert!(matches!(validate.as_slice(), [
+        Operator::LocalGet { local_index: 0 }, Operator::Call { function_index: 10 },
+        Operator::LocalTee { local_index: 3 }, Operator::I32Eqz,
+        Operator::If { .. }, Operator::Unreachable, Operator::End,
+        Operator::LocalGet { local_index: 3 }, Operator::I64Load { memarg: identity },
+        Operator::LocalGet { local_index: 1 }, Operator::I64Ne,
+        Operator::LocalGet { local_index: 3 }, Operator::I32Load { memarg: active },
+        Operator::I32Const { value: 1 }, Operator::I32Ne, Operator::I32Or,
+        Operator::LocalGet { local_index: 3 }, Operator::I64Load { memarg: requested },
+        Operator::LocalGet { local_index: 2 }, Operator::I64Ne, Operator::I32Or,
+        Operator::I64Const { value: 8 },
+        Operator::LocalGet { local_index: 3 }, Operator::I32Load { memarg: class },
+        Operator::I64ExtendI32U, Operator::I64Shl,
+        Operator::LocalGet { local_index: 2 }, Operator::I64Ne, Operator::I32Or,
+        Operator::If { .. }, Operator::Unreachable, Operator::End, Operator::End,
+    ] if identity.offset == 16 && active.offset == 12 && requested.offset == 24 && class.offset == 8));
+    // Exhaustive sequences exclude writes, release, allocation, callbacks and an
+    // early success before all four live-acquisition comparisons have completed.
+}
+
+#[test]
+fn reserve_preflights_current_acquisition_before_noop_or_replacement_and_validates_new_before_copy()
+{
+    for (ty, first, lookup_index, validate_index, reserve_index) in [
+        ("number", 8, 15, 16, 17),
+        ("bool", 13, 20, 21, 22),
+        ("string", 12, 19, 20, 21),
+    ] {
+        let bytes = Compiler::new()
+            .compile_source(&format!("fn main(a: {ty}[]) {{ a.reserve(100); }}"))
+            .unwrap();
+        let bodies = operators(&bytes);
+        // A registry miss is a trap, not fixed-storage permission or a no-op.
+        assert!(matches!(bodies[validate_index].as_slice(), [
+            Operator::LocalGet { local_index: 0 }, Operator::Call { function_index },
+            Operator::LocalTee { local_index: 1 }, Operator::I32Eqz,
+            Operator::If { .. }, Operator::Unreachable, Operator::End,
+            Operator::LocalGet { local_index: 1 }, Operator::End,
+        ] if *function_index == lookup_index));
+        let reserve = &bodies[reserve_index];
+        assert!(matches!(&reserve[..3], [
+            Operator::LocalGet { local_index: 0 }, Operator::Call { function_index },
+            Operator::LocalSet { local_index: 2 },
+        ] if *function_index == validate_index as u32));
+        let no_growth = reserve
+            .windows(7)
+            .position(|ops| {
+                matches!(ops, [
+            Operator::LocalGet { local_index: 7 },
+            Operator::LocalGet { local_index: 2 }, Operator::I64Load { memarg },
+            Operator::I64LeU, Operator::If { .. }, Operator::Return, Operator::End,
+        ] if memarg.offset == 16)
+            })
+            .expect("capacity-sufficient path still follows current-state preflight");
+        let acquire = reserve
+            .windows(9)
+            .position(|ops| {
+                matches!(ops, [
+            Operator::LocalGet { local_index: 7 }, Operator::Call { function_index: acquire },
+            Operator::LocalSet { local_index: 9 }, Operator::LocalSet { local_index: 4 },
+            Operator::LocalGet { local_index: 4 }, Operator::LocalGet { local_index: 9 },
+            Operator::LocalGet { local_index: 7 }, Operator::Call { function_index: validate },
+            Operator::Block { .. },
+        ] if *acquire == first + 1 && *validate == first + 5)
+            })
+            .expect("full replacement capacity and returned identity are validated before copying");
+        assert!(3 < no_growth && no_growth + 7 < acquire);
+        assert!(!reserve[..acquire].iter().any(|op| matches!(
+            op,
+            Operator::I32Store { .. }
+                | Operator::I64Store { .. }
+                | Operator::I32Store8 { .. }
+                | Operator::GlobalSet { .. }
+                | Operator::MemoryGrow { .. }
+        )));
+        let first_write = reserve
+            .iter()
+            .position(|op| {
+                matches!(
+                    op,
+                    Operator::I32Store { .. }
+                        | Operator::I64Store { .. }
+                        | Operator::I32Store8 { .. }
+                )
+            })
+            .unwrap();
+        assert!(acquire + 8 < first_write);
+        assert_eq!(
+            calls(reserve),
+            [
+                validate_index as u32,
+                first,
+                first + 1,
+                first + 5,
+                first + 6
+            ]
+        );
+    }
+}
+
+#[test]
 fn reserve_relocation_raw_copies_before_publication_and_releases_only_after() {
     for (ty, width, first, lookup, validate, reserve_index, body_count, outer_validator) in [
         ("number", 8, 8, 15, 16, 17, 18, 3),
