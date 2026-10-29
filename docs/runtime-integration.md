@@ -501,11 +501,14 @@ counts, tools and post-fix source hashes. Historical M4 [measurements](benchmark
 and [handoff](benchmarks/m4-typed-arrays/handoff.md) predate the runtime accessor fix;
 their hashes are preserved and are not claimed to match the final runtime.
 
-## Opt-in resizable storage (#65/#66)
+## Opt-in resizable storage (#65–#69)
 
 `resizable(source)` creates a fresh resize-authorized copy for `number[]`, `bool[]`
-and `string[]`. #66 adds only `identifier.reserve(additional)` and relocation-safe
-indexed writes, not push/pop/remove or shrinking. Reserve returns void, preserves
+and `string[]`. `identifier.reserve(additional)` and relocation-safe indexed
+writes are implemented, as are `push(item)`, `pop()` and `remove(index)` for all
+three array types. Push returns void; pop/remove return the removed scalar and
+trap for an empty pop or invalid index. Neither removal reduces capacity.
+Reserve returns void, preserves
 length and the stable eight-byte descriptor handle, and exposes no capacity or
 authority query. It captures and validates receiver authority before the argument:
 fixed-storage receivers trap even for reserve(0), before argument effects. After
@@ -521,12 +524,25 @@ narrow reserve contract](resizable-arrays.md#reserve-contract-66).
 
 Hosts may retain opt-in handles, but payload pointer/length borrows must be
 reacquired from the descriptor after any call or reentrant callback that may
-relocate storage. This applies even without memory growth and is separate from
+resize, including a call that traps after completed mutations. This applies even without memory growth and is separate from
 refreshing `DataView`/typed-array views after possible growth. Fixed-storage host
 lifetime guarantees and ordinary host encoding remain unchanged. See [host borrows
 and relocation-safe writes](resizable-arrays.md#relocation-safe-writes-and-host-borrows-66).
-[#66 final validation/review passed](resizable-arrays.md#issue-66-validation);
-integrated M4 release remains pending. Historical #37/#65 evidence retains its scope.
+
+The explicit Node `createAbi` encoder still produces fixed-storage arrays isolated
+from later JavaScript mutation. All four resize methods reject those handles;
+reserve/push/remove reject them before argument effects. Obtain a movable handle
+by calling an exported guest function that constructs `resizable(source)`, not by
+fabricating descriptors or registering host ownership. `decode(type, handle)`
+copies the **current logical elements** and does not expose spare capacity or a
+live view. Existing accessor snapshots and 64 MiB copy accounting are unchanged.
+
+`resizable` is newly reserved as a global function/registered host-language name;
+rename prior global uses. Host module/field names may still be `resizable`, and
+normal lexical shadowing remains valid. [#69 adapter/raw-host evidence](resizable-arrays.md#issue-69-validation)
+covers this implemented subset, not final M4 acceptance. No invocation wrappers,
+cleanup APIs or allocator-management exports are required or introduced.
+Historical #37/#65–#68 records retain their original scope.
 
 ## Programmatic Node interface
 

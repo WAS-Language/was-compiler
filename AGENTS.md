@@ -195,6 +195,10 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   records completed focused/default/build/browser checks and zero two-axis findings.
   The broader ignored workspace run timed out at 120 seconds; no full ignored
   workspace success is claimed. Integrated M4 release remains pending.
+  #69 adds [dedicated CLI/browser and raw-host compatibility evidence](docs/resizable-arrays.md#issue-69-validation),
+  not final M4 acceptance. Keep Node encoding fixed-storage and decoding copy-based;
+  hosts obtain movable arrays through guest construction and reacquire payload/length
+  after possible resizing, separately from refreshing views after memory growth.
   Expose no M3 controls or observations.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.

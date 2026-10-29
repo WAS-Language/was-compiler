@@ -1,6 +1,6 @@
 <a id="resizable-arrays--65-construction-and-66-reserve"></a>
 
-# Resizable arrays — #65–#68 construction and mutations
+# Resizable arrays — #65–#69 construction, mutations and adapters
 
 ## Scope and status
 
@@ -327,6 +327,57 @@ For #68, also cover exact scalar/placeholder relations, authority-before-index a
 post-index current-state checks, empty/invalid-index traps, returned-value-only
 consumption before mutation, raw shifts, retained capacity/identity, pending writes
 and shrinking iteration. Historical #65–#67 runs do not validate #68.
+
+<a id="issue-69-validation"></a>
+
+## #69 adapter and raw-host compatibility — 2026-10-29
+
+Issue #69 adds package-owned `resizable_arrays_adapters.rs` CLI/browser targets
+and two cases in compiler `resizable_arrays_runtime.rs`; no production compiler,
+adapter or marshaling implementation change was needed. Existing operations were
+already green at these confirmed public seams, so these are new compatibility
+proofs rather than a claimed red/green language implementation.
+
+- CLI Wasm/WAT and freshly rebuilt browser `compile`/`compileWat` match native
+  bytes/text at each preset, with enabled-preset byte identity and independent
+  semantic expectations. No blanket O0–O3 byte identity is required.
+- All three element types exercise construction/reserve/push/pop/remove, aliases,
+  captures and nested effects. Decoded import/export/memory checks retain selected
+  or no user exports, required memory/`__alloc`, and no management surface.
+- Malformed syntax, receiver/arity/type and newly reserved global `resizable`
+  diagnostics match core rendering across presets. Failed CLI compilation and host
+  registration leave existing output untouched. Host module/field names may still
+  be `resizable`; lexical shadowing remains legal.
+- Explicit Node encoding stays fixed-storage and copy-isolated; all resize methods
+  reject it before argument effects. Movable handles come from exported guest
+  construction. Decoding copies current logical contents, not spare capacity.
+- Raw-host cases retain stable handles through reentry, caught traps and later
+  calls. A same-buffer relocation separately proves payload pointer reacquisition;
+  actual memory growth proves view refresh. All three types retain values after
+  completed inner removals/traps and outer pending writes. Fixed payload offsets
+  remain valid after growth; existing snapshot/copy-budget regressions are retained.
+
+Completed focused offline checks:
+
+- CLI resizable and typed-array adapters, including ignored Node execution: **8 passed**.
+- Current-source `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline`, then browser resizable/typed-array adapters: **3 passed**.
+- `node tests/browser.cjs pkg`: **25 groups passed**.
+- Compiler resizable runtime: **36 passed**; ordinary runtime: **16 passed**;
+  typed-array runtime: **6 passed**, all with `--include-ignored`.
+- `cargo check --offline --workspace --all-targets`: passed.
+- `cargo test --offline --workspace -- --include-ignored`: passed on the freshly
+  rebuilt package, including retained accessor-snapshot/copy-budget regressions.
+
+- Native all-target Clippy and browser-target library Clippy with `-D warnings`:
+  passed. Portable core `wasm32-unknown-unknown` library build: passed.
+- Edited-file formatting and `git --no-pager diff --check`: passed.
+
+Independent review against starting commit `2e473361ee831de584d21907d1e3c6c82c118f90`
+reported **0 standards findings and 0 spec findings**. Reviewers also reran the
+new CLI/browser and raw-host cases successfully.
+
+These results are #69 subset evidence. Final integrated M4 acceptance, measurement
+and release decisions remain pending. Historical records below retain their scope.
 
 <a id="issue-68-validation"></a>
 

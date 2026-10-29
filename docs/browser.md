@@ -250,6 +250,22 @@ the values or count between validation/accounting and copying. The final full
 run includes both accessor regressions. This is not an added browser API or an
 automatic demo decoder.
 
+## Opt-in resizable arrays (#69 adapter coverage)
+
+The generated program supports `resizable(source)`, identifier-receiver
+`reserve(additional)`, `push(item)`, `pop()` and `remove(index)` for `number[]`,
+`bool[]` and `string[]`. `compile`/`compileWat` use the same core semantics and
+host declarations; no browser ownership or marshaling API is added. The global
+function/host-language name `resizable` is newly reserved, but host module/field
+names remain unrestricted and lexical shadowing is allowed.
+
+Hosts retain stable array handles, not payload borrows: reread pointer **and**
+logical length after possible resize or reentry, including trapped calls with
+completed effects. Refresh views separately after possible memory growth. Ordinary
+literals/host encoding stay fixed-storage. See [the raw/copy integration contract](runtime-integration.md#opt-in-resizable-storage-6569)
+and [#69 current-source adapter evidence](resizable-arrays.md#issue-69-validation).
+This validates an implemented subset, not final integrated M4 acceptance.
+
 ## Named arguments and defaults (WP6)
 
 `compile` and `compileWat` accept the same user-function named/mixed-prefix calls

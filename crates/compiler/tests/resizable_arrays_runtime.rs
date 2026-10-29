@@ -28,7 +28,10 @@ fn run(source: &str, script: &str) {
         }
         wasmparser::Validator::new().validate_all(&bytes).unwrap();
         let output = test_process::output(
-            Command::new("node").arg("-e").arg(script),
+            Command::new("node")
+                .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+                .arg("-e")
+                .arg(script),
             Some(&bytes),
             Duration::from_secs(30),
         );
@@ -38,6 +41,157 @@ fn run(source: &str, script: &str) {
             String::from_utf8_lossy(&output.stderr)
         );
     }
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn node_copy_encoding_stays_fixed_and_decoding_snapshots_current_resizable_contents() {
+    run(
+        r#"
+        fn copy_numbers(a: number[]) -> number[] { return resizable(a); }
+        fn copy_flags(a: bool[]) -> bool[] { return resizable(a); }
+        fn copy_texts(a: string[]) -> string[] { return resizable(a); }
+        fn reserve_numbers(a: number[]) { a.reserve({ effect(1); 0 }); }
+        fn reserve_flags(a: bool[]) { a.reserve({ effect(1); 0 }); }
+        fn reserve_texts(a: string[]) { a.reserve({ effect(1); 0 }); }
+        fn push_numbers(a: number[]) { a.push({ effect(2); 9 }); }
+        fn push_flags(a: bool[]) { a.push({ effect(2); true }); }
+        fn push_texts(a: string[]) { a.push({ effect(2); "new" }); }
+        fn pop_numbers(a: number[]) -> number { return a.pop(); }
+        fn pop_flags(a: bool[]) -> bool { return a.pop(); }
+        fn pop_texts(a: string[]) -> string { return a.pop(); }
+        fn remove_numbers(a: number[]) -> number { return a.remove({ effect(3); -0 }); }
+        fn remove_flags(a: bool[]) -> bool { return a.remove({ effect(3); -0 }); }
+        fn remove_texts(a: string[]) -> string { return a.remove({ effect(3); -0 }); }
+        "#,
+        r#"
+        const assert = require('node:assert/strict');
+        const {instantiate} = require('./runtime/index.cjs');
+        const {createAbi, readDescriptor} = require('./runtime/abi.cjs');
+        const calls = [];
+        const {instance, call} = instantiate(require('node:fs').readFileSync(0),
+            {env:{effect(n) {calls.push(n);}}});
+        const e = instance.exports, abi = createAbi(() => instance);
+        for (const [kind,type,width,input,changed,added] of [
+            ['numbers','number[]',8,[1,2,3],77,9],
+            ['flags','bool[]',1,[true,false,true],false,true],
+            ['texts','string[]',4,['é','λ','last'],'changed','new']]) {
+            const expected = input.slice();
+            const fixed = abi.encode(type,input);
+            const before = readDescriptor(e.memory,fixed,width);
+            input[0] = changed;
+            assert.deepEqual(abi.decode(type,fixed),expected);
+            for (const op of ['reserve','push','pop','remove']) {
+                assert.throws(() => call(op+'_'+kind,[fixed]), error =>
+                    error.stage === 'invocation' && error.cause instanceof WebAssembly.RuntimeError);
+                assert.deepEqual(calls,[],'fixed authority must precede argument effects');
+                const after = readDescriptor(e.memory,fixed,width);
+                assert.equal(after.data,before.data);
+                assert.equal(after.length,before.length);
+                assert.deepEqual(abi.decode(type,fixed),expected);
+            }
+            // Movability comes from guest construction, never from host registration.
+            const movable = call('copy_'+kind,[fixed]);
+            assert.notEqual(movable,fixed);
+            const snapshot = abi.decode(type,movable);
+            snapshot[0] = changed;
+            assert.deepEqual(abi.decode(type,movable),expected);
+            call('reserve_'+kind,[movable]);
+            call('push_'+kind,[movable]);
+            assert.deepEqual(abi.decode(type,movable),[...expected,added]);
+            const scalar = type.slice(0,-2);
+            assert.equal(abi.decode(scalar,call('pop_'+kind,[movable])),added);
+            assert.equal(abi.decode(scalar,call('remove_'+kind,[movable])),expected[0]);
+            assert.deepEqual(abi.decode(type,movable),expected.slice(1));
+            assert.deepEqual(abi.decode(type,fixed),expected);
+            assert.deepEqual(snapshot,[changed,...expected.slice(1)]);
+            assert.deepEqual(calls,[1,2,3]);
+            calls.length = 0;
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn raw_hosts_reacquire_movable_payloads_across_reentry_traps_and_actual_memory_growth() {
+    run(
+        r#"
+        fn numbers() -> number[] { return resizable([10,20,30]); }
+        fn flags() -> bool[] { return resizable([true,false,true]); }
+        fn texts() -> string[] { return resizable(["first","middle","last"]); }
+        fn reserve_numbers(a: number[], n: number) { a.reserve(n); }
+        fn reserve_flags(a: bool[], n: number) { a.reserve(n); }
+        fn reserve_texts(a: string[], n: number) { a.reserve(n); }
+        fn push_numbers(a: number[]) { a.push(40); }
+        fn push_flags(a: bool[]) { a.push(false); }
+        fn push_texts(a: string[]) { a.push("added"); }
+        fn trap_numbers(a: number[]) { a.remove(0); a.remove(len(a)); }
+        fn trap_flags(a: bool[]) { a.remove(0); a.remove(len(a)); }
+        fn trap_texts(a: string[]) { a.remove(0); a.remove(len(a)); }
+        fn reenter_numbers(a: number[]) { a[0] = { effect(1); 99 }; }
+        fn reenter_flags(a: bool[]) { a[0] = { effect(2); true }; }
+        fn reenter_texts(a: string[]) { a[0] = { effect(3); "replacement" }; }
+        fn pop_numbers(a: number[]) -> number { return a.pop(); }
+        fn pop_flags(a: bool[]) -> bool { return a.pop(); }
+        fn pop_texts(a: string[]) -> string { return a.pop(); }
+        "#,
+        r#"
+        const assert = require('node:assert/strict');
+        const {instantiate} = require('./runtime/index.cjs');
+        const {createAbi,readDescriptor} = require('./runtime/abi.cjs');
+        let active, callbacks = [];
+        const {instance,call} = instantiate(require('node:fs').readFileSync(0),{env:{effect(tag) {
+            const {kind,h,width,type,initial} = active;
+            callbacks.push(tag);
+            const before = readDescriptor(e.memory,h,width);
+            call('reserve_'+kind,[h,2000000]);
+            const after = readDescriptor(e.memory,h,width);
+            assert.notEqual(after.buffer,before.buffer,'reserve must grow memory in this fixture');
+            assert.notEqual(after.data,before.data);
+            assert.equal(after.length,3);
+            call('push_'+kind,[h]);
+            assert.throws(() => e['trap_'+kind](h),WebAssembly.RuntimeError);
+            assert.deepEqual(abi.decode(type,h),[...initial.slice(1),active.added]);
+        }}});
+        const e = instance.exports, abi = createAbi(() => instance);
+        const retained = [];
+        for (const [kind,type,width,initial,replacement,added,tag] of [
+            ['numbers','number[]',8,[10,20,30],99,40,1],
+            ['flags','bool[]',1,[true,false,true],true,false,2],
+            ['texts','string[]',4,['first','middle','last'],'replacement','added',3]]) {
+            const fixed = abi.encode(type,initial);
+            const fixedBefore = readDescriptor(e.memory,fixed,width);
+            const h = call(kind);
+            const original = readDescriptor(e.memory,h,width);
+            // A small relocation in the same buffer proves pointer refresh is independent of view refresh.
+            call('reserve_'+kind,[h,128]);
+            const small = readDescriptor(e.memory,h,width);
+            assert.equal(small.buffer,original.buffer);
+            assert.notEqual(small.data,original.data);
+            assert.deepEqual(abi.decode(type,h),initial);
+            active = {kind,type,width,h,initial,added};
+            call('reenter_'+kind,[h]);
+            assert.equal(callbacks.at(-1),tag);
+            assert.deepEqual(abi.decode(type,h),[replacement,initial[2],added]);
+            const postTrap = readDescriptor(e.memory,h,width);
+            assert.equal(abi.decode(type.slice(0,-2),call('pop_'+kind,[h])),added);
+            assert.deepEqual(abi.decode(type,h),[replacement,initial[2]]);
+            assert.equal(readDescriptor(e.memory,h,width).data,postTrap.data);
+            const fixedAfter = readDescriptor(e.memory,fixed,width);
+            assert.equal(fixedAfter.data,fixedBefore.data,'fixed payload offsets survive growth');
+            assert.notEqual(fixedAfter.buffer,fixedBefore.buffer,'views must still be refreshed');
+            assert.deepEqual(abi.decode(type,fixed),initial);
+            retained.push({kind,type,h,expected:[replacement,initial[2]]});
+            for (const saved of retained) assert.deepEqual(abi.decode(saved.type,saved.h),saved.expected);
+        }
+        assert.deepEqual(callbacks,[1,2,3]);
+        for (const saved of retained) {
+            call('reserve_'+saved.kind,[saved.h,4000000]);
+            assert.deepEqual(abi.decode(saved.type,saved.h),saved.expected);
+        }
+        "#,
+    );
 }
 
 #[test]
