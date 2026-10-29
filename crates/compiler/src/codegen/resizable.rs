@@ -1,4 +1,4 @@
-//! Opt-in array construction; ordinary descriptors never acquire authority implicitly.
+//! Private opt-in array construction, authority checks and payload relocation.
 use std::ops::ControlFlow;
 
 use crate::{
@@ -12,7 +12,7 @@ use wasm_encoder::{
 
 use super::{
     CodegenError, abi,
-    allocator_core::{self, HeadAccess, emit, mem},
+    allocator_core::{self, HeadAccess, emit, mem, trap_if},
     array,
     indices::{FunctionIndex, TypeIndex},
     layout::MemoryLayout,
@@ -38,6 +38,22 @@ pub(super) struct Plan {
     core: allocator_core::Emitter,
     array_registry: u32,
     elements: Vec<ArrayElementType>,
+    constructors: Vec<ArrayElementType>,
+    reserves: Vec<ArrayElementType>,
+}
+
+enum AuthorityHelper {
+    Lookup,
+    Validate,
+}
+
+impl AuthorityHelper {
+    fn index(self) -> usize {
+        match self {
+            Self::Lookup => 0,
+            Self::Validate => 1,
+        }
+    }
 }
 
 fn ordinal(element: ArrayElementType) -> usize {
@@ -55,10 +71,23 @@ impl Plan {
         backing: Option<FunctionIndex>,
         mut intern: impl FnMut(Signature) -> Result<TypeIndex, CodegenError>,
     ) -> Result<Option<Self>, CodegenError> {
-        struct Discovery([bool; 3]);
+        #[derive(Default)]
+        struct Discovery {
+            elements: [bool; 3],
+            constructors: [bool; 3],
+            reserves: [bool; 3],
+        }
         impl Visitor<'_> for Discovery {
             type Break = std::convert::Infallible;
             fn enter_expression(&mut self, expr: &TypedExpr) -> ControlFlow<Self::Break> {
+                if let Some(element) = expr.array_element_type() {
+                    self.elements[ordinal(element)] = true;
+                }
+                if let TypedExprKind::Reserve { receiver, .. } = &expr.kind {
+                    let element = array::element(receiver);
+                    self.reserves[ordinal(element)] = true;
+                    self.elements[ordinal(element)] = true;
+                }
                 if let TypedExprKind::Call {
                     func: FunctionRef::Builtin(BuiltinFunction::Resizable),
                     args,
@@ -68,28 +97,36 @@ impl Plan {
                     let element = args
                         .first()
                         .map_or(ArrayElementType::Number, array::element);
-                    self.0[ordinal(element)] = true;
+                    self.constructors[ordinal(element)] = true;
+                    self.elements[ordinal(element)] = true;
                 }
                 ControlFlow::Continue(())
             }
         }
-        let mut discovery = Discovery([false; 3]);
+        let mut discovery = Discovery::default();
         for function in &program.functions {
             let _ = walker::walk_function(function, &mut discovery);
         }
-        let elements: Vec<_> = [
-            ArrayElementType::Number,
-            ArrayElementType::Bool,
-            ArrayElementType::String,
-        ]
-        .into_iter()
-        .filter(|e| discovery.0[ordinal(*e)])
-        .collect();
-        if elements.is_empty() {
+        let select = |selected: [bool; 3]| -> Vec<_> {
+            [
+                ArrayElementType::Number,
+                ArrayElementType::Bool,
+                ArrayElementType::String,
+            ]
+            .into_iter()
+            .filter(|e| selected[ordinal(*e)])
+            .collect()
+        };
+        let constructors = select(discovery.constructors);
+        let reserves = select(discovery.reserves);
+        if constructors.is_empty() && reserves.is_empty() {
             return Ok(None);
         }
-        let core_count = super::checked_u32(AllocatorHelper::ALL.len(), "M4 core helper count")?;
-        let count = core_count + super::checked_u32(elements.len(), "M4 constructor count")?;
+        let elements = select(discovery.elements);
+        let count = super::checked_u32(
+            AllocatorHelper::ALL.len() + constructors.len() + 2 * elements.len() + reserves.len(),
+            "M4 helper count",
+        )?;
         first_function
             .checked_add(count)
             .ok_or(CodegenError::LimitExceeded {
@@ -99,10 +136,17 @@ impl Plan {
             .into_iter()
             .map(AllocatorHelper::signature)
             .chain(
-                elements
+                constructors
                     .iter()
-                    .map(|_| abi::resizable_constructor_signature()),
+                    .map(|_| abi::resizable_handle_signature()),
             )
+            .chain(elements.iter().flat_map(|_| {
+                [
+                    abi::resizable_handle_signature(),
+                    abi::resizable_handle_signature(),
+                ]
+            }))
+            .chain(reserves.iter().map(|_| abi::resizable_reserve_signature()))
             .map(&mut intern)
             .collect::<Result<Vec<_>, _>>()?;
         let first_function = FunctionIndex::new(first_function);
@@ -111,7 +155,7 @@ impl Plan {
             find: first_function.offset(AllocatorHelper::Find.index()),
             head: first_function.offset(AllocatorHelper::Head.index()),
             set_head: first_function.offset(AllocatorHelper::SetHead.index()),
-            backing: backing.expect("constructor discovery also requires ordinary memory"),
+            backing: backing.expect("M4 discovery also requires ordinary memory"),
             last_identity: LAST_IDENTITY_GLOBAL,
             registry: ALLOCATOR_REGISTRY_GLOBAL,
             heads: std::array::from_fn(|i| {
@@ -124,17 +168,68 @@ impl Plan {
             core,
             array_registry: ARRAY_REGISTRY_GLOBAL,
             elements,
+            constructors,
+            reserves,
         }))
     }
 
     pub(super) fn constructor(&self, element: ArrayElementType) -> FunctionIndex {
         let slot = self
-            .elements
+            .constructors
             .iter()
             .position(|e| *e == element)
             .expect("constructor discovered structurally");
         self.first_function
             .offset(u32::try_from(AllocatorHelper::ALL.len() + slot).expect("bounded helpers"))
+    }
+
+    /// Returns zero for fixed storage; registered objects are fully validated.
+    pub(super) fn lookup(&self, element: ArrayElementType) -> FunctionIndex {
+        self.authority_helper(element, AuthorityHelper::Lookup)
+    }
+
+    /// Returns the authority record, trapping if the exact handle is not registered.
+    pub(super) fn validate(&self, element: ArrayElementType) -> FunctionIndex {
+        self.authority_helper(element, AuthorityHelper::Validate)
+    }
+
+    pub(super) fn reserve(&self, element: ArrayElementType) -> FunctionIndex {
+        let slot = self
+            .reserves
+            .iter()
+            .position(|e| *e == element)
+            .expect("reserve discovered structurally");
+        self.first_function.offset(
+            u32::try_from(
+                AllocatorHelper::ALL.len()
+                    + self.constructors.len()
+                    + 2 * self.elements.len()
+                    + slot,
+            )
+            .expect("bounded helpers"),
+        )
+    }
+
+    fn authority_helper(
+        &self,
+        element: ArrayElementType,
+        operation: AuthorityHelper,
+    ) -> FunctionIndex {
+        let slot = self
+            .elements
+            .iter()
+            .position(|e| *e == element)
+            .expect("array type discovered structurally");
+        self.first_function.offset(
+            u32::try_from(
+                AllocatorHelper::ALL.len() + self.constructors.len() + 2 * slot + operation.index(),
+            )
+            .expect("bounded helpers"),
+        )
+    }
+
+    fn core_helper(&self, helper: AllocatorHelper) -> FunctionIndex {
+        self.first_function.offset(helper.index())
     }
 
     pub(super) fn append(
@@ -178,12 +273,282 @@ impl Plan {
             core.head(HeadAccess::Read),
             core.head(HeadAccess::Write),
             core.validate(),
+            core.release(),
         ] {
             code.function(&body);
         }
-        for &element in &self.elements {
+        for &element in &self.constructors {
             code.function(&self.emit_constructor(element, memory));
         }
+        for &element in &self.elements {
+            code.function(&self.emit_lookup(element, memory));
+            code.function(&self.emit_validate(element));
+        }
+        for &element in &self.reserves {
+            code.function(&self.emit_reserve(element));
+        }
+    }
+
+    fn emit_lookup(&self, element: ArrayElementType, memory: &MemoryLayout) -> Function {
+        use Instruction::*;
+        // handle0, record1. Never derive an authority record from a supplied handle.
+        let mut f = Function::new([(1, ValType::I32)]);
+        emit(
+            &mut f,
+            &[
+                GlobalGet(self.array_registry),
+                LocalSet(1),
+                Block(BlockType::Empty),
+                Loop(BlockType::Empty),
+                LocalGet(1),
+                I32Eqz,
+                BrIf(1),
+                LocalGet(1),
+                I32Load(mem(HANDLE, 2)),
+                LocalGet(0),
+                I32Eq,
+                If(BlockType::Empty),
+                LocalGet(1),
+                I32Load(mem(KIND, 2)),
+                I32Const(i32::try_from(ordinal(element)).expect("element kind")),
+                I32Ne,
+                LocalGet(1),
+                I32Load(mem(RESERVED, 2)),
+                I32Or,
+            ],
+        );
+        trap_if(&mut f);
+        emit(
+            &mut f,
+            &[
+                LocalGet(0),
+                Call(
+                    memory
+                        .first_function
+                        .offset(memory.plan.helper_index(array::validator(element)))
+                        .raw(),
+                ),
+                Drop,
+                LocalGet(1),
+                I32Load(mem(LENGTH, 2)),
+                LocalGet(0),
+                I32Load(mem(
+                    abi::DESCRIPTOR_LENGTH_OFFSET,
+                    abi::DESCRIPTOR_FIELD_ALIGN_LOG2,
+                )),
+                I32Ne,
+                LocalGet(1),
+                I32Load(mem(PAYLOAD, 2)),
+                LocalGet(0),
+                I32Load(mem(
+                    abi::DESCRIPTOR_DATA_OFFSET,
+                    abi::DESCRIPTOR_FIELD_ALIGN_LOG2,
+                )),
+                I32Ne,
+                I32Or,
+                LocalGet(1),
+                I64Load(mem(CAPACITY, 3)),
+                I64Const(i64::from(abi::MIN_ALLOCATION_BYTES)),
+                I64LtU,
+                I32Or,
+                LocalGet(1),
+                I64Load(mem(CAPACITY, 3)),
+                I64Const(abi::ALLOCATOR_MAX_REQUEST),
+                I64GtU,
+                I32Or,
+                LocalGet(1),
+                I32Load(mem(LENGTH, 2)),
+                I64ExtendI32U,
+                I64Const(i64::from(array::width(element))),
+                I64Mul,
+                LocalGet(1),
+                I64Load(mem(CAPACITY, 3)),
+                I64GtU,
+                I32Or,
+            ],
+        );
+        trap_if(&mut f);
+        emit(
+            &mut f,
+            &[
+                LocalGet(1),
+                I32Load(mem(PAYLOAD, 2)),
+                LocalGet(1),
+                I64Load(mem(IDENTITY, 3)),
+                LocalGet(1),
+                I64Load(mem(CAPACITY, 3)),
+                Call(self.core_helper(AllocatorHelper::Validate).raw()),
+                LocalGet(1),
+                Return,
+                End,
+                LocalGet(1),
+                I32Load(mem(NEXT, 2)),
+                LocalSet(1),
+                Br(0),
+                End,
+                End,
+                I32Const(0),
+                End,
+            ],
+        );
+        f
+    }
+
+    fn emit_validate(&self, element: ArrayElementType) -> Function {
+        use Instruction::*;
+        let mut f = Function::new([(1, ValType::I32)]);
+        emit(
+            &mut f,
+            &[
+                LocalGet(0),
+                Call(self.lookup(element).raw()),
+                LocalTee(1),
+                I32Eqz,
+            ],
+        );
+        trap_if(&mut f);
+        emit(&mut f, &[LocalGet(1), End]);
+        f
+    }
+
+    fn emit_reserve(&self, element: ArrayElementType) -> Function {
+        use Instruction::*;
+        // handle0:i32, additional1:f64; record2, old3, new4, byte5:i32;
+        // live6, capacity7, old_identity8, new_identity9:i64.
+        let mut f = Function::new([(4, ValType::I32), (4, ValType::I64)]);
+        emit(
+            &mut f,
+            &[
+                // Argument effects have completed; capture the current published state anew.
+                LocalGet(0),
+                Call(self.validate(element).raw()),
+                LocalSet(2),
+                LocalGet(1),
+                F64Const(0.0.into()),
+                F64Ge,
+                LocalGet(1),
+                F64Const(
+                    f64::from(
+                        u32::try_from(abi::ALLOCATOR_MAX_REQUEST)
+                            .expect("memory32 request ceiling"),
+                    )
+                    .into(),
+                ),
+                F64Le,
+                I32And,
+                I32Eqz,
+                LocalGet(1),
+                LocalGet(1),
+                F64Trunc,
+                F64Ne,
+                I32Or,
+            ],
+        );
+        trap_if(&mut f);
+        emit(
+            &mut f,
+            &[
+                // Both addends are bounded before conversion; sizing stays widened.
+                LocalGet(2),
+                I32Load(mem(LENGTH, 2)),
+                I64ExtendI32U,
+                I64Const(i64::from(array::width(element))),
+                I64Mul,
+                LocalSet(6),
+                LocalGet(2),
+                I32Load(mem(LENGTH, 2)),
+                I64ExtendI32U,
+                LocalGet(1),
+                I64TruncF64U,
+                I64Add,
+                I64Const(i64::from(array::width(element))),
+                I64Mul,
+                LocalTee(7),
+                I64Const(abi::ALLOCATOR_MAX_REQUEST),
+                I64GtU,
+            ],
+        );
+        trap_if(&mut f);
+        emit(
+            &mut f,
+            &[
+                LocalGet(7),
+                LocalGet(2),
+                I64Load(mem(CAPACITY, 3)),
+                I64LeU,
+                If(BlockType::Empty),
+                Return,
+                End,
+                LocalGet(7),
+                Call(self.core_helper(AllocatorHelper::Classify).raw()),
+                I64ExtendI32U,
+                I64Const(i64::from(abi::MIN_ALLOCATION_BYTES.trailing_zeros())),
+                I64Add,
+                LocalSet(7),
+                I64Const(1),
+                LocalGet(7),
+                I64Shl,
+                LocalSet(7),
+                LocalGet(2),
+                I32Load(mem(PAYLOAD, 2)),
+                LocalSet(3),
+                LocalGet(2),
+                I64Load(mem(IDENTITY, 3)),
+                LocalSet(8),
+                LocalGet(7),
+                Call(self.core_helper(AllocatorHelper::Acquire).raw()),
+                LocalSet(9),
+                LocalSet(4),
+                LocalGet(4),
+                LocalGet(9),
+                LocalGet(7),
+                Call(self.core_helper(AllocatorHelper::Validate).raw()),
+                // Copy only live bytes. Spare capacity and unconsumed scalar values are not scanned.
+                Block(BlockType::Empty),
+                Loop(BlockType::Empty),
+                LocalGet(5),
+                I64ExtendI32U,
+                LocalGet(6),
+                I64GeU,
+                BrIf(1),
+                LocalGet(4),
+                LocalGet(5),
+                I32Add,
+                LocalGet(3),
+                LocalGet(5),
+                I32Add,
+                I32Load8U(mem(0, 0)),
+                I32Store8(mem(0, 0)),
+                LocalGet(5),
+                I32Const(1),
+                I32Add,
+                LocalSet(5),
+                Br(0),
+                End,
+                End,
+                // Preparation is complete. Publication and release have no callbacks.
+                LocalGet(0),
+                LocalGet(4),
+                I32Store(mem(
+                    abi::DESCRIPTOR_DATA_OFFSET,
+                    abi::DESCRIPTOR_FIELD_ALIGN_LOG2,
+                )),
+                LocalGet(2),
+                LocalGet(4),
+                I32Store(mem(PAYLOAD, 2)),
+                LocalGet(2),
+                LocalGet(7),
+                I64Store(mem(CAPACITY, 3)),
+                LocalGet(2),
+                LocalGet(9),
+                I64Store(mem(IDENTITY, 3)),
+                LocalGet(3),
+                LocalGet(8),
+                Call(self.core_helper(AllocatorHelper::Release).raw()),
+                End,
+            ],
+        );
+        f
     }
 
     fn emit_constructor(&self, element: ArrayElementType, memory: &MemoryLayout) -> Function {

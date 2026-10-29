@@ -95,6 +95,7 @@ pub enum TokenKind<'a> {
     OrOr,
     Pipeline,
 
+    Dot,
     DotDot,
     DotDotEqual,
     Arrow,

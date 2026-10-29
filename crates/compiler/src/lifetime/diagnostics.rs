@@ -290,6 +290,14 @@ impl Scan<'_> {
                     self.expr(element);
                 }
             }
+            TypedExprKind::Reserve {
+                receiver,
+                additional,
+            } => {
+                self.reason(UnprovenReason::HandleUse);
+                self.expr(receiver);
+                self.expr(additional);
+            }
             TypedExprKind::Index { expr, index } => {
                 self.expr(expr);
                 self.expr(index);

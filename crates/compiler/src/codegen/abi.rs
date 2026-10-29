@@ -64,16 +64,18 @@ pub(super) enum AllocatorHelper {
     Head,
     SetHead,
     Validate,
+    Release,
 }
 
 impl AllocatorHelper {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Classify,
         Self::Acquire,
         Self::Find,
         Self::Head,
         Self::SetHead,
         Self::Validate,
+        Self::Release,
     ];
 
     pub fn index(self) -> u32 {
@@ -84,6 +86,7 @@ impl AllocatorHelper {
             Self::Head => 3,
             Self::SetHead => 4,
             Self::Validate => 5,
+            Self::Release => 6,
         }
     }
 
@@ -95,15 +98,23 @@ impl AllocatorHelper {
             Self::Find | Self::Head => (vec![I32], vec![I32]),
             Self::SetHead => (vec![I32, I32], vec![]),
             Self::Validate => (vec![I32, I64, I64], vec![]),
+            Self::Release => (vec![I32, I64], vec![]),
         };
         Signature { params, results }
     }
 }
 
-pub(super) fn resizable_constructor_signature() -> Signature {
+pub(super) fn resizable_handle_signature() -> Signature {
     Signature {
         params: vec![ValType::I32],
         results: vec![ValType::I32],
+    }
+}
+
+pub(super) fn resizable_reserve_signature() -> Signature {
+    Signature {
+        params: vec![ValType::I32, ValType::F64],
+        results: vec![],
     }
 }
 

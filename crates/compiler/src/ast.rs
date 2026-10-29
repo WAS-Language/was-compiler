@@ -110,6 +110,12 @@ pub enum Expr {
         span: Span,
     },
 
+    Reserve {
+        receiver: Box<Expr>,
+        args: Vec<CallArgument>,
+        span: Span,
+    },
+
     Lambda(Lambda),
 
     Loop {

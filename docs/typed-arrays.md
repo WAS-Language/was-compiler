@@ -26,8 +26,11 @@ The [memory ABI](memory-abi.md) owns layout and consumption rules;
 [ADR 0006](adr/0006-typed-array-layout-and-lazy-element-validation.md) records the
 untagged-layout/lazy-validation decision. This extension improves extensibility,
 not reclamation or optimization; ordinary array allocation remains monotonic.
-The later [#65 resizable constructor](resizable-arrays.md) adds an opt-in fresh
-copy, not resize operations or a new #37 release claim.
+Later [#65 construction and #66 reserve](resizable-arrays.md) add opt-in fresh
+copies, length-preserving reserve and relocation-safe writes for all three types.
+Push/pop/remove remain proposed; these additions do not extend #37 release evidence.
+[#66 final validation/review passed](resizable-arrays.md#issue-66-validation);
+integrated M4 release remains pending.
 
 ## Language contract
 
@@ -80,14 +83,28 @@ There are no nested arrays, `range[]`, `void[]`, growable lists, slices, chained
 indexing, implicit coercions, first-class callables, or new anonymous-result
 annotation syntax. String `len`/indexing/concatenation remain unsupported.
 
-## Resizable construction (#65; construction only)
+## Resizable arrays (#65 construction; #66 reserve)
 
 `resizable(source)` accepts any of the three array types and returns a fresh copy
 of the exact same type with private resize authority. Source evaluation happens
 once, complete outer storage and all copied logical elements are validated, and
 mutable slots are independent; immutable string values may be shared. Copying an
-already resizable array still creates a distinct collection. There are no exposed
-resize methods, relocation, shrinking or payload reclamation yet.
+already resizable array still creates a distinct collection.
+
+#66 adds only `identifier.reserve(additional)` for all three array types, returning
+void without changing length or the stable eight-byte descriptor handle. Capacity
+and authority remain private, with no public query. Reserve captures and validates
+receiver authority before argument effects: even fixed-storage `reserve(0)` traps
+before evaluating its argument. It revalidates the captured object's current state
+after argument effects; receiver rebinding cannot redirect it. Additional must be
+finite, integral and nonnegative (`-0` accepted), with checked length addition and
+byte sizing within the 2^31-byte request ceiling; allocation may still fail.
+
+Growth acquires the full selected capacity, raw-copies live slots without consuming
+otherwise unconsumed bool bytes or string handles, then publishes the replacement
+before releasing the displaced owned payload. Push/pop/remove, shrinking and general
+reclamation remain proposed. See [the narrow #66 contract](resizable-arrays.md#reserve-contract-66)
+for complete ordering and failure rules.
 
 Expected array context reaches the source: `let flags: bool[] = resizable([]);`
 works, including through nested constructors. Unconstrained `resizable([])` retains
@@ -103,11 +120,13 @@ unrestricted. It requires one positional argument, is forbidden in pure defaults
 and contracts including skipped operands, and cannot be a direct builtin pipeline
 stage. A lexical callable shadowing that name uses normal callable rules.
 
-Ordinary literals/host copies stay fixed-storage even in constructor-using modules.
-No-M4 programs retain existing bytes and helper order. See [the focused constructor
-contract](resizable-arrays.md) and [private authority layout](memory-abi.md#private-resizable-array-authority-65).
-The #37 release evidence above retains its historical scope; it is not #65/M4
-release validation.
+Ordinary literals/host copies stay fixed-storage even in M4 modules; fixed-storage
+host lifetime rights are unchanged. No-M4 programs retain existing bytes and helper
+order. See [the construction/reserve contract and focused evidence](resizable-arrays.md)
+and [private authority layout](memory-abi.md#private-resizable-array-authority-65).
+The #37 and #65 release/validation records retain their historical scope. Use
+[the final #66 validation/review record](resizable-arrays.md#issue-66-validation)
+for this slice; integrated M4 release acceptance remains pending.
 
 ## Contextual literal typing and stable inference
 
@@ -159,13 +178,19 @@ remain untrapped. UTF-8 validity and string immutability remain host obligations
 There is no runtime type tag, provenance check or malicious-host isolation.
 
 Literal storage/descriptor initialization precedes element effects. Replacement
-checks and retains the destination before RHS effects, validates the replacement,
-and stores without consuming the overwritten element. Equality checks both outer
-storages before length exits and consumes left then right values in index order
+checks the destination before RHS effects, validates the replacement, and stores
+without consuming the overwritten element. Fixed-storage writes retain the original
+checked address; opt-in resizable writes capture handle/index and revalidate current
+authority/storage after the RHS before storing. Numeric compounds preserve the
+pre-RHS old value, and receiver rebinding does not redirect either write. Equality
+checks both outer storages before length exits and consumes left then right values in index order
 until a mismatch. Iteration caches handle/count, checks each live access and
 validates the yielded value before binding/capture promotion/body effects; aliases
 can change later elements. Transfers may skip consumption. Traps retain completed
-effects/allocations; saved Wasm offsets survive growth, JavaScript views do not.
+effects/allocations. Fixed-storage Wasm offsets survive growth, JavaScript views do
+not. Opt-in resizable payload pointers/lengths must also be reacquired from the
+stable descriptor after calls or reentrant callbacks that may relocate storage;
+this obligation is separate from refreshing views after memory growth.
 
 ## Public Rust migration
 
@@ -212,8 +237,11 @@ Explicit `createAbi` encode/decode supports `bool[]` and `string[]`, with plain
 JavaScript arrays containing only booleans or only strings. Encoding and decoding
 copy values; mutating native inputs or decoded arrays does not mutate guest
 storage. Direct raw-memory access remains the explicit sharing/zero-copy route.
+Encoding creates fixed-storage arrays; decoding copies current logical elements.
 Refresh views after every allocation/call that can grow memory, including nested
-string allocations. Handles remain instance-local.
+string allocations. For direct raw-memory access to opt-in arrays, also [reacquire
+payload pointers/lengths after possible relocation](resizable-arrays.md#relocation-safe-writes-and-host-borrows-66),
+including reentry. Fixed-storage lifetimes are unchanged; handles remain instance-local.
 
 New-array encoding reads the initial input length once and captures each indexed
 scalar once, validating its type and accounting its UTF-8 bytes against the same

@@ -306,7 +306,8 @@ fn scalar(expr: &TypedExpr, bindings: &Bindings) -> Proof<Type> {
         | TypedExprKind::Loop { .. } => {
             return Err(UnprovenReason::ControlFlow);
         }
-        TypedExprKind::String(_)
+        TypedExprKind::Reserve { .. }
+        | TypedExprKind::String(_)
         | TypedExprKind::Captured { .. }
         | TypedExprKind::Range { .. }
         | TypedExprKind::Array(..) => {

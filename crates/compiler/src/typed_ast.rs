@@ -200,6 +200,11 @@ pub enum TypedExprKind {
         args: Vec<TypedExpr>,
     },
 
+    Reserve {
+        receiver: Box<TypedExpr>,
+        additional: Box<TypedExpr>,
+    },
+
     NormalizedCall(TypedNormalizedCall),
 
     LexicalCall {

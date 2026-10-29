@@ -120,6 +120,12 @@ fn visit_owned(expression: &Expr, visit: &mut impl FnMut(&Expr)) {
                 }
             }
         }
+        Expr::Reserve { receiver, args, .. } => {
+            visit_owned(receiver, visit);
+            for arg in args {
+                visit_owned(&arg.value, visit);
+            }
+        }
         Expr::Call { args, .. } => {
             for arg in args {
                 visit_owned(&arg.value, visit);
@@ -873,6 +879,35 @@ impl Region<'_> {
                     left_flow.then(right_flow)
                 };
                 Some(self.constraints.concrete(result))
+            }
+            Expr::Reserve {
+                receiver,
+                args,
+                span: method_span,
+            } => {
+                SemanticAnalyzer::check_reserve_arguments(args, *method_span)?;
+                let (receiver, receiver_flow) = self.expression(receiver, span, None, reachable)?;
+                if reachable
+                    && receiver_flow.can_fall_through()
+                    && let Some(receiver) = receiver
+                {
+                    let array = self.constraints.variable();
+                    let relationship = self.constraints.connect(
+                        receiver,
+                        array,
+                        Relationship::SameArray,
+                        Site { order: site, span },
+                    );
+                    self.record(relationship, site, span);
+                }
+                let (_, additional_flow) = self.expression(
+                    &args[0].value,
+                    span,
+                    Some(Type::Number),
+                    reachable && receiver_flow.can_fall_through(),
+                )?;
+                flow = receiver_flow.then(additional_flow);
+                Some(self.constraints.concrete(Type::Void))
             }
             Expr::Call {
                 func,

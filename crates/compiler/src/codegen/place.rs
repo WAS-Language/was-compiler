@@ -94,6 +94,19 @@ pub(super) fn emit_assignment(
     };
     expect_operand(body.name(), ty, value.ty, span)?;
 
+    if let Place::Element { base, index } = &place
+        && body.movable_arrays().is_some()
+    {
+        let pending = PendingElement::plan(body, super::array::element(base));
+        let flow = pending.capture(base, index, body, span)?;
+        let flow = flow.then(body.emit_expr(value, span)?);
+        body.local_set(pending.value);
+        pending.address(body)?;
+        body.local_get(pending.value);
+        place.store(body);
+        return Ok(flow);
+    }
+
     let target_flow = if let Place::Element { base, index } = &place {
         values::emit_address(base, index, body, span)?
     } else {
@@ -132,6 +145,28 @@ pub(super) fn emit_compound_assignment(
     }
     expect_operand(body.name(), Type::Number, target.ty, span)?;
     expect_operand(body.name(), Type::Number, value.ty, span)?;
+
+    if let Place::Element { base, index } = &place
+        && body.movable_arrays().is_some()
+    {
+        // Keep the legacy address/old-value prefix in preorder, adding pending
+        // state only in modules that can contain movable objects.
+        let address = body.temporary(ValType::I32);
+        let old = body.temporary(ValType::F64);
+        let pending = PendingElement::with_address(body, super::array::element(base), address);
+        let flow = pending.capture(base, index, body, span)?;
+        body.local_get(address);
+        body.instruction(&super::array::load(crate::ast::ArrayElementType::Number, 0));
+        body.local_set(old);
+        body.local_get(old);
+        let flow = flow.then(body.emit_expr(value, span)?);
+        body.instruction(&instruction);
+        body.local_set(pending.value);
+        pending.address(body)?;
+        body.local_get(pending.value);
+        place.store(body);
+        return Ok(flow);
+    }
 
     let target_flow = match &place {
         Place::Cell(ty) => {
@@ -172,6 +207,86 @@ pub(super) fn emit_compound_assignment(
     place.store(body);
 
     Ok(flow)
+}
+
+struct PendingElement {
+    element: crate::ast::ArrayElementType,
+    saved_address: LocalIndex,
+    handle: LocalIndex,
+    index: LocalIndex,
+    movable: LocalIndex,
+    value: LocalIndex,
+}
+
+impl PendingElement {
+    fn plan(body: &BodyEmitter<'_>, element: crate::ast::ArrayElementType) -> Self {
+        let address = body.temporary(ValType::I32);
+        Self::with_address(body, element, address)
+    }
+
+    fn with_address(
+        body: &BodyEmitter<'_>,
+        element: crate::ast::ArrayElementType,
+        saved_address: LocalIndex,
+    ) -> Self {
+        Self {
+            element,
+            saved_address,
+            handle: body.temporary(ValType::I32),
+            index: body.temporary(ValType::F64),
+            movable: body.temporary(ValType::I32),
+            value: body.temporary(match element {
+                crate::ast::ArrayElementType::Number => ValType::F64,
+                crate::ast::ArrayElementType::Bool | crate::ast::ArrayElementType::String => {
+                    ValType::I32
+                }
+            }),
+        }
+    }
+
+    fn capture(
+        &self,
+        base: &TypedExpr,
+        index: &TypedExpr,
+        body: &mut BodyEmitter<'_>,
+        span: Span,
+    ) -> Result<Flow, CodegenError> {
+        let flow = body.emit_expr(base, span)?;
+        body.local_set(self.handle);
+        body.local_get(self.handle);
+        let flow = flow.then(body.emit_expr(index, span)?);
+        body.local_set(self.index);
+        body.local_get(self.index);
+        body.call(body.helper(super::array::address(self.element)));
+        body.local_set(self.saved_address);
+        body.local_get(self.handle);
+        body.call(
+            body.movable_arrays()
+                .expect("M4 pending place")
+                .lookup(self.element),
+        );
+        body.local_set(self.movable);
+        Ok(flow)
+    }
+
+    fn address(&self, body: &mut BodyEmitter<'_>) -> Result<(), CodegenError> {
+        body.local_get(self.movable);
+        body.begin_if(wasm_encoder::BlockType::Result(ValType::I32))?;
+        body.local_get(self.handle);
+        body.call(
+            body.movable_arrays()
+                .expect("M4 pending place")
+                .validate(self.element),
+        );
+        body.instruction(&wasm_encoder::Instruction::Drop);
+        body.local_get(self.handle);
+        body.local_get(self.index);
+        body.call(body.helper(super::array::address(self.element)));
+        body.otherwise();
+        body.local_get(self.saved_address);
+        body.end();
+        Ok(())
+    }
 }
 
 fn invalid_target(body: &BodyEmitter<'_>, span: Span) -> CodegenError {

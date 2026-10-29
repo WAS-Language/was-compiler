@@ -289,7 +289,7 @@ and [optimization handoff](docs/benchmarks/m4-typed-arrays/handoff.md) retain th
 historical pre-fix runtime hash; final hashes are recorded separately. Earlier
 extension release evidence remains historical.
 
-### Resizable array construction (#65; construction only)
+### Resizable arrays (#65 construction; #66 reserve)
 
 `resizable(source)` creates a fresh copy of a `number[]`, `bool[]` or `string[]`,
 with independent mutable slots and private resize authority. It evaluates the
@@ -314,12 +314,29 @@ while lexical shadowing and arbitrary host module/field names remain legal.
 The builtin takes exactly one positional argument, is forbidden in pure
 defaults/contracts (even skipped operands), and is not a direct pipeline stage.
 
-Only construction is implemented: push/pop/reserve/remove, relocation, shrinking
-and reclamation are not exposed. Ordinary literals and host encoding remain
-fixed-storage, even in constructor-using modules; programs without the constructor
-retain existing bytes/helper order. See [constructor contracts and validation
-guidance](docs/resizable-arrays.md); historical #37/M3 release evidence does not
-validate #65 or complete M4.
+#66 adds `copy.reserve(additional)` for all three array types: one positional
+`number` argument, returning void. It ensures capacity for at least current length
+plus additional without changing length or the stable eight-byte descriptor handle;
+there is no public capacity/authority query. Additional must be finite, integral and
+nonnegative (`-0` is zero), with checked byte sizing within the 2^31-byte request
+ceiling. Allocation may still fail. Push, pop, remove and shrinking remain proposed.
+
+Reserve captures and validates receiver authority before argument effects: even
+fixed-array `reserve(0)` traps before evaluating its argument. It revalidates after
+argument effects, using the captured object's current state. Growth raw-copies live
+slots without consuming otherwise unconsumed bool/string elements, publishes the
+replacement, then releases only the displaced owned payload. Resizable indexed
+writes capture handle/index before the RHS and revalidate current storage afterward;
+numeric compounds retain the old value. Fixed-array writes keep their original
+saved address. Hosts must reacquire opt-in payload pointers/lengths after possible
+relocation, separately from refreshing views after memory growth; fixed-storage
+host lifetimes are unchanged.
+
+Ordinary literals and host encoding remain fixed-storage, even in M4 modules;
+programs without M4 retain existing bytes/helper order. See [contracts and Rust node
+migration](docs/resizable-arrays.md). [#66 final validation and review passed](docs/resizable-arrays.md#issue-66-validation);
+integrated M4 release acceptance remains pending.
+Historical #65/#37/M3 records retain their original scope.
 
 ### Local callables and shared captures (WP11; release gates passed)
 
@@ -355,9 +372,10 @@ declarations. Nested helpers forward the same original read-only iteration cell;
 transitive callable dependencies retain that iteration's live environment. Mutable
 shadowing lets remain distinct. #31 supports `+=`, `-=`,
 `*=`, `/=`, and `%=` on captured numbers and captured numeric-array elements,
-including creator-side promoted bindings. Updates preserve the original checked
-place and old value across RHS effects; ordinary indexed assignment also retains
-its pre-RHS checked address.
+including creator-side promoted bindings. Numeric compounds preserve the pre-RHS
+old value. Fixed indexed writes retain their pre-RHS checked address; opt-in
+resizable writes revalidate the captured handle/index against current storage after
+RHS effects, including relocation through captures or reentry.
 
 Callables cannot be aliased, reassigned, annotated with a value type, passed,
 returned or used as values. General postfix invocation, closure defaults/contracts/result
@@ -718,8 +736,10 @@ fn main() -> number {
 Memory-backed modules export `memory` and `__alloc`. Strings and arrays cross
 function boundaries as `i32` descriptor handles, not JavaScript strings/arrays.
 Strings are immutable UTF-8 values; array assignments alias mutable storage.
-Allocation is an aligned, growable bump allocator with **no freeing or garbage
-collection yet**. Scalar-only modules do not include the memory runtime.
+Ordinary allocation uses an aligned, growable bump allocator. Only displaced owned
+resizable payloads are released after reserve replacement publication; stable
+descriptors/authority records and unreachable arrays remain retained. There is no
+general free or garbage collection. Scalar-only modules omit the memory runtime.
 
 All user functions are exported by default. `ExportOptions` or CLI `--export` /
 `--no-exports` select the public user-function surface without removing bodies or

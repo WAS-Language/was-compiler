@@ -312,7 +312,8 @@ impl Visitor<'_> for MemoryVisitor<'_> {
                 );
             }
 
-            TypedExprKind::Array(_, _)
+            TypedExprKind::Reserve { .. }
+            | TypedExprKind::Array(_, _)
             | TypedExprKind::Index { .. }
             | TypedExprKind::Range { .. }
             | TypedExprKind::Binary {

@@ -15,10 +15,19 @@ pub(super) fn plan(
     for_owner(BodyOwner::Function(function))
 }
 
+#[cfg(test)]
 pub(super) fn for_owner(function: BodyOwner<'_>) -> Result<Vec<ValType>, CodegenError> {
+    for_owner_with_movable(function, false)
+}
+
+pub(super) fn for_owner_with_movable(
+    function: BodyOwner<'_>,
+    movable: bool,
+) -> Result<Vec<ValType>, CodegenError> {
     let mut visitor = TemporaryVisitor {
         count: 0,
         types: Vec::new(),
+        movable,
     };
 
     if let ControlFlow::Break(error) = function.walk(&mut visitor) {
@@ -33,6 +42,7 @@ fn count(block: &crate::typed_ast::TypedBlock) -> Result<u32, CodegenError> {
     let mut visitor = TemporaryVisitor {
         count: 0,
         types: Vec::new(),
+        movable: false,
     };
 
     if let ControlFlow::Break(error) = walker::walk_block(block, &mut visitor) {
@@ -43,6 +53,7 @@ fn count(block: &crate::typed_ast::TypedBlock) -> Result<u32, CodegenError> {
 }
 
 struct TemporaryVisitor {
+    movable: bool,
     count: u32,
     types: Vec<ValType>,
 }
@@ -79,6 +90,28 @@ impl Visitor<'_> for TemporaryVisitor {
         {
             // Reserve before target/RHS children, matching place lowering.
             self.reserve(&[ValType::I32, ValType::F64])?;
+            if self.movable {
+                self.reserve(&[ValType::I32, ValType::F64, ValType::I32, ValType::F64])?;
+            }
+        }
+
+        if self.movable
+            && let TypedStatementKind::Assignment { target, .. } = &statement.kind
+            && let TypedExprKind::Index { expr: base, .. } = &target.kind
+        {
+            let value = match super::array::element(base) {
+                crate::ast::ArrayElementType::Number => ValType::F64,
+                crate::ast::ArrayElementType::Bool | crate::ast::ArrayElementType::String => {
+                    ValType::I32
+                }
+            };
+            self.reserve(&[
+                ValType::I32,
+                ValType::I32,
+                ValType::F64,
+                ValType::I32,
+                value,
+            ])?;
         }
 
         if let TypedStatementKind::Match { scrutinee, .. } = &statement.kind
@@ -105,6 +138,10 @@ impl Visitor<'_> for TemporaryVisitor {
     }
 
     fn enter_expression(&mut self, expr: &TypedExpr) -> ControlFlow<CodegenError> {
+        if matches!(expr.kind, TypedExprKind::Reserve { .. }) {
+            self.reserve(&[ValType::I32])?;
+        }
+
         if let TypedExprKind::Match { scrutinee, .. } = &expr.kind
             && let Some(ty) = super::match_::scratch_type(scrutinee.ty)
         {
@@ -304,6 +341,7 @@ mod tests {
         let mut visitor = TemporaryVisitor {
             count: u32::MAX - 1,
             types: Vec::new(),
+            movable: false,
         };
 
         assert_eq!(
@@ -324,6 +362,7 @@ mod tests {
         let mut visitor = TemporaryVisitor {
             count: u32::MAX,
             types: Vec::new(),
+            movable: false,
         };
 
         assert_eq!(

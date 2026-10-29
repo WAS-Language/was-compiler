@@ -339,7 +339,6 @@ impl Emitter {
         f
     }
 
-    #[cfg(test)]
     pub(super) fn release(&self) -> Function {
         use Instruction::*;
         // payload0:i32, identity1:i64; record2,class3:i32.

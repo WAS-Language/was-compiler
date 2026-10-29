@@ -111,6 +111,7 @@ impl SemanticAnalyzer {
                     self.check_pure_expression(&arg.value, span, context)?;
                 }
             }
+            Expr::Reserve { .. } => return Err(invalid("array methods are not allowed")),
             Expr::Lambda(_) => return Err(invalid("closures are not allowed")),
             Expr::Pipeline { .. } => return Err(invalid("pipelines are not allowed")),
             Expr::Array(_) => return Err(invalid("array construction is not allowed")),

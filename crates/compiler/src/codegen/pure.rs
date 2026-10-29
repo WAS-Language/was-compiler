@@ -36,7 +36,8 @@ pub(super) fn check(value: &TypedExpr, readable: &[VariableId]) -> Result<(), Vi
                 check(arg, readable)?;
             }
         }
-        TypedExprKind::Captured { .. }
+        TypedExprKind::Reserve { .. }
+        | TypedExprKind::Captured { .. }
         | TypedExprKind::Call { .. }
         | TypedExprKind::LexicalCall { .. }
         | TypedExprKind::NormalizedCall(_)

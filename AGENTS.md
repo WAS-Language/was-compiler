@@ -173,10 +173,15 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   only. The M3 adapter, configuration, observations and instrumentation remain
   `cfg(test)` in `allocator.rs`. Before changing shared emission, read [the adapter
   contract](docs/m3-private-allocator.md#reusable-emission-boundary-64); before changing
-  constructor typing, authority or storage, read [the #65 contract](docs/resizable-arrays.md).
-  Preserve planned indices, full-capacity acquisition and allocator-owned authority
-  validation. M2 migration, ordinary-array management, resize operations and
-  reclamation remain outside #65; expose no M3 controls or observations.
+  constructor/reserve typing, authority, relocation, pending writes or host payload
+  borrows, read [the #65/#66 contract](docs/resizable-arrays.md).
+  #66 adds narrow reserve and relocation-safe writes; preserve structural `Reserve`
+  discovery, planned per-element authority helpers, full-capacity acquisition and
+  publish-before-release ordering. Fixed writes retain saved addresses; resizable
+  writes revalidate captured handle/index after RHS effects, preserving compound old
+  values. Push/pop/remove, M2 migration, ordinary-array management and general
+  reclamation remain outside this slice. [#66 final validation/review passed](docs/resizable-arrays.md#issue-66-validation);
+  integrated M4 release remains pending. Expose no M3 controls or observations.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating
@@ -322,10 +327,16 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
 - Strings are immutable raw UTF-8 values. Arrays share mutable storage; ordinary
   literals and host encoding remain fixed-storage. #65 implements `resizable(source)`
   fresh copies for all array types, with contextual empty typing and private authority,
-  but no resize operations. `resizable` newly reserves global/host-language names,
+  and #66 adds identifier-receiver `reserve(additional)` for all three types without
+  changing length or exposing a capacity/authority query. Fixed receivers trap before
+  argument effects even for reserve(0); captured receivers are revalidated afterward.
+  `resizable` newly reserves global/host-language names,
   permits lexical shadowing, and is forbidden in pure defaults/contracts and direct
   builtin pipeline stages. Programs without M4 retain existing bytes/helper order;
-  see [the constructor contract](docs/resizable-arrays.md), not historical release gates.
+  see [the construction/reserve contract](docs/resizable-arrays.md) for numeric bounds,
+  raw unconsumed-slot copying, source/typed-node migration and focused evidence.
+  [#66 final validation/review passed](docs/resizable-arrays.md#issue-66-validation);
+  integrated M4 release remains pending. Historical #65 gates retain their scope.
 - `//` line comments and non-nesting `/* ... */` block comments are supported
   between tokens anywhere whitespace can appear; delimiters inside strings remain text.
 - Statement/value `loop` supports all concrete result types through value breaks;
@@ -357,8 +368,9 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   consumed string handles receive structural validation. Equality checks both
   outer storages then consumes left/right pairs until mismatch; iteration checks
   each yielded value before binding/capture promotion. Length does not consume.
-- Replacement retains its checked pre-RHS destination without consuming the old
-  value; compounds remain numeric-only. Preserve literal allocation-before-effects,
+- Replacement checks its destination before the RHS without consuming the old
+  value; compounds remain numeric-only. Fixed storage retains that address; #66
+  opt-in storage uses the relocation-safe write contract below. Preserve literal allocation-before-effects,
   alias visibility, untagged descriptors, capture lifetimes and no trap rollback.
 - Node new-array copies require plain JS arrays, mutation isolation, view refresh
   after growth and checked 64 MiB aggregate accounting (`N` bool bytes;
@@ -396,8 +408,9 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
 - #31 supports all five numeric compounds on captured scalar/indexed places and
   creator-side promoted bindings, including before the capturing declaration.
   Use the existing checked place path: retain the scalar cell address and old `f64`
-  on the stack; save indexed element address/old value in existing scratch before
-  RHS effects. Ordinary indexed assignments retain their checked pre-RHS address.
+  on the stack; save indexed old values before RHS effects. Fixed indexed writes
+  retain their pre-RHS checked address; #66 opt-in writes use captured handle/index
+  and post-RHS current-storage revalidation, including through captures/reentry.
   Preserve numeric/mutability checks, trap order and exact `%=` behavior.
 - #32 forwards original owner-qualified captures through every intermediate helper,
   reusing the original cell. Put canonical owner/declaration-ordered captures before
@@ -723,9 +736,11 @@ refactors; specify and test any intentional behavior change explicitly.
 - Evaluate operands, call arguments, and array elements exactly once, left-to-right.
   Indexed assignment validates the target and bounds **before evaluating the RHS**.
   Compound assignment additionally reads the old value before RHS effects and
-  writes to the original checked place. Indexed compounds use saved `i32` address
-  and `f64` old-value scratch slots; local compounds retain the old value on the
-  operand stack. `%=` uses the exact existing remainder helper.
+  preserves the pre-RHS old value. Fixed-storage indexed writes use the original
+  saved checked address; opt-in resizable writes capture handle/index and revalidate
+  current authority/storage after the RHS before storing. Receiver rebinding never
+  redirects either write. Indexed compounds use `f64` old-value scratch; local
+  compounds retain the old value on the operand stack. `%=` uses the existing helper.
 - Logical operators short-circuit at runtime, but both operands, unreachable
   statements, and unselected function bodies still receive static/backend checks.
 - Transfers target the nearest active while/for/loop within the function. Bare
@@ -804,7 +819,9 @@ refactors; specify and test any intentional behavior change explicitly.
   Addresses below `8` are invalid. Valid host payloads need not be contiguous with
   their descriptors. Handles are instance-local and assignments can alias arrays.
 - The bump allocator rounds to eight-byte alignment and reserves at least eight
-  bytes. There is no freeing. Memory32 grows in 65,536-byte pages with a maximum
+  bytes. Only displaced owned resizable payloads are released after replacement
+  publication; stable descriptors/authority and unreachable arrays remain retained.
+  There is no general free. Memory32 grows in 65,536-byte pages with a maximum
   of 65,535 pages; use widened unsigned range checks and explicit overflow checks.
 - Preserve memory helper order: `Alloc`, `ValidateString`, `ValidateArray`,
   `ArrayAddress`, `ArrayLen`, `StringEqual`, `ArrayEqual`. The optional remainder
@@ -816,7 +833,9 @@ refactors; specify and test any intentional behavior change explicitly.
   addresses element zero. Invalid indices/descriptors and allocation failure trap.
 - Hosts must preserve descriptor metadata, valid UTF-8, and string immutability.
   Trusted hosts can mutate array elements. Recreate JavaScript views after possible
-  memory growth. Guest bounds checks do not isolate malicious hosts or validate UTF-8.
+  memory growth. Opt-in resizable payload pointers/lengths must also be reacquired
+  after possible relocation, including reentry; fixed-storage lifetime rights stay
+  unchanged. Guest bounds checks do not isolate malicious hosts or validate UTF-8.
 - The compiler emits raw Wasm with no automatic JSON interface metadata. Optional
   runtime conversions are explicit copies, not part of the compiler ABI.
   There is no compiler-provided execution fuel, cancellation, or transactional rollback.

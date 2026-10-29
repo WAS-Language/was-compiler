@@ -81,6 +81,13 @@ impl<'a> Lexer<'a> {
 
                     self.make_token(kind)
                 }
+                b'.' if !self
+                    .source_iter
+                    .peek()
+                    .is_some_and(|char| char.is_ascii_digit()) =>
+                {
+                    self.make_token(TokenKind::Dot)
+                }
                 char if SYMBOLS.contains(char) => self.par_symbol(char),
                 char if char.is_ascii_digit() || *char == b'.' => self.number(),
                 char if char.is_ascii_alphabetic() || *char == b'_' => self.identifier(),
@@ -709,7 +716,7 @@ mod tests {
 
     #[test]
     fn rejects_malformed_numbers_as_single_tokens() {
-        for source in [".", ".5", "1.", "1.2.3", "1.2."] {
+        for source in [".5", "1.", "1.2.3", "1.2."] {
             let source = format!("{source};");
             assert!(matches!(
                 kinds(&source).as_slice(),

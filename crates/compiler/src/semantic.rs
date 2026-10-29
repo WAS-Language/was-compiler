@@ -1476,6 +1476,29 @@ impl SemanticAnalyzer {
                 return self.analyze_call(func, args, span, return_type, context);
             }
 
+            Expr::Reserve {
+                receiver,
+                args,
+                span: method_span,
+            } => {
+                Self::check_reserve_arguments(args, *method_span)?;
+                let (receiver, receiver_flow) = self.analyze_expr(receiver, span, return_type)?;
+                let element = Self::array_element(&receiver);
+                self.expect_type(Type::Array(element), receiver.ty, span)?;
+                let (additional, additional_flow) =
+                    self.analyze_expr(&args[0].value, span, return_type)?;
+                self.expect_type(Type::Number, additional.ty, span)?;
+                flow = receiver_flow.then(additional_flow);
+
+                (
+                    TypedExprKind::Reserve {
+                        receiver: Box::new(receiver),
+                        additional: Box::new(additional),
+                    },
+                    ExprResult::Void,
+                )
+            }
+
             Expr::Array(elements) => {
                 let mut values = Vec::with_capacity(elements.len());
 
@@ -1533,6 +1556,27 @@ impl SemanticAnalyzer {
         let ty = Self::completion_result(ty, flow);
 
         Ok((TypedExpr { kind, ty }, flow))
+    }
+
+    fn check_reserve_arguments(
+        args: &[crate::ast::CallArgument],
+        span: Span,
+    ) -> Result<(), SemanticError> {
+        if let Some(arg) = args.iter().find(|arg| arg.name.is_some()) {
+            return Err(SemanticError::NamedArgumentsNotSupported {
+                name: "reserve".into(),
+                span: arg.span,
+            });
+        }
+        if args.len() != 1 {
+            return Err(SemanticError::ArgumentCountMismatch {
+                name: "reserve".into(),
+                expected: 1,
+                found: args.len(),
+                span,
+            });
+        }
+        Ok(())
     }
 
     fn analyze_call(

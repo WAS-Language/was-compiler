@@ -70,7 +70,8 @@ impl<'a> Context<'a> {
             .ok_or(CodegenError::LimitExceeded {
                 what: "function local count",
             })?;
-        let temporary_types = temporaries::for_owner(function)?;
+        let temporary_types =
+            temporaries::for_owner_with_movable(function, module.resizable.is_some())?;
         let first_storage = first_temporary
             .checked_add(checked_u32(temporary_types.len(), "temporary local count")?)
             .ok_or(CodegenError::LimitExceeded {
@@ -366,6 +367,10 @@ impl<'a> BodyEmitter<'a> {
             .as_ref()
             .expect("M4 planned before emission")
             .constructor(element)
+    }
+
+    pub fn movable_arrays(&self) -> Option<&super::resizable::Plan> {
+        self.context.module.resizable.as_ref()
     }
 
     pub fn helper(&self, helper: Helper) -> FunctionIndex {

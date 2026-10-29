@@ -4,6 +4,270 @@ use was_compiler::typed_ast::{BuiltinFunction, FunctionRef, TypedExprKind, Typed
 use was_compiler::{ArrayElementType, CompileError, Compiler, Type};
 
 #[test]
+fn reserve_accepts_each_array_kind_and_fixed_storage_with_a_void_result() {
+    for ty in ["number[]", "bool[]", "string[]"] {
+        let source = format!("fn main(values: {ty}) {{ values.reserve(3); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        let TypedStatementKind::Expression(value) = &program.functions[0].body[0].kind else {
+            panic!()
+        };
+        assert_eq!(value.ty, Type::Void);
+        let TypedExprKind::Reserve {
+            receiver,
+            additional,
+        } = &value.kind
+        else {
+            panic!("expected reserve operation")
+        };
+        assert!(matches!(receiver.kind, TypedExprKind::Identifier { .. }));
+        assert!(matches!(&additional.kind, TypedExprKind::Number(n) if n == "3"));
+    }
+}
+
+#[test]
+fn reserve_keeps_identifier_receivers_without_general_postfix_syntax() {
+    for expression in [
+        "(values).reserve(1)",
+        "make().reserve(1)",
+        "values[0].reserve(1)",
+        "[1].reserve(1)",
+        "values.reserve(1).reserve(1)",
+        "values.reserve(1)[0]",
+        "values.reserve(1)()",
+        "values.push(1)",
+        "values.reserve",
+        "values.reserve(,)",
+        ".5",
+        "1.",
+    ] {
+        let source = format!("fn main(values: number[]) {{ {expression}; }}");
+        assert!(
+            matches!(
+                Compiler::new().analyze(&source),
+                Err(CompileError::Parse(_))
+            ),
+            "{source}"
+        );
+    }
+    Compiler::new().analyze("fn main(values: number[]) { values /* receiver */ . /* method */ reserve /* args */ (1); 0..1; 0..=1; 1.5; }").unwrap();
+}
+
+#[test]
+fn reserve_is_contextual_and_does_not_use_callable_name_resolution() {
+    let source = "fn reserve(n: number) -> number { return n; } fn main(reserve: number[]) { reserve.reserve(1); let invoke = (reserve: bool[]) => reserve.reserve(2); invoke([true]); }";
+    Compiler::new().analyze(source).unwrap();
+    let mut compiler = Compiler::new();
+    compiler
+        .register_host_function(
+            "reserve",
+            "env",
+            "reserve",
+            vec![Type::Number],
+            Type::Number,
+        )
+        .unwrap();
+    compiler
+        .analyze("fn main(a: string[]) { a.reserve(reserve(1)); }")
+        .unwrap();
+}
+
+#[test]
+fn reserve_rejects_arity_and_named_arguments_semantically_before_children() {
+    for (args, count) in [("", 0), ("missing, other", 2)] {
+        let source = format!("fn main() {{ unknown.reserve({args}); }}");
+        assert!(
+            matches!(semantic_error(&source), SemanticError::ArgumentCountMismatch { name, expected: 1, found, .. } if name == "reserve" && found == count)
+        );
+    }
+    for args in [
+        "additional: missing",
+        "1, additional: missing",
+        "additional: 1, 2",
+    ] {
+        let source = format!("fn main() {{ unknown.reserve({args}); }}");
+        assert!(
+            matches!(semantic_error(&source), SemanticError::NamedArgumentsNotSupported { name, .. } if name == "reserve")
+        );
+    }
+}
+
+#[test]
+fn reserve_checks_receiver_and_numeric_argument_without_proving_runtime_authority() {
+    for ty in ["number", "bool", "string", "range"] {
+        let source = format!("fn main(value: {ty}) {{ value.reserve(missing); }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::TypeMismatch {
+                    expected: Type::Array(_),
+                    ..
+                }
+            ),
+            "{source}"
+        );
+    }
+    for argument in ["true", "\"one\"", "[]", "0..1", "empty()"] {
+        let source = format!("fn empty() {{}} fn main(a: number[]) {{ a.reserve({argument}); }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::TypeMismatch {
+                    expected: Type::Number,
+                    ..
+                }
+            ),
+            "{source}"
+        );
+    }
+    Compiler::new().analyze("fn main() { let fixed = [1]; fixed.reserve(-0); fixed.reserve(-1); fixed.reserve(0.5); fixed.reserve(0 / 0); fixed.reserve(1 / 0); }").unwrap();
+    assert!(matches!(
+        semantic_error("fn main(a: number[]) { let result = a.reserve(0); }"),
+        SemanticError::InvalidVoidType { .. }
+    ));
+}
+
+#[test]
+fn reserve_preserves_never_flow_and_checks_unreachable_and_skipped_children() {
+    use was_compiler::typed_ast::ExprResult;
+    let program = Compiler::new()
+        .analyze("fn main(a: bool[]) -> number { a.reserve({ return 7; 1 }); }")
+        .unwrap();
+    let TypedStatementKind::Expression(value) = &program.functions[0].body[0].kind else {
+        panic!()
+    };
+    assert_eq!(value.ty, ExprResult::Never);
+    let program = Compiler::new()
+        .analyze("fn main(a: number[]) { a.reserve({ return; true }); }")
+        .unwrap();
+    let TypedStatementKind::Expression(value) = &program.functions[0].body[0].kind else {
+        panic!()
+    };
+    assert_eq!(value.ty, ExprResult::Never);
+    for body in [
+        "a.reserve({ return; let invalid: number = true; 1 });",
+        "return; a.reserve(true);",
+        "false && { a.reserve(true); true };",
+    ] {
+        let source = format!("fn main(a: number[]) {{ {body} }}");
+        assert!(
+            matches!(semantic_error(&source), SemanticError::TypeMismatch { .. }),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn reserve_rejects_defaults_and_contracts_even_in_skipped_operands() {
+    for source in [
+        "fn main(a: number[], n: bool = false && a.reserve(1)) {}",
+        "fn main(a: number[]) requires true || a.reserve(1) {}",
+    ] {
+        assert!(matches!(
+            semantic_error(source),
+            SemanticError::InvalidDefaultExpression { .. }
+                | SemanticError::InvalidContractExpression { .. }
+        ));
+    }
+}
+
+#[test]
+fn reserve_receiver_uses_original_captures_in_nested_helpers() {
+    use was_compiler::typed_ast::TypedClosureBody;
+    let program = Compiler::new().analyze("fn main(a: string[]) { let outer = () => { let inner = () => a.reserve(2); inner(); }; outer(); }").unwrap();
+    let TypedStatementKind::Closure(outer) = &program.functions[0].body[0].kind else {
+        panic!()
+    };
+    assert_eq!(outer.captures.len(), 1);
+    let TypedClosureBody::Block(block) = &outer.body else {
+        panic!()
+    };
+    let TypedStatementKind::Closure(inner) = &block.statements[0].kind else {
+        panic!()
+    };
+    assert_eq!(inner.captures, outer.captures);
+    let TypedClosureBody::Expression(value) = &inner.body else {
+        panic!()
+    };
+    let TypedExprKind::Reserve { receiver, .. } = &value.kind else {
+        panic!()
+    };
+    assert!(
+        matches!(receiver.kind, TypedExprKind::Captured { owner, id, .. } if owner == outer.captures[0].owner && id == outer.captures[0].variable)
+    );
+}
+
+#[test]
+fn reserve_arguments_participate_in_named_result_dependencies_and_callable_discovery() {
+    let program = Compiler::new().analyze("fn main(a: number[]) { a.reserve(count()); a.reserve({ let amount = () => 2; amount() }); } fn count() { return 3; }").unwrap();
+    assert_eq!(program.functions[1].return_type, Type::Number);
+}
+
+#[test]
+fn reserve_placeholder_argument_infers_number_with_region_local_array_evidence() {
+    for ty in ["number[]", "bool[]", "string[]"] {
+        let source = format!("fn main(a: {ty}) {{ let grow = a.reserve(_); grow(2); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        let TypedStatementKind::Closure(closure) = &program.functions[0].body[0].kind else {
+            panic!()
+        };
+        assert_eq!(closure.params[0].ty, Type::Number);
+        assert_eq!(closure.return_type, Type::Void);
+    }
+    Compiler::new()
+        .analyze(
+            "fn main() { let grow = { let a = _; a == [true]; a.reserve(_); }; grow([false], 2); }",
+        )
+        .unwrap();
+    for source in [
+        "fn main() { let grow = { let a = _; a.reserve(1); }; grow([1]); }",
+        "fn main(a: number[]) { let grow = { return; a.reserve(_); }; }",
+    ] {
+        assert!(
+            matches!(
+                semantic_error(source),
+                SemanticError::CannotInferPlaceholderParameter { .. }
+            ),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        semantic_error("fn main() { let grow = { let a = _; a + 1; a.reserve(_); }; }"),
+        SemanticError::ConflictingPlaceholderConstraints { .. }
+    ));
+}
+
+#[test]
+fn reserve_diagnostics_preserve_utf8_spans_and_optimization_parity() {
+    use was_compiler::{OptimizationLevel, tokens::Span};
+    let source = "fn main(a: number[]) { /* λ */ a.reserve(true); missing; }";
+    let start = source.find("a.reserve").unwrap();
+    let expected = CompileError::Semantic(SemanticError::TypeMismatch {
+        expected: Type::Number,
+        found: Type::Bool,
+        span: Span::new(start, start + "a.reserve(true);".len()),
+    });
+    let mut compiler = Compiler::new();
+    for level in [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        compiler.set_optimization_level(level);
+        assert_eq!(compiler.analyze(source).unwrap_err(), expected);
+        compiler
+            .analyze("fn main(a: bool[]) { a.reserve(1); }")
+            .unwrap();
+    }
+    let source = "fn main(a: number[]) { /* λ */ a.reserve(additional: 1); }";
+    let start = source.find("additional").unwrap();
+    assert_eq!(
+        semantic_error(source).span(),
+        Some(Span::new(start, start + "additional: 1".len()))
+    );
+}
+
+#[test]
 fn destination_array_context_reaches_the_source_through_nested_constructors() {
     for (ty, element) in [
         ("bool[]", ArrayElementType::Bool),

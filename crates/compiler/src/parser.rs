@@ -890,6 +890,20 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
                         args,
                         span: self.span_since(start),
                     })
+                } else if self.consume(TokenKind::Dot) {
+                    if !matches!(self.peek().map(|token| &token.kind), Some(TokenKind::Identifier(method)) if method == "reserve")
+                    {
+                        return Err(self.unexpected("reserve"));
+                    }
+                    self.advance();
+                    self.expect(TokenKind::LeftParen)?;
+                    let args = self.parse_call_arguments()?;
+
+                    Ok(Expr::Reserve {
+                        receiver: Box::new(Expr::Identifier(name)),
+                        args,
+                        span: self.span_since(start),
+                    })
                 } else if self.consume(TokenKind::LeftBracket) {
                     let index = Box::new(self.parse_expression()?);
 
@@ -1208,6 +1222,7 @@ fn token_name(kind: &TokenKind<'_>) -> &'static str {
         TokenKind::OrOr => "||",
         TokenKind::Pipeline => "|>",
 
+        TokenKind::Dot => ".",
         TokenKind::DotDot => "..",
         TokenKind::DotDotEqual => "..=",
         TokenKind::Arrow => "->",

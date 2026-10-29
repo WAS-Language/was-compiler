@@ -300,9 +300,17 @@
 
 
 <postfix_expression> ::= <identifier> <ws> "(" <ws> <argument_list>? <ws> ")"
+                       | <identifier> <ws> "." <ws> "reserve" <ws> "(" <ws> <argument_list>? <ws> ")"
                        | <identifier> <ws> "[" <ws> <expression> <ws> "]"
                        | <primary_expression>
 
+
+# reserve is contextual, not reserved. Only identifier receivers are admitted;
+# no parenthesized/call/index-result receivers or postfix chaining. Semantic
+# checking requires exactly one positional number argument and an array receiver.
+# The result is Void, or Never when a child cannot complete. Defaults/contracts
+# reject reserve even in skipped operands. A single dot does not alter range
+# tokens or admit .5 / 1. as numeric literals.
 
 <primary_expression> ::= <number_literal>
                        | <string_literal>

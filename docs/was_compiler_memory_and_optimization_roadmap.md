@@ -762,16 +762,24 @@ remain separately authorized work; no default or release decision is implied.
 
 **Goal:** Add collection operations without changing the current alias model.
 
-**Current slice (#65):** `resizable(source)` is implemented for `number[]`,
-`bool[]` and `string[]` as a fresh, resize-authorized copy with the existing public
-descriptor. Only the required allocation core is production-internal; its M3 test
-adapter remains `cfg(test)`. Ordinary literals/host encoding stay fixed-storage;
-programs without M4 retain existing bytes/helper order. See [the constructor
-contract](resizable-arrays.md) for naming migration, typing, private layout and
-validation guidance. This status does not claim integrated validation or M4 release.
-Push/pop/reserve/remove, payload relocation/shrinking/reclamation and the associated
-pending-write protocol below remain proposed. The interview decisions and original
-acceptance criteria retain their full-milestone scope, not #65 implementation scope.
+**Current slices (#65/#66):** `resizable(source)` creates a fresh, resize-authorized
+copy of `number[]`, `bool[]` or `string[]` with the existing public descriptor.
+#66 adds only `identifier.reserve(additional)` and relocation-safe indexed writes
+for all three types: reserve preserves length/handle, may relocate, and releases
+only displaced owned payloads after publication. Fixed writes retain their original
+saved address; opt-in writes revalidate captured handle/index after the RHS and
+preserve compound old values. No public capacity/authority query is added.
+Only the required allocation core is production-internal; its M3 test adapter
+remains `cfg(test)`. Ordinary literals/host encoding stay fixed-storage and retain
+host lifetime rights; opt-in hosts must reacquire payload pointer/length borrows
+after possible relocation, separately from refreshing views after memory growth.
+Programs without M4 retain existing bytes/helper order. See [the slice contract](resizable-arrays.md)
+for ordering, numeric bounds, raw-copy consumption rules, helper planning and node
+migration. [#66 final validation and review passed](resizable-arrays.md#issue-66-validation);
+integrated M4 release acceptance remains pending.
+Historical #65 evidence retains its constructor-only scope. Push/pop/remove,
+shrinking and general reclamation remain proposed. The interview decisions and
+original acceptance criteria below retain their full-milestone scope.
 
 ### M4 interview decisions (2026-10-28; confirmed)
 
@@ -924,7 +932,7 @@ release evidence.
 - **Architecture record:** [ADR 0009](adr/0009-opt-in-resizable-array-storage.md)
   records the descriptor, authority, pending-write and reclamation trade-offs.
 
-### Selected representation (#65 construction implemented; resizing proposed)
+### Selected representation (#65 construction and #66 reserve implemented)
 
 ```text
 Stable array handle
@@ -947,7 +955,8 @@ private capacity/authority metadata over a sixteen-byte ABI revision. This prese
 public layout, but opt-in payload relocation has its own explicit host and indexed-write
 contracts above. #65 implements the descriptor/private-authority construction
 shape shown here; [the ABI document](memory-abi.md#private-resizable-array-authority-65)
-records its current private layout. Relocation and release remain proposed.
+records its current private layout. #66 implements reserve relocation and release
+of displaced owned payloads, not general reclamation.
 
 ### Compatibility constraints for deferred ownership work
 
@@ -972,11 +981,18 @@ view refresh and does not introduce M11's deferred host ownership protocol.
    callbacks during publication/release. Stable handles and post-RHS revalidation
    preserve language aliases; opt-in host payload borrows cannot span possible resize.
 
-Reserve uses the same replacement path without changing logical length. Pop/remove
-validate the returned element before mutation and retain capacity. A failed allocation
-preserves the old published array, not prior argument effects or allocator history.
+#66 implements reserve's replacement path without changing logical length: capture
+and validate authority before the argument (fixed reserve(0) traps before effects),
+then revalidate post-argument state and check finite integral nonnegative additional
+(`-0` accepted), widened addition and byte sizing within the 2^31-byte ceiling.
+Acquire the full selected capacity and raw-copy live slots without scanning
+unconsumed bool/string values; publish before releasing the old owned buffer.
+Constructor/`Reserve` discovery and per-element authority helpers are planned before
+checked lowering. A failed allocation preserves the post-argument published array,
+not prior effects or allocator history. Proposed pop/remove validate their returned
+element before mutation and retain capacity.
 
-### Proposed API
+### API status (implemented versus proposed)
 
 ```text
 resizable(source)
@@ -989,8 +1005,10 @@ len(values)
 
 The interview selected identifier-receiver method syntax and the explicit copy
 constructor `resizable(source)`. Push/reserve return void; pop/remove return an element,
-with empty pop trapping. The constructor is implemented by #65 and `len` already
-exists; the four methods remain confirmed design choices, not implemented features.
+with empty pop trapping in the proposed design. The constructor is implemented by
+#65, reserve by #66, and `len` already exists. Push/pop/remove remain confirmed
+design choices, not implemented features; the append growth algorithm above and
+full-milestone exit gate below are still proposals, not #66 acceptance evidence.
 
 ### Specific tests
 

@@ -35,11 +35,14 @@ implemented guarantees to regression tests and current-source adapter evidence.
   transfer. See [runtime integration](runtime-integration.md).
 
 Revision 1 did not implement resizable arrays, payload relocation/reclamation or
-string-edit operations. Later #65 adds [explicit resizable construction](#private-resizable-array-authority-65)
-without changing the public descriptor or exposing resize/reclamation operations.
+string-edit operations. Later #65 adds explicit resizable construction and #66 adds
+narrow reserve/relocation-safe writes under [the opt-in authority contract](#private-resizable-array-authority-65),
+without changing the public descriptor. Revision 1's fixed-storage lifetime rights
+remain unchanged; opt-in payload borrows must be reacquired after possible relocation.
+Only displaced owned payloads are released; there is no general reclamation.
 The remaining agreed future constraints live in
 [the memory roadmap's M0 decisions](was_compiler_memory_and_optimization_roadmap.md#4-milestone-m0--semantics-and-regression-baseline),
-not in this implemented contract. A future management protocol must establish
+not in the revision 1 baseline. A future management protocol must establish
 management rights separately and respect existing raw-host retention guarantees.
 
 ## Local callables and shared captures (WP11)
@@ -251,8 +254,10 @@ Structural validity alone grants no resize authority; fabricating a valid descri
 or using ordinary literals/host encoding does not register it. These private fields
 are not a host construction API or protection against malicious memory mutation.
 
-Private `codegen/resizable.rs` plans helper/type/global indices before checked body
-lowering. It uses the required production-internal `codegen/allocator_core.rs`
+Private `codegen/resizable.rs` discovers constructors and `Reserve` structurally,
+including nested/skipped/unreachable nodes, and plans helper/type/global indices
+before checked body lowering. Per-element authority lookup/validation, selected
+constructors and reserve helpers are emitted in deterministic element order. It uses the required production-internal `codegen/allocator_core.rs`
 emission, acquiring the **entire capacity** as the requested extent, not treating
 allocator rounding slack as authorized storage. Current payload/acquisition/extent
 validation uses allocator-owned registry access, not duplicated allocator-record
@@ -261,14 +266,45 @@ offsets. The M3 adapter and its management exports, controls and observations st
 
 Publication follows successful copy/validation with no callbacks during preparation
 and publication. Failure can retain earlier successful unpublished allocations;
-there is no rollback or sweeping. Descriptors, authority records, payloads and
-unreachable arrays remain retained. #65 exposes construction only: no relocation,
-shrink or reclamation path, and indexed writes retain their existing saved-address
-behavior. Future resize operations require the separately specified pending-write
-protocol before payload movement is exposed. Regular literals and host encoding
-remain fixed-storage even in M4 modules. Programs without M4 retain existing bytes
-and helper order. See [constructor semantics and validation guidance](resizable-arrays.md);
-this addition does not claim an M4 release or extend historical #37/M3 evidence.
+there is no rollback or sweeping. Descriptors, authority records, current payloads
+and unreachable arrays remain retained. #65's constructor validation record remains
+historical; #66 adds only reserve and relocation-safe writes. [#66 final validation
+and review passed](resizable-arrays.md#issue-66-validation); integrated M4 release
+acceptance remains pending.
+
+`identifier.reserve(additional)` supports all three array types and returns void.
+Capture and validate the exact receiver authority before argument evaluation, even
+for zero: fixed-storage receivers trap before argument effects. Evaluate additional
+once, then revalidate current authority/storage after argument effects and use the
+captured object's post-argument length. Additional must be finite, integral and
+nonnegative (including `-0`); length addition and width-scaled sizing are checked
+before narrowing within the 2^31-byte request ceiling. Reserve never changes length
+or reduces capacity and has no exact-capacity guarantee or public query.
+
+When growth is needed, acquire and validate the **full** selected power-of-two byte
+capacity, raw-copy live slot bytes without consuming otherwise unconsumed bool bytes
+or string handles, and publish descriptor/private-authority replacement before
+releasing the displaced owned payload. Spare slots remain unreadable. No callbacks
+occur during copy/publication/release. Pre-publication failure preserves the
+post-argument published array; prior effects and allocator history are not rolled
+back. Immutable strings themselves are not released. Push/pop/remove and shrinking
+remain proposed; there is no general reclamation or public management API.
+
+Fixed-storage writes retain their original pre-RHS checked address, even in M4
+modules. Opt-in indexed writes capture and validate the handle/index before the
+RHS, preserve the old numeric value for compounds, and after RHS evaluation
+revalidate authority/index and resolve the current payload for the final store.
+Receiver rebinding does not redirect the store; RHS relocation cannot leave it
+writing into a released/reused buffer. Completed effects survive traps.
+
+Hosts may retain opt-in stable handles, but must reacquire payload pointers and
+lengths after calls or reentrant callbacks that may relocate storage. These payload
+borrows are separate from JavaScript views, which must also be refreshed after
+possible memory growth. Existing fixed-storage host lifetime rights are unchanged.
+Regular literals and host encoding remain fixed-storage even in M4 modules.
+Programs without M4 retain existing bytes and helper order. See [source contracts,
+node migration and focused evidence](resizable-arrays.md), not historical #37/M3
+evidence, for this slice.
 
 ## Numeric-array for consumption
 
@@ -399,10 +435,13 @@ not derive from production constants, so matching mistakes cannot hide ABI drift
   the handle, not the payload. Mutating through one alias changes all aliases.
 - Every evaluation of an array literal allocates fresh storage, including inside
   loops and recursive calls. Rebinding a variable does not modify its previous array.
-- Both static and allocated values live until the WebAssembly instance is discarded.
-  There is no freeing, reference counting, or garbage collector yet. Repeated
-  allocation can exhaust memory; this is an intentional initial policy, not an
-  optimization-level setting.
+- Static values, fixed-storage allocations, stable resizable descriptors/authority
+  records and unreachable arrays remain retained until the instance is discarded.
+  Only displaced owned resizable payloads are released after successful reserve
+  replacement publication; opt-in payload borrows must be reacquired after possible
+  relocation. There is no general free, reference counting or garbage collector.
+  Repeated allocation can exhaust memory; storage semantics are not selected by
+  optimization level.
 - Handles belong to one instance. Do not pass them between instances or retain them
   after their instance is discarded.
 

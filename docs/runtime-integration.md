@@ -203,8 +203,11 @@ iteration cell; transitive dependencies retain its live callable environment.
 Mutable shadowing lets remain distinct. See [the #33 contract](local-callable-interface.md#implemented-read-only-iteration-captures-33). #31 supports all five numeric compounds on captured scalar/indexed
 places, including creator-side promoted bindings. The checked target and old value
 are retained before RHS effects, even if the RHS rebinds the array or grows memory.
-Ordinary indexed assignments also preserve their pre-RHS checked element address.
-See [the subset, diagnostics and AST migration](local-callable-interface.md).
+Fixed-storage indexed assignments preserve their pre-RHS checked element address.
+For opt-in resizable arrays, #66 writes instead capture handle/index and revalidate
+current authority/storage after the RHS, preserving the old numeric compound value;
+receiver rebinding does not redirect them. See [the relocation-safe write contract](resizable-arrays.md#relocation-safe-writes-and-host-borrows-66)
+and [the subset, diagnostics and AST migration](local-callable-interface.md).
 
 Helpers are private direct-call functions after existing runtime helpers, not
 exports or host callables. Context-free declarations allocate no environment and
@@ -235,7 +238,9 @@ invocation. A trap escaping to the embedding also leaves the instance available
 for later calls. Neither path rolls back completed guest writes, host effects or
 successful allocations, nor runs automatic frame cleanup. Retained arrays and
 host-created strings returned through capture-allocating functions keep their
-instance-local offsets across later calls, traps and memory growth.
+instance-local handles across later calls, traps and memory growth. Fixed-storage
+payload offsets retain their lifetime rights; opt-in resizable payloads may relocate
+and must be reacquired after possible relocation, including reentry.
 
 Keep descriptor offsets rather than long-lived `DataView` or typed-array objects.
 After a potentially growing guest call or `__alloc`, obtain `exports.memory.buffer`
@@ -245,7 +250,7 @@ returns. A view from before growth can be detached; it is not a persistent refer
 
 Repeated bounded invocations can accumulate storage without bound until the
 instance's memory limit or engine allocation failure causes a trap. The compiler
-provides neither reclamation nor isolation from a host that corrupts memory.
+provides neither general reclamation nor isolation from a host that corrupts memory.
 See [the #34 coverage and validation](local-callable-interface.md#capture-lifetime-across-recursion-reentry-and-traps-34).
 
 Callables remain local lexical names, not first-class values: no aliasing,
@@ -476,7 +481,8 @@ or strings, not typed arrays/coercible values. Both directions copy: later nativ
 input/decoded-array mutations do not alter guest storage. Use direct memory access
 for deliberate shared mutation. Refresh views after allocations/calls that may grow
 memory, including per-string allocations; retaining Wasm offsets is not retaining
-valid JavaScript views.
+valid JavaScript views. Encoding still creates fixed-storage arrays; decoding
+copies current logical elements, not shared payload borrows.
 
 New-array encoding captures initial length/each scalar once, validates its type
 and accounts UTF-8 bytes against that snapshot, then copies only captured values.
@@ -494,6 +500,33 @@ See [final release evidence](typed-arrays.md#release-validation) for exact comma
 counts, tools and post-fix source hashes. Historical M4 [measurements](benchmarks/m4-typed-arrays/comparison.md)
 and [handoff](benchmarks/m4-typed-arrays/handoff.md) predate the runtime accessor fix;
 their hashes are preserved and are not claimed to match the final runtime.
+
+## Opt-in resizable storage (#65/#66)
+
+`resizable(source)` creates a fresh resize-authorized copy for `number[]`, `bool[]`
+and `string[]`. #66 adds only `identifier.reserve(additional)` and relocation-safe
+indexed writes, not push/pop/remove or shrinking. Reserve returns void, preserves
+length and the stable eight-byte descriptor handle, and exposes no capacity or
+authority query. It captures and validates receiver authority before the argument:
+fixed-storage receivers trap even for reserve(0), before argument effects. After
+evaluating the argument once, it revalidates the captured object's current state;
+rebinding cannot redirect it. Additional must be finite, integral and nonnegative
+(`-0` accepted), with checked sizing within the 2^31-byte request ceiling.
+
+Growth acquires full selected capacity, raw-copies live slots without scanning
+otherwise unconsumed bool bytes/string handles, and publishes replacement storage
+before releasing only the displaced owned payload. It adds no general free or host
+ownership-transfer API. Completed argument effects survive later failure. See [the
+narrow reserve contract](resizable-arrays.md#reserve-contract-66).
+
+Hosts may retain opt-in handles, but payload pointer/length borrows must be
+reacquired from the descriptor after any call or reentrant callback that may
+relocate storage. This applies even without memory growth and is separate from
+refreshing `DataView`/typed-array views after possible growth. Fixed-storage host
+lifetime guarantees and ordinary host encoding remain unchanged. See [host borrows
+and relocation-safe writes](resizable-arrays.md#relocation-safe-writes-and-host-borrows-66).
+[#66 final validation/review passed](resizable-arrays.md#issue-66-validation);
+integrated M4 release remains pending. Historical #37/#65 evidence retains its scope.
 
 ## Programmatic Node interface
 

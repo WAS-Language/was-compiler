@@ -429,6 +429,13 @@ fn normalize_expr(expr: &mut TypedExpr, next_id: &mut usize) {
                 normalize_expr(value, next_id);
             }
         }
+        TypedExprKind::Reserve {
+            receiver,
+            additional,
+        } => {
+            normalize_expr(receiver, next_id);
+            normalize_expr(additional, next_id);
+        }
         TypedExprKind::Index { expr, index } => {
             normalize_expr(expr, next_id);
             normalize_expr(index, next_id);
