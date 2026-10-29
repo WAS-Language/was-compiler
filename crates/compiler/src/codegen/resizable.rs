@@ -1008,6 +1008,10 @@ impl Plan {
 mod failure_tests;
 
 #[cfg(test)]
+#[path = "resizable_measurement_tests.rs"]
+mod measurement_tests;
+
+#[cfg(test)]
 mod tests {
     use crate::Compiler;
     use wasmparser::{Operator, Parser, Payload, Validator};

@@ -1,0 +1,13 @@
+
+running 5 tests
+test codegen::allocator::measurement_tests::instrumentation_export_collision_is_private_to_the_requested_variant ... ok
+test codegen::allocator::measurement_tests::instrumentation_is_explicit_and_preserves_calls_and_memory_operations ... ok
+test codegen::allocator::measurement_tests::record_m3_accounting ... ok
+test codegen::allocator::measurement_tests::record_m3_guest_timing ... ok
+test codegen::allocator::measurement_tests::record_m3_registry_search ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 579 filtered out; finished in 1.24s
+
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.33s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-eb8c15a554b28099.exe)

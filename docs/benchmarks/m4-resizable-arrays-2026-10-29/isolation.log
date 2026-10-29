@@ -1,0 +1,10 @@
+
+running 3 tests
+test codegen::resizable::measurement_tests::counters_only_add_exact_increments_after_live_registry_guards ... ok
+test codegen::resizable::measurement_tests::observation_export_collisions_are_private_to_the_requested_variant ... ok
+test codegen::resizable::measurement_tests::observations_are_private_and_ordinary_compilation_is_unchanged ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 581 filtered out; finished in 0.07s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-eb8c15a554b28099.exe)

@@ -30,6 +30,9 @@ findings on both review axes. The broader ignored workspace run timed out after
 release acceptance remains pending. Historical #65–#67, #37 typed-array and #63 M3 records retain their scope.
 [#70 adversarial verification](#issue-70-validation) adds private deterministic
 failure and public composition coverage without changing production behavior.
+[#71 growth, reuse and retained-storage measurements](benchmarks/m4-resizable-arrays-2026-10-29/README.md)
+add private observation and fresh ordinary-instance timing evidence, not integrated
+M4 release acceptance or a general memory-bound claim.
 
 ## Source contract and naming migration
 

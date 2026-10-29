@@ -1,0 +1,46 @@
+
+running 38 tests
+test pop_remove_pending_bool_and_string_stores_shift_current_index_or_trap_after_shrink ... ok
+test pop_remove_numeric_values_and_raw_shift_preserve_special_value_bits ... ok
+test captured_recursive_and_reentrant_construction_survives_growth_and_later_traps ... ok
+test pop_remove_recursive_captured_and_reentrant_pending_writes_survive_caught_inner_traps ... ok
+test ordinary_stores_follow_relocated_payload_not_rebound_receiver_or_reused_buffer ... ok
+test failed_rhs_retains_completed_reserve_and_reused_payload_without_final_store ... ok
+test bounded_allocation_failure_preserves_post_argument_published_arrays ... ok
+test pop_remove_iteration_keeps_initial_count_checks_later_yields_and_observes_shifts ... ok
+test fixed_storage_pending_writes_remain_bound_to_the_original_place_in_m4_modules ... ok
+test construction_consumes_every_logical_element_and_preserves_source_after_traps ... ok
+test copies_all_types_once_with_distinct_handles_and_mutable_slots ... ok
+test pop_remove_validate_only_returned_bool_or_string_before_any_mutation ... ok
+test pop_remove_all_types_preserve_identity_capacity_and_payload ... ok
+test push_all_types_spare_growth_and_numeric_special_values ... ok
+test node_copy_encoding_stays_fixed_and_decoding_snapshots_current_resizable_contents ... ok
+test push_copies_old_bool_and_string_slots_lazily_but_consumes_new_items ... ok
+test push_pending_bool_and_string_stores_survive_growth_and_reused_payloads ... ok
+test push_captured_receiver_survives_rebinding_nested_push_and_host_reentry ... ok
+test push_iteration_uses_initial_length_and_current_elements_for_all_types ... ok
+test push_validates_authority_before_effects_and_rechecks_post_item_state ... ok
+test push_reentrant_pending_writes_and_trapped_rhs_keep_invocation_state_separate ... ok
+test push_bounded_allocation_failure_preserves_post_item_state_for_all_types ... ok
+test reentrant_pending_writes_and_caught_inner_traps_use_distinct_invocation_scratch ... ok
+test remove_checks_authority_before_once_only_argument_and_numeric_domain_after_effects ... ok
+test push_traces_once_only_item_and_post_item_length_through_alias ... ok
+test remove_uses_captured_receiver_and_post_argument_length_after_nested_effects ... ok
+test remove_validates_post_argument_consumed_value_without_rolling_back_argument_effects ... ok
+test raw_hosts_reacquire_movable_payloads_across_reentry_traps_and_actual_memory_growth ... ok
+test reserve_captures_receiver_through_nested_reserve_rebinding_and_reentry ... ok
+test reserve_copies_unconsumed_bool_and_string_slots_without_scanning ... ok
+test reserve_checks_exact_runtime_authority_before_and_after_argument_effects ... ok
+test reserve_preserves_aliases_length_and_values_for_all_types ... ok
+test reserve_rejects_fixed_receivers_before_effects_and_checks_numeric_domain_after_effects ... ok
+test all_numeric_compounds_keep_pre_rhs_value_across_relocation_and_deterministic_reuse ... ok
+test pop_remove_pending_numeric_stores_and_all_compounds_use_saved_old_value_and_current_index ... ok
+test push_pending_stores_and_all_compounds_follow_current_payload_after_reuse ... ok
+test recursive_suspended_stores_and_all_compounds_survive_reuse_reentry_and_caught_traps ... ok
+test pending_stores_reject_post_rhs_authority_mismatch_and_recover_after_descriptor_restoration ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.12s
+
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.85s
+     Running tests\resizable_arrays_runtime.rs (target\debug\deps\resizable_arrays_runtime-0a829c25e4553b1b.exe)

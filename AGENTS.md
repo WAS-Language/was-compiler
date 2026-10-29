@@ -202,7 +202,10 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Expose no M3 controls or observations. Before changing M4 failure injection or
   interpreting authority/recovery coverage, read [#70's private seam and evidence](docs/resizable-arrays.md#issue-70-validation).
   Its `cfg(test)` fixture controls do not change production compilation or establish
-  integrated M4 release acceptance.
+  integrated M4 release acceptance. Before changing M4 measurement instrumentation,
+  workloads or storage/timing interpretation, read [#71's observation boundaries and evidence](docs/benchmarks/m4-resizable-arrays-2026-10-29/README.md).
+  Its unit-only observations stay separate from fresh ordinary-instance timing;
+  completed-call peaks exclude transient growth residency. Integrated M4 release remains pending.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating

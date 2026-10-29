@@ -1,0 +1,64 @@
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `bench` profile [optimized] target(s) in 22.05s
+     Running benches\compiler.rs (target\release\deps\compiler-509004ed9fef0a80.exe)
+workload,source_bytes,module_bytes
+scalar_1,77,88
+scalar_16,458,600
+scalar_64,1706,2232
+calls_1,205,159
+calls_16,2503,1653
+calls_64,9943,6456
+captures_1,196,1435
+captures_16,2008,5875
+captures_64,7864,20084
+compiler
+├─ lex
+│  ├─ calls_1
+│  ├─ calls_16
+│  ├─ calls_64
+│  ├─ captures_1
+│  ├─ captures_16
+│  ├─ captures_64
+│  ├─ scalar_1
+│  ├─ scalar_16
+│  ╰─ scalar_64
+├─ parse
+│  ├─ calls_1
+│  ├─ calls_16
+│  ├─ calls_64
+│  ├─ captures_1
+│  ├─ captures_16
+│  ├─ captures_64
+│  ├─ scalar_1
+│  ├─ scalar_16
+│  ╰─ scalar_64
+├─ semantic
+│  ├─ calls_1
+│  ├─ calls_16
+│  ├─ calls_64
+│  ├─ captures_1
+│  ├─ captures_16
+│  ├─ captures_64
+│  ├─ scalar_1
+│  ├─ scalar_16
+│  ╰─ scalar_64
+├─ source_compile
+│  ├─ calls_1
+│  ├─ calls_16
+│  ├─ calls_64
+│  ├─ captures_1
+│  ├─ captures_16
+│  ├─ captures_64
+│  ├─ scalar_1
+│  ├─ scalar_16
+│  ╰─ scalar_64
+╰─ typed_compile
+   ├─ calls_1
+   ├─ calls_16
+   ├─ calls_64
+   ├─ captures_1
+   ├─ captures_16
+   ├─ captures_64
+   ├─ scalar_1
+   ├─ scalar_16
+   ╰─ scalar_64

@@ -246,6 +246,17 @@ match, accounting/search results reproduce and timings vary. [Integrated M3
 validation](m3-allocation-infrastructure.md) records correctness and ordinary/M2
 noninterference acceptance for the private milestone only. M2 evidence remains unchanged.
 
+## Memory roadmap M4 — 2026-10-29 resizable-array measurements
+
+[#71's scoped evidence](benchmarks/m4-resizable-arrays-2026-10-29/README.md)
+records deterministic number/bool/string append, reserve, removal and displaced
+payload reuse, with explicit private accounting separated from fresh ordinary
+instance timing. It distinguishes acquired/live/free/retained storage and
+completed-call peaks, exact-class stranding and registry comparisons. Reproduce
+sequentially with `python tests/support/record_m4_resizable.py target/m4-reproduction`.
+This is distinct from historical issue #37's “M4” measurement phase below and
+does not establish integrated memory-roadmap M4 release acceptance.
+
 ## Issue #37 M4: comparative measurements and optimization handoff
 
 The M4 measurement portion is recorded in
