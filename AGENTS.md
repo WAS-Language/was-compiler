@@ -118,7 +118,8 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 | `crates/compiler/src/codegen/place.rs` | Shared checked local/index places, ordinary and compound assignment |
 | `crates/compiler/src/codegen/control_flow.rs`, `crates/compiler/src/codegen/call.rs`, `crates/compiler/src/codegen/values.rs` | Structured control flow, calls, literal values |
 | `crates/compiler/src/codegen/memory.rs`, `crates/compiler/src/codegen/numeric.rs` | Memory planning/helpers and optional floating remainder helper |
-| `crates/compiler/src/codegen/allocator.rs`, `crates/compiler/src/codegen/allocator/` | Private `cfg(test)` M3 allocation/release, observations, decoded/runtime and measurement tests; no production or M2 consumers |
+| `crates/compiler/src/codegen/allocator.rs`, `crates/compiler/src/codegen/allocator/` | Private `cfg(test)` M3 adapter, controls, observations and tests; separate from M2 |
+| `crates/compiler/src/codegen/allocator_core.rs`, `crates/compiler/src/codegen/resizable.rs` | Private reusable allocation emission and production M4 constructor/authority planning; no public management API |
 | `crates/compiler/src/codegen/range.rs` | Private range discovery, construction, record-validation, and exact membership helpers |
 | `crates/compiler/src/codegen/match_.rs` | Private checked match lowering, scrutinee cache, scoped arms and ordered comparison regions |
 | `crates/compiler/tests/match_frontend.rs`, `crates/compiler/tests/match_lowering.rs` | Match syntax/inference and forged-tree/decoded lowering contracts |
@@ -167,11 +168,15 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   sources, including all private runtimes, M2 noninterference, sequential measurement
   reproduction and freshly rebuilt ordinary browser compilation. Before changing M3
   validation or interpreting milestone acceptance, read that contract-to-test map.
-  #64 extracts reusable emission into `allocator/core.rs` behind explicit planned
-  indices, still under `cfg(test)`; configuration, observations and instrumentation
-  stay in `allocator.rs`. Before changing that seam, read [its adapter-operation
-  contract](docs/m3-private-allocator.md#reusable-emission-boundary-64).
-  Production activation, M2 migration and ordinary-array/M4 consumers remain unauthorized.
+  #64 extracted reusable emission behind explicit planned indices; #65 promotes
+  the required core to production-internal `allocator_core.rs` for M4 construction
+  only. The M3 adapter, configuration, observations and instrumentation remain
+  `cfg(test)` in `allocator.rs`. Before changing shared emission, read [the adapter
+  contract](docs/m3-private-allocator.md#reusable-emission-boundary-64); before changing
+  constructor typing, authority or storage, read [the #65 contract](docs/resizable-arrays.md).
+  Preserve planned indices, full-capacity acquisition and allocator-owned authority
+  validation. M2 migration, ordinary-array management, resize operations and
+  reclamation remain outside #65; expose no M3 controls or observations.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating
@@ -314,8 +319,13 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   [extension plan §5](docs/was_language_extensions_plan.md#5-documentation-and-validation-workflow).
   Before changing ranges or for, read extension spec §§5–6 and the
   [private record contract](docs/memory-abi.md#private-range-record).
-- Strings are immutable raw UTF-8 values. All supported arrays have fixed lengths and
-  mutable shared storage; every evaluated array literal allocates fresh storage.
+- Strings are immutable raw UTF-8 values. Arrays share mutable storage; ordinary
+  literals and host encoding remain fixed-storage. #65 implements `resizable(source)`
+  fresh copies for all array types, with contextual empty typing and private authority,
+  but no resize operations. `resizable` newly reserves global/host-language names,
+  permits lexical shadowing, and is forbidden in pure defaults/contracts and direct
+  builtin pipeline stages. Programs without M4 retain existing bytes/helper order;
+  see [the constructor contract](docs/resizable-arrays.md), not historical release gates.
 - `//` line comments and non-nesting `/* ... */` block comments are supported
   between tokens anywhere whitespace can appear; delimiters inside strings remain text.
 - Statement/value `loop` supports all concrete result types through value breaks;

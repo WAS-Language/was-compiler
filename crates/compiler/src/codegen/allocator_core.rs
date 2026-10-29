@@ -1,16 +1,15 @@
-//! Reusable test-only allocation emission. Indices are planned by the caller.
-use super::super::{abi, indices::FunctionIndex};
+//! Private reusable allocation emission. Indices are planned by the caller.
+use super::{abi, indices::FunctionIndex};
 use wasm_encoder::{BlockType, Function, Instruction, MemArg, ValType};
 
-// One reusable record per physical block, separate from the usable payload.
-const RECORD_BYTES: i32 = 32;
-const REGISTRY_NEXT: u64 = 0;
-const FREE_NEXT: u64 = 4;
-pub(super) const CLASS: u64 = 8;
-pub(super) const ACTIVE: u64 = 12;
-pub(super) const IDENTITY: u64 = 16;
-pub(super) const REQUESTED: u64 = 24;
-pub(super) const CLASS_COUNT: u32 = 29;
+pub(super) use abi::{
+    ALLOCATOR_ACTIVE as ACTIVE, ALLOCATOR_CLASS as CLASS, ALLOCATOR_CLASS_COUNT as CLASS_COUNT,
+    ALLOCATOR_IDENTITY as IDENTITY, ALLOCATOR_REQUESTED as REQUESTED,
+};
+use abi::{
+    ALLOCATOR_FREE_NEXT as FREE_NEXT, ALLOCATOR_RECORD_BYTES as RECORD_BYTES,
+    ALLOCATOR_REGISTRY_NEXT as REGISTRY_NEXT,
+};
 
 pub(super) enum HeadAccess {
     Read,
@@ -65,7 +64,7 @@ impl Emitter {
                 I64Const(0),
                 I64LtS,
                 LocalGet(0),
-                I64Const(1 << 31),
+                I64Const(abi::ALLOCATOR_MAX_REQUEST),
                 I64GtU,
                 I32Or,
             ],
@@ -298,6 +297,49 @@ impl Emitter {
         f
     }
 
+    /// Checks exact live acquisition authority and its requested extent without mutation.
+    pub(super) fn validate(&self) -> Function {
+        use Instruction::*;
+        // payload0:i32, identity1:i64, extent2:i64; record3:i32.
+        let mut f = Function::new([(1, ValType::I32)]);
+        emit(
+            &mut f,
+            &[LocalGet(0), Call(self.find.raw()), LocalTee(3), I32Eqz],
+        );
+        trap_if(&mut f);
+        emit(
+            &mut f,
+            &[
+                LocalGet(3),
+                I64Load(mem(IDENTITY, 3)),
+                LocalGet(1),
+                I64Ne,
+                LocalGet(3),
+                I32Load(mem(ACTIVE, 2)),
+                I32Const(1),
+                I32Ne,
+                I32Or,
+                LocalGet(3),
+                I64Load(mem(REQUESTED, 3)),
+                LocalGet(2),
+                I64Ne,
+                I32Or,
+                I64Const(i64::from(abi::MIN_ALLOCATION_BYTES)),
+                LocalGet(3),
+                I32Load(mem(CLASS, 2)),
+                I64ExtendI32U,
+                I64Shl,
+                LocalGet(2),
+                I64Ne,
+                I32Or,
+            ],
+        );
+        trap_if(&mut f);
+        emit(&mut f, &[End]);
+        f
+    }
+
+    #[cfg(test)]
     pub(super) fn release(&self) -> Function {
         use Instruction::*;
         // payload0:i32, identity1:i64; record2,class3:i32.

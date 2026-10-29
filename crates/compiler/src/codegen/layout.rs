@@ -43,6 +43,7 @@ pub(super) struct Layout<'a> {
     pub remainder: Option<UserFunctionPlan>,
     pub ranges: Vec<UserFunctionPlan>,
     pub callables: Vec<CallablePlan<'a>>,
+    pub resizable: Option<super::resizable::Plan>,
     #[cfg(test)]
     pub regions: Vec<super::region::Selection<'a>>,
     callees: Vec<CallTarget>,
@@ -76,6 +77,7 @@ impl<'a> Layout<'a> {
             remainder: None,
             ranges: Vec::new(),
             callables: Vec::new(),
+            resizable: None,
             #[cfg(test)]
             regions: Vec::new(),
             callees: Vec::new(),
@@ -252,7 +254,7 @@ impl<'a> Layout<'a> {
 
             let signature = Signature {
                 params: vec![wasm_encoder::ValType::F64, wasm_encoder::ValType::F64],
-                result: Some(wasm_encoder::ValType::F64),
+                results: vec![wasm_encoder::ValType::F64],
             };
 
             layout.remainder = Some(UserFunctionPlan {
@@ -302,6 +304,21 @@ impl<'a> Layout<'a> {
         layout.callables = closures::plan(program, first_callable, |signature| {
             layout.intern(signature, &mut type_indices)
         })?;
+
+        let first_resizable = first_callable
+            .checked_add(checked_u32(layout.callables.len(), "callable count")?)
+            .ok_or(CodegenError::LimitExceeded {
+                what: "M4 helper index",
+            })?;
+        let backing = layout.memory.as_ref().map(|memory| {
+            memory
+                .first_function
+                .offset(super::memory::Helper::Alloc.index())
+        });
+        layout.resizable =
+            super::resizable::Plan::new(program, first_resizable, backing, |signature| {
+                layout.intern(signature, &mut type_indices)
+            })?;
 
         Ok(layout)
     }

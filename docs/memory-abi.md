@@ -34,8 +34,10 @@ implemented guarantees to regression tests and current-source adapter evidence.
   source to raw Wasm; it adds no automatic guest-value marshaling or ownership
   transfer. See [runtime integration](runtime-integration.md).
 
-Resizable arrays, payload relocation/reclamation and string-edit operations are
-not implemented by revision 1. Their agreed future constraints live in
+Revision 1 did not implement resizable arrays, payload relocation/reclamation or
+string-edit operations. Later #65 adds [explicit resizable construction](#private-resizable-array-authority-65)
+without changing the public descriptor or exposing resize/reclamation operations.
+The remaining agreed future constraints live in
 [the memory roadmap's M0 decisions](was_compiler_memory_and_optimization_roadmap.md#4-milestone-m0--semantics-and-regression-baseline),
 not in this implemented contract. A future management protocol must establish
 management rights separately and respect existing raw-host retention guarantees.
@@ -171,8 +173,9 @@ host types select interpretation, not a runtime tag.
 
 String-array slots are four-byte references, not inline UTF-8 bytes. Replacing a
 slot changes its reference without mutating string contents. Payloads can live
-separately from their descriptors, although compiler-generated values place them
-at `handle + 8`. Raw allocations remain eight-byte aligned with the same minimum
+separately from their descriptors. Ordinary compiler-generated array literals place
+them at `handle + 8`; #65 resizable copies use separately acquired payloads.
+Raw allocations remain eight-byte aligned with the same minimum
 size; that policy is distinct from each payload's minimum alignment.
 
 Addresses below eight are invalid handles/data pointers. Descriptor headers and
@@ -217,6 +220,55 @@ storage. An invalid unconsumed element need not trap.
 Wrong-type reinterpretation is an ABI violation even if structural checks happen
 to accept it. Descriptors have no tag and guest checks cannot detect every such
 misuse or isolate a malicious host. Completed effects/allocations survive traps.
+
+## Private resizable-array authority (#65)
+
+`resizable(source)` constructs a fresh array of the same element type, retaining
+the public eight-byte descriptor. It evaluates the source once, validates complete
+outer storage, acquires the full selected power-of-two byte capacity (minimum eight
+bytes even when empty), and validates/copies every logical element before publishing
+the completed array. Mutable slots are independent; immutable string values may be
+shared. The source and its aliases are unchanged. Capacity is private and is not a
+source-level query or extra public descriptor field.
+
+The current implementation retains a 48-byte, eight-byte-aligned object reservation:
+the descriptor at `+0`, followed by a 40-byte private authority record at `+8`.
+Offsets below are relative to that record; all fields are little-endian.
+
+| Record offset | Field | Representation |
+| --- | --- | --- |
+| `+0` | Next authority record | `u32` registry link |
+| `+4` | Exact stable descriptor handle | `u32` |
+| `+8` | Element kind | `u32`: number `0`, bool `1`, string `2` |
+| `+12` | Logical length | `u32` element count |
+| `+16` | Full usable capacity | `u64` byte count |
+| `+24` | Current owned payload | `u32` address |
+| `+28` | Reserved | `u32`, initialized to zero |
+| `+32` | Current acquisition identity | `u64` |
+
+Registry links name private records, not arbitrary structurally supplied descriptors.
+Structural validity alone grants no resize authority; fabricating a valid descriptor
+or using ordinary literals/host encoding does not register it. These private fields
+are not a host construction API or protection against malicious memory mutation.
+
+Private `codegen/resizable.rs` plans helper/type/global indices before checked body
+lowering. It uses the required production-internal `codegen/allocator_core.rs`
+emission, acquiring the **entire capacity** as the requested extent, not treating
+allocator rounding slack as authorized storage. Current payload/acquisition/extent
+validation uses allocator-owned registry access, not duplicated allocator-record
+offsets. The M3 adapter and its management exports, controls and observations stay
+`cfg(test)`; none become production exports.
+
+Publication follows successful copy/validation with no callbacks during preparation
+and publication. Failure can retain earlier successful unpublished allocations;
+there is no rollback or sweeping. Descriptors, authority records, payloads and
+unreachable arrays remain retained. #65 exposes construction only: no relocation,
+shrink or reclamation path, and indexed writes retain their existing saved-address
+behavior. Future resize operations require the separately specified pending-write
+protocol before payload movement is exposed. Regular literals and host encoding
+remain fixed-storage even in M4 modules. Programs without M4 retain existing bytes
+and helper order. See [constructor semantics and validation guidance](resizable-arrays.md);
+this addition does not claim an M4 release or extend historical #37/M3 evidence.
 
 ## Numeric-array for consumption
 

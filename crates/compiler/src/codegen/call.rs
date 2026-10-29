@@ -21,6 +21,25 @@ pub(super) fn emit(
 ) -> Result<(Flow, Type), CodegenError> {
     let function = body.name();
 
+    if let FunctionRef::Builtin(BuiltinFunction::Resizable) = reference {
+        if args.len() != 1 {
+            return Err(CodegenError::ArgumentCountMismatch {
+                function: function.into(),
+                reference,
+                expected: 1,
+                found: args.len(),
+                span,
+            });
+        }
+        let element = super::array::element(&args[0]);
+        let ty = Type::Array(element);
+        expect_operand(function, ty, args[0].ty, span)?;
+        expect_result(function, predicted_result(ty, args), annotation, span)?;
+        let flow = body.emit_expr(&args[0], span)?;
+        body.call(body.resizable(element));
+        return Ok((flow, ty));
+    }
+
     if let FunctionRef::Builtin(BuiltinFunction::Len) = reference {
         if args.len() != 1 {
             return Err(CodegenError::ArgumentCountMismatch {

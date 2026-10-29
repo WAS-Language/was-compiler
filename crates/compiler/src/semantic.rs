@@ -380,6 +380,18 @@ impl SemanticAnalyzer {
             },
         );
 
+        self.functions.insert(
+            "resizable".into(),
+            FunctionSignature {
+                reference: FunctionRef::Builtin(BuiltinFunction::Resizable),
+                params: vec![Type::Array(crate::ast::ArrayElementType::Number)],
+                param_names: vec![],
+                defaults: vec![],
+                contracts: vec![],
+                return_type: Type::Array(crate::ast::ArrayElementType::Number),
+            },
+        );
+
         for function in self.host_functions.functions() {
             self.functions.insert(
                 function.name.clone(),
@@ -1461,7 +1473,7 @@ impl SemanticAnalyzer {
                 {
                     return self.analyze_lexical_call(&callable, args, *call_span, return_type);
                 }
-                return self.analyze_call(func, args, span, return_type);
+                return self.analyze_call(func, args, span, return_type, context);
             }
 
             Expr::Array(elements) => {
@@ -1529,6 +1541,7 @@ impl SemanticAnalyzer {
         args: &[CallArgument],
         span: Span,
         return_type: ReturnContext,
+        context: ExprContext,
     ) -> Result<(TypedExpr, Flow), SemanticError> {
         if self.lookup_variable(name).is_some() {
             return Err(SemanticError::NotCallable {
@@ -1562,7 +1575,7 @@ impl SemanticAnalyzer {
         }
 
         let reference = signature.reference;
-        let result_type = signature.return_type;
+        let mut result_type = signature.return_type;
         let mut arguments = Vec::with_capacity(args.len());
         let mut flow = Flow::FALLTHROUGH;
 
@@ -1571,14 +1584,30 @@ impl SemanticAnalyzer {
             // signature borrow before analyzing each argument.
             let expected = self.functions[name].params[index];
             let builtin_len = reference == FunctionRef::Builtin(BuiltinFunction::Len);
+            let builtin_resizable = reference == FunctionRef::Builtin(BuiltinFunction::Resizable);
             let (arg, arg_flow) = self.analyze_expected(
                 &arg.value,
                 span,
                 return_type,
-                if builtin_len { None } else { Some(expected) },
+                if builtin_resizable {
+                    match context {
+                        ExprContext::Expected(ty @ Type::Array(_)) => Some(ty),
+                        _ => None,
+                    }
+                } else if builtin_len {
+                    None
+                } else {
+                    Some(expected)
+                },
             )?;
 
-            if !(builtin_len && matches!(arg.ty, ExprResult::Value(Type::Array(_)))) {
+            if (builtin_len || builtin_resizable)
+                && let ExprResult::Value(Type::Array(element)) = arg.ty
+            {
+                if builtin_resizable {
+                    result_type = Type::Array(element);
+                }
+            } else {
                 self.expect_type(expected, arg.ty, span)?;
             }
             flow = flow.then(arg_flow);

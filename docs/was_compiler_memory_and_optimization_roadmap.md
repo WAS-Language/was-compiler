@@ -762,6 +762,17 @@ remain separately authorized work; no default or release decision is implied.
 
 **Goal:** Add collection operations without changing the current alias model.
 
+**Current slice (#65):** `resizable(source)` is implemented for `number[]`,
+`bool[]` and `string[]` as a fresh, resize-authorized copy with the existing public
+descriptor. Only the required allocation core is production-internal; its M3 test
+adapter remains `cfg(test)`. Ordinary literals/host encoding stay fixed-storage;
+programs without M4 retain existing bytes/helper order. See [the constructor
+contract](resizable-arrays.md) for naming migration, typing, private layout and
+validation guidance. This status does not claim integrated validation or M4 release.
+Push/pop/reserve/remove, payload relocation/shrinking/reclamation and the associated
+pending-write protocol below remain proposed. The interview decisions and original
+acceptance criteria retain their full-milestone scope, not #65 implementation scope.
+
 ### M4 interview decisions (2026-10-28; confirmed)
 
 The user confirmed the consolidated design below on 2026-10-28, closing the interview.
@@ -913,7 +924,7 @@ release evidence.
 - **Architecture record:** [ADR 0009](adr/0009-opt-in-resizable-array-storage.md)
   records the descriptor, authority, pending-write and reclamation trade-offs.
 
-### Selected representation (proposed; not implemented)
+### Selected representation (#65 construction implemented; resizing proposed)
 
 ```text
 Stable array handle
@@ -934,7 +945,9 @@ element kind, capacity, current owned payload and acquisition identity
 The interview selected the existing eight-byte public descriptor with separate
 private capacity/authority metadata over a sixteen-byte ABI revision. This preserves
 public layout, but opt-in payload relocation has its own explicit host and indexed-write
-contracts above. The diagram describes proposed M4 storage, not current implementation.
+contracts above. #65 implements the descriptor/private-authority construction
+shape shown here; [the ABI document](memory-abi.md#private-resizable-array-authority-65)
+records its current private layout. Relocation and release remain proposed.
 
 ### Compatibility constraints for deferred ownership work
 
@@ -946,7 +959,7 @@ stable. Existing fixed-storage lifetime rights remain intact, while opt-in paylo
 addresses must be reacquired after possible resize. This is distinct from JavaScript
 view refresh and does not introduce M11's deferred host ownership protocol.
 
-### Growth algorithm
+### Growth algorithm (proposed; not implemented)
 
 1. Capture and validate the receiver and resize authority before argument effects.
 2. Evaluate the new element once, then validate it and the receiver's current state;
@@ -976,7 +989,8 @@ len(values)
 
 The interview selected identifier-receiver method syntax and the explicit copy
 constructor `resizable(source)`. Push/reserve return void; pop/remove return an element,
-with empty pop trapping. These are confirmed design choices, not implemented features.
+with empty pop trapping. The constructor is implemented by #65 and `len` already
+exists; the four methods remain confirmed design choices, not implemented features.
 
 ### Specific tests
 

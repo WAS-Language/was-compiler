@@ -14,6 +14,7 @@ use wasm_encoder::{
 mod abi;
 #[cfg(test)]
 mod allocator;
+mod allocator_core;
 mod array;
 mod call;
 mod control_flow;
@@ -31,6 +32,7 @@ mod range;
 #[cfg(test)]
 mod region;
 mod representation;
+mod resizable;
 mod statement;
 mod temporaries;
 mod validation;
@@ -357,7 +359,7 @@ fn assemble_inner(
     for signature in &layout.signatures {
         types.ty().function(
             signature.params.iter().copied(),
-            signature.result.iter().copied(),
+            signature.results.iter().copied(),
         );
     }
 
@@ -476,6 +478,15 @@ fn assemble_inner(
     for (plan, body) in layout.callables.iter().zip(validated.callable_bodies()) {
         functions.function(plan.type_index.raw());
         code.function(body);
+    }
+
+    if let Some(plan) = &layout.resizable {
+        plan.append(
+            &mut functions,
+            &mut globals,
+            &mut code,
+            layout.memory.as_ref().expect("M4 memory planned"),
+        );
     }
 
     #[cfg(test)]

@@ -25,13 +25,16 @@ The [memory ABI](memory-abi.md) owns layout and consumption rules;
 [the browser guide](browser.md#typed-arrays-37) describe the implemented adapters.
 [ADR 0006](adr/0006-typed-array-layout-and-lazy-element-validation.md) records the
 untagged-layout/lazy-validation decision. This extension improves extensibility,
-not reclamation or optimization; the allocator remains monotonic.
+not reclamation or optimization; ordinary array allocation remains monotonic.
+The later [#65 resizable constructor](resizable-arrays.md) adds an opt-in fresh
+copy, not resize operations or a new #37 release claim.
 
 ## Language contract
 
-Supported arrays are `number[]`, `bool[]`, and `string[]`. They are fixed-length,
-mutable shared references. Assignment, arguments, returns and captures share a
-handle; each evaluated literal allocates fresh storage, including empty and
+Supported arrays are `number[]`, `bool[]`, and `string[]`. They are mutable shared
+references; ordinary literals and host encoding produce fixed-storage arrays.
+Assignment, arguments, returns and captures share a handle; each evaluated literal
+allocates fresh storage, including empty and
 discarded literals. String elements refer to immutable strings: replacement
 changes the reference, not the string's bytes.
 
@@ -76,6 +79,35 @@ nor whole arrays accept compounds, including in unreachable code.
 There are no nested arrays, `range[]`, `void[]`, growable lists, slices, chained
 indexing, implicit coercions, first-class callables, or new anonymous-result
 annotation syntax. String `len`/indexing/concatenation remain unsupported.
+
+## Resizable construction (#65; construction only)
+
+`resizable(source)` accepts any of the three array types and returns a fresh copy
+of the exact same type with private resize authority. Source evaluation happens
+once, complete outer storage and all copied logical elements are validated, and
+mutable slots are independent; immutable string values may be shared. Copying an
+already resizable array still creates a distinct collection. There are no exposed
+resize methods, relocation, shrinking or payload reclamation yet.
+
+Expected array context reaches the source: `let flags: bool[] = resizable([]);`
+works, including through nested constructors. Unconstrained `resizable([])` retains
+the `number[]` fallback. Siblings, callers and concrete function results provide no
+backward refinement. Placeholder source/result constraints are exact and
+region-local; `resizable(_)` alone is ambiguous, even with a later bool-array call.
+Never and skipped/unreachable checking retain the existing rules.
+
+The builtin follows `len`'s ordinary-identifier resolution and permits lexical
+shadowing, but newly reserves the global function and registered host-language
+name `resizable`; rename existing global uses. Host module/field names remain
+unrestricted. It requires one positional argument, is forbidden in pure defaults
+and contracts including skipped operands, and cannot be a direct builtin pipeline
+stage. A lexical callable shadowing that name uses normal callable rules.
+
+Ordinary literals/host copies stay fixed-storage even in constructor-using modules.
+No-M4 programs retain existing bytes and helper order. See [the focused constructor
+contract](resizable-arrays.md) and [private authority layout](memory-abi.md#private-resizable-array-authority-65).
+The #37 release evidence above retains its historical scope; it is not #65/M4
+release validation.
 
 ## Contextual literal typing and stable inference
 

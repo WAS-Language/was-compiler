@@ -66,6 +66,7 @@ pub struct LoopId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuiltinFunction {
     Len,
+    Resizable,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,6 +113,14 @@ impl TypedExpr {
         }
         match &self.kind {
             TypedExprKind::Array(_, element) => Some(*element),
+            TypedExprKind::Call {
+                func: FunctionRef::Builtin(BuiltinFunction::Resizable),
+                args,
+                ..
+            } => match args.as_slice() {
+                [source] => source.array_element_type(),
+                _ => None,
+            },
             TypedExprKind::Block(block) => block.tail.as_deref().and_then(Self::array_element_type),
             TypedExprKind::If { then, else_, .. } => then
                 .tail

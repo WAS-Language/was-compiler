@@ -94,7 +94,7 @@ impl Helper {
 
         Signature {
             params,
-            result: Some(result),
+            results: vec![result],
         }
     }
 }
@@ -306,7 +306,10 @@ impl Visitor<'_> for MemoryVisitor<'_> {
             }
 
             TypedExprKind::Call { func, .. } => {
-                *self.used |= matches!(func, FunctionRef::Builtin(BuiltinFunction::Len));
+                *self.used |= matches!(
+                    func,
+                    FunctionRef::Builtin(BuiltinFunction::Len | BuiltinFunction::Resizable)
+                );
             }
 
             TypedExprKind::Array(_, _)
@@ -1024,7 +1027,7 @@ mod tests {
         {
             let signature = Signature {
                 params,
-                result: Some(result),
+                results: vec![result],
             };
 
             assert_eq!(actual_helper, helper);
@@ -1089,11 +1092,11 @@ mod tests {
         {
             assert_eq!(helper.index(), index as u32);
             assert_eq!(signature.params, params);
-            assert_eq!(signature.result, Some(result));
+            assert_eq!(signature.results, vec![result]);
 
             types.ty().function(
                 signature.params.iter().copied(),
-                signature.result.iter().copied(),
+                signature.results.iter().copied(),
             );
             functions.function(index as u32);
             code.function(&emit(*helper, 1));

@@ -104,6 +104,7 @@ impl HostFunctions {
                 | "range"
                 | "in"
                 | "len"
+                | "resizable"
         ) {
             return Err(HostRegistrationError::ReservedName { name });
         }

@@ -359,6 +359,15 @@ impl<'a> BodyEmitter<'a> {
         self.instruction(&Instruction::Call(index.raw()));
     }
 
+    pub fn resizable(&self, element: crate::ast::ArrayElementType) -> FunctionIndex {
+        self.context
+            .module
+            .resizable
+            .as_ref()
+            .expect("M4 planned before emission")
+            .constructor(element)
+    }
+
     pub fn helper(&self, helper: Helper) -> FunctionIndex {
         self.context.helper(helper)
     }

@@ -25,13 +25,14 @@ _Avoid_: Inferred integer type, integer-looking type
 
 **Array**:
 A mutable collection whose elements share one type; assignment and parameter
-passing share the collection rather than copying its elements. Arrays currently
-have fixed length; the memory roadmap proposes extending them with resizing.
+passing share the collection rather than copying its elements. Ordinary arrays
+have fixed storage; explicit resizable construction creates a separate collection.
 _Avoid_: List, growable list
 
 **Resizable array**:
-A proposed extension of arrays whose length can change while all aliases continue
-to refer to the same collection. Resizing is not currently supported.
+An array explicitly created as a fresh copy with resize authority, using the same
+array type as its source. Construction is supported; length-changing operations
+remain proposed.
 _Avoid_: Growable list, separate list type
 
 **Resize authority**:

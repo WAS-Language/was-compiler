@@ -75,7 +75,7 @@ fn legacy_compile(
     for signature in &layout.signatures {
         types.ty().function(
             signature.params.iter().copied(),
-            signature.result.iter().copied(),
+            signature.results.iter().copied(),
         );
     }
     let mut imports = ImportSection::new();

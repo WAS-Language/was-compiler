@@ -160,6 +160,7 @@ struct Variable(usize);
 #[derive(Clone, Copy)]
 enum Relation {
     Equal(Variable),
+    SameArray(Variable),
     Element(Variable),
     Array(Variable),
     Yield(Variable),
@@ -169,6 +170,7 @@ enum Relation {
 #[derive(Clone, Copy)]
 enum Relationship {
     SameType,
+    SameArray,
     ArrayElement,
 }
 
@@ -248,6 +250,10 @@ impl Constraints {
     fn related(relation: Relation, ty: Type) -> Result<Option<(Variable, Type)>, (Type, Type)> {
         match relation {
             Relation::Equal(next) => Ok(Some((next, ty))),
+            Relation::SameArray(next) => match ty {
+                Type::Array(_) => Ok(Some((next, ty))),
+                _ => Err((Type::Array(ArrayElementType::Number), ty)),
+            },
             Relation::Element(next) => match ty {
                 Type::Array(element) => Ok(Some((next, element.value_type()))),
                 _ => Err((Type::Array(ArrayElementType::Number), ty)),
@@ -282,6 +288,7 @@ impl Constraints {
     ) -> Result<(), (Type, Type)> {
         let (forward, backward) = match relationship {
             Relationship::SameType => (Relation::Equal(right), Relation::Equal(left)),
+            Relationship::SameArray => (Relation::SameArray(right), Relation::SameArray(left)),
             Relationship::ArrayElement => (Relation::Element(right), Relation::Array(left)),
         };
         if let (Some(left), Some(right)) = (self.types[left.0], self.types[right.0])
@@ -940,6 +947,42 @@ impl Region<'_> {
                                 span: *call_span,
                             }
                         })?;
+                        if signature.reference == FunctionRef::Builtin(BuiltinFunction::Resizable) {
+                            if let Some(arg) = args.iter().find(|arg| arg.name.is_some()) {
+                                return Err(SemanticError::NamedArgumentsNotSupported {
+                                    name: func.clone(),
+                                    span: arg.span,
+                                });
+                            }
+                            if args.len() != 1 {
+                                return Err(SemanticError::ArgumentCountMismatch {
+                                    name: func.clone(),
+                                    expected: 1,
+                                    found: args.len(),
+                                    span: *call_span,
+                                });
+                            }
+                            let array_context = expected.filter(|ty| matches!(ty, Type::Array(_)));
+                            let (source, next) =
+                                self.expression(&args[0].value, span, array_context, reachable)?;
+                            let result = self.constraints.variable();
+                            if reachable
+                                && next.can_fall_through()
+                                && let Some(source) = source
+                            {
+                                let relationship = self.constraints.connect(
+                                    source,
+                                    result,
+                                    Relationship::SameArray,
+                                    Site { order: site, span },
+                                );
+                                self.record(relationship, site, span);
+                                if let Some(expected) = expected {
+                                    self.constrain(result, expected, site, span);
+                                }
+                            }
+                            return Ok((next.can_fall_through().then_some(result), next));
+                        }
                         let params =
                             if signature.reference == FunctionRef::Builtin(BuiltinFunction::Len) {
                                 if let Some(arg) = args.iter().find(|a| a.name.is_some()) {

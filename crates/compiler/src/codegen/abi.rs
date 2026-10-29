@@ -32,10 +32,85 @@ pub(super) const RANGE_INTEGER_ALIGN_LOG2: u32 = RANGE_ALIGNMENT.trailing_zeros(
 pub(super) const RANGE_FLAG_ALIGN_LOG2: u32 = 2;
 pub(super) const RANGE_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 
+// Private allocator records precede, and are excluded from, usable payloads.
+pub(super) const ALLOCATOR_RECORD_BYTES: i32 = 32;
+pub(super) const ALLOCATOR_REGISTRY_NEXT: u64 = 0;
+pub(super) const ALLOCATOR_FREE_NEXT: u64 = 4;
+pub(super) const ALLOCATOR_CLASS: u64 = 8;
+pub(super) const ALLOCATOR_ACTIVE: u64 = 12;
+pub(super) const ALLOCATOR_IDENTITY: u64 = 16;
+pub(super) const ALLOCATOR_REQUESTED: u64 = 24;
+pub(super) const ALLOCATOR_CLASS_COUNT: u32 = 29;
+pub(super) const ALLOCATOR_MAX_REQUEST: i64 = 1 << 31;
+
+// The public descriptor and private authority record share one retained object.
+// Registry links point to the record, not to a structurally supplied descriptor.
+pub(super) const RESIZABLE_OBJECT_BYTES: i32 = 48;
+pub(super) const RESIZABLE_RECORD: i32 = 8;
+pub(super) const RESIZABLE_NEXT: u64 = 0;
+pub(super) const RESIZABLE_HANDLE: u64 = 4;
+pub(super) const RESIZABLE_KIND: u64 = 8;
+pub(super) const RESIZABLE_LENGTH: u64 = 12;
+pub(super) const RESIZABLE_CAPACITY: u64 = 16;
+pub(super) const RESIZABLE_PAYLOAD: u64 = 24;
+pub(super) const RESIZABLE_RESERVED: u64 = 28;
+pub(super) const RESIZABLE_IDENTITY: u64 = 32;
+
+#[derive(Clone, Copy)]
+pub(super) enum AllocatorHelper {
+    Classify,
+    Acquire,
+    Find,
+    Head,
+    SetHead,
+    Validate,
+}
+
+impl AllocatorHelper {
+    pub const ALL: [Self; 6] = [
+        Self::Classify,
+        Self::Acquire,
+        Self::Find,
+        Self::Head,
+        Self::SetHead,
+        Self::Validate,
+    ];
+
+    pub fn index(self) -> u32 {
+        match self {
+            Self::Classify => 0,
+            Self::Acquire => 1,
+            Self::Find => 2,
+            Self::Head => 3,
+            Self::SetHead => 4,
+            Self::Validate => 5,
+        }
+    }
+
+    pub fn signature(self) -> Signature {
+        use ValType::{I32, I64};
+        let (params, results) = match self {
+            Self::Classify => (vec![I64], vec![I32]),
+            Self::Acquire => (vec![I64], vec![I32, I64]),
+            Self::Find | Self::Head => (vec![I32], vec![I32]),
+            Self::SetHead => (vec![I32, I32], vec![]),
+            Self::Validate => (vec![I32, I64, I64], vec![]),
+        };
+        Signature { params, results }
+    }
+}
+
+pub(super) fn resizable_constructor_signature() -> Signature {
+    Signature {
+        params: vec![ValType::I32],
+        results: vec![ValType::I32],
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) struct Signature {
     pub params: Vec<ValType>,
-    pub result: Option<ValType>,
+    pub results: Vec<ValType>,
 }
 
 pub(super) fn internal_signature(
@@ -65,7 +140,10 @@ pub(super) fn internal_signature(
         Some(value_type(function, "return", return_type)?)
     };
 
-    Ok(Signature { params, result })
+    Ok(Signature {
+        params,
+        results: result.into_iter().collect(),
+    })
 }
 
 pub(super) fn check_external_signature(

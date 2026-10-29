@@ -12,7 +12,7 @@ use super::{
     validation::ValidatedProgram,
 };
 
-mod core;
+use super::allocator_core as core;
 use core::{ACTIVE, CLASS, CLASS_COUNT, HeadAccess, IDENTITY, REQUESTED, emit, mem, trap_if};
 const HELPER_COUNT: u32 = 7;
 const EXPORTS: [&str; 4] = ["__m3_class", "__m3_acquire", "__m3_release", "__m3_observe"];

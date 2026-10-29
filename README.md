@@ -289,6 +289,38 @@ and [optimization handoff](docs/benchmarks/m4-typed-arrays/handoff.md) retain th
 historical pre-fix runtime hash; final hashes are recorded separately. Earlier
 extension release evidence remains historical.
 
+### Resizable array construction (#65; construction only)
+
+`resizable(source)` creates a fresh copy of a `number[]`, `bool[]` or `string[]`,
+with independent mutable slots and private resize authority. It evaluates the
+source once and validates every copied element; source aliases are unchanged,
+including when copying another resizable array. Immutable string values may be
+shared. Existing array types and the eight-byte public descriptor are unchanged.
+
+```text
+fn main() -> bool {
+    let source = [true];
+    let copy = resizable(source);
+    copy[0] = false;
+    let empty: bool[] = resizable([]);
+    return source[0] && !copy[0] && len(empty) == 0;
+}
+```
+
+Known array destinations type empty sources; unconstrained `resizable([])` is
+`number[]`. `resizable` is an ordinary identifier like `len`, not a keyword:
+existing global functions and registered host-language names must be renamed,
+while lexical shadowing and arbitrary host module/field names remain legal.
+The builtin takes exactly one positional argument, is forbidden in pure
+defaults/contracts (even skipped operands), and is not a direct pipeline stage.
+
+Only construction is implemented: push/pop/reserve/remove, relocation, shrinking
+and reclamation are not exposed. Ordinary literals and host encoding remain
+fixed-storage, even in constructor-using modules; programs without the constructor
+retain existing bytes/helper order. See [constructor contracts and validation
+guidance](docs/resizable-arrays.md); historical #37/M3 release evidence does not
+validate #65 or complete M4.
+
 ### Local callables and shared captures (WP11; release gates passed)
 
 ```text

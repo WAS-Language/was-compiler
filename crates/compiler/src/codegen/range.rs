@@ -44,7 +44,7 @@ impl Helper {
                 Self::Validate => vec![ValType::I32],
                 Self::Contains => vec![ValType::F64, ValType::I32],
             },
-            result: Some(ValType::I32),
+            results: vec![ValType::I32],
         }
     }
 }
