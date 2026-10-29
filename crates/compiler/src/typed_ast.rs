@@ -210,6 +210,15 @@ pub enum TypedExprKind {
         item: Box<TypedExpr>,
     },
 
+    Pop {
+        receiver: Box<TypedExpr>,
+    },
+
+    Remove {
+        receiver: Box<TypedExpr>,
+        index: Box<TypedExpr>,
+    },
+
     NormalizedCall(TypedNormalizedCall),
 
     LexicalCall {

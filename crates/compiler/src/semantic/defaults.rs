@@ -142,6 +142,8 @@ fn remap_default(value: &TypedExpr, mapping: &[Option<VariableId>]) -> TypedExpr
         },
         TypedExprKind::Reserve { .. }
         | TypedExprKind::Push { .. }
+        | TypedExprKind::Pop { .. }
+        | TypedExprKind::Remove { .. }
         | TypedExprKind::Captured { .. }
         | TypedExprKind::Call { .. }
         | TypedExprKind::LexicalCall { .. }

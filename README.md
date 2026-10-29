@@ -6,7 +6,7 @@ See the [compilation roadmap](docs/compilation-roadmap.md) for the architecture,
 host ABI, milestones, and acceptance criteria. The [memory ABI](docs/memory-abi.md)
 documents string/array layouts, allocation, ownership, and host examples.
 Its [revision 1 baseline](docs/m0-memory-baseline.md) records memory-contract
-coverage and validation. [Opt-in construction, reserve and push](docs/resizable-arrays.md)
+coverage and validation. [Opt-in construction, reserve, push and pop/remove](docs/resizable-arrays.md)
 are implemented; integrated M4 release and general reclamation remain pending.
 A [private test-only M2 prototype](docs/m2-region-prototype.md) reuses proven temporary
 array storage; it adds no public compiler option or adapter activation.
@@ -292,7 +292,7 @@ extension release evidence remains historical.
 
 <a id="resizable-arrays-65-construction-66-reserve"></a>
 
-### Resizable arrays (#65 construction; #66 reserve; #67 push)
+### Resizable arrays (#65 construction; #66 reserve; #67 push; #68 pop/remove)
 
 `resizable(source)` creates a fresh copy of a `number[]`, `bool[]` or `string[]`,
 with independent mutable slots and private resize authority. It evaluates the
@@ -322,7 +322,7 @@ defaults/contracts (even skipped operands), and is not a direct pipeline stage.
 plus additional without changing length or the stable eight-byte descriptor handle;
 there is no public capacity/authority query. Additional must be finite, integral and
 nonnegative (`-0` is zero), with checked byte sizing within the 2^31-byte request
-ceiling. Allocation may still fail. Pop, remove and shrinking remain unimplemented.
+ceiling. Allocation may still fail. Capacity shrinking remains unimplemented.
 
 #67 adds `copy.push(item)` for all three array types: exactly one positional item
 of the receiver's exact scalar type, returning void (or Never on divergence).
@@ -335,6 +335,21 @@ consumed; shared reserve growth raw-copies old slots without scanning them. The 
 typed slot is initialized before public/private length publication, with no callbacks
 or expected failures after reserve succeeds. Pending indexed writes remain relocation-safe;
 active array iteration retains its initial length, so appended elements are not visited.
+
+#68 adds identifier-only `copy.pop()` (no arguments) and `copy.remove(index)`
+(one positional number), returning the receiver's exact scalar element type or Never
+on divergence. Both are contextual methods forbidden in pure defaults/contracts;
+placeholder array/element relations stay exact and region-local. Authority is
+checked before index effects; remove evaluates its index once and revalidates the
+captured object's post-argument state. Pop on empty traps; remove uses normal index
+rules, including `-0` as zero. Only the returned bool/string value is validated before
+any mutation; remove raw-shifts following slot bytes without consuming them.
+Both publish public/private lengths together while retaining payload, capacity,
+acquisition identity and referenced immutable strings. Pending writes target the
+current element at the captured index after shrink/shift (or trap), preserving
+pre-RHS compound old values. Iteration keeps its initial count and current reads;
+shrinking can make a later read trap. There is no capacity shrinking or general
+reclamation.
 
 Reserve captures and validates receiver authority before argument effects: even
 fixed-array `reserve(0)` traps before evaluating its argument. It revalidates after
@@ -351,8 +366,14 @@ Ordinary literals and host encoding remain fixed-storage, even in M4 modules;
 programs without M4 retain existing bytes/helper order. See [contracts and Rust node
 migration](docs/resizable-arrays.md). [#66 final validation and review passed](docs/resizable-arrays.md#issue-66-validation);
 integrated M4 release acceptance remains pending.
-Historical #65/#66/#37/M3 records retain their original scope; no #67 validation
-evidence is recorded here yet.
+Historical #65–#67/#37/M3 records retain their original scope; see
+[#67 validation/review](docs/resizable-arrays.md#issue-67-validation) and
+[#68 validation/review evidence](docs/resizable-arrays.md#issue-68-validation).
+Focused tests, the default suite, portable builds and browser compatibility checks
+passed; both review axes reported zero findings. Rebuilt browser smoke covers
+ordinary regressions, not #68-specific adapter scenarios. The broader ignored
+workspace run timed out at 120 seconds; no full ignored workspace success is claimed.
+Integrated M4 release acceptance remains pending.
 
 ### Local callables and shared captures (WP11; release gates passed)
 

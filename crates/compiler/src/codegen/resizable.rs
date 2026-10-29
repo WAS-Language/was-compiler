@@ -41,6 +41,14 @@ pub(super) struct Plan {
     constructors: Vec<ArrayElementType>,
     reserves: Vec<ArrayElementType>,
     pushes: Vec<ArrayElementType>,
+    pops: Vec<ArrayElementType>,
+    removes: Vec<ArrayElementType>,
+}
+
+#[derive(Clone, Copy)]
+enum Take {
+    Pop,
+    Remove,
 }
 
 enum AuthorityHelper {
@@ -78,12 +86,27 @@ impl Plan {
             constructors: [bool; 3],
             reserves: [bool; 3],
             pushes: [bool; 3],
+            pops: [bool; 3],
+            removes: [bool; 3],
         }
         impl Visitor<'_> for Discovery {
             type Break = std::convert::Infallible;
             fn enter_expression(&mut self, expr: &TypedExpr) -> ControlFlow<Self::Break> {
                 if let Some(element) = expr.array_element_type() {
                     self.elements[ordinal(element)] = true;
+                }
+                match &expr.kind {
+                    TypedExprKind::Pop { receiver } => {
+                        let element = ordinal(array::element(receiver));
+                        self.pops[element] = true;
+                        self.elements[element] = true;
+                    }
+                    TypedExprKind::Remove { receiver, .. } => {
+                        let element = ordinal(array::element(receiver));
+                        self.removes[element] = true;
+                        self.elements[element] = true;
+                    }
+                    _ => {}
                 }
                 if let TypedExprKind::Push { receiver, .. } = &expr.kind {
                     self.pushes[ordinal(array::element(receiver))] = true;
@@ -127,7 +150,9 @@ impl Plan {
         let constructors = select(discovery.constructors);
         let reserves = select(discovery.reserves);
         let pushes = select(discovery.pushes);
-        if constructors.is_empty() && reserves.is_empty() {
+        let pops = select(discovery.pops);
+        let removes = select(discovery.removes);
+        if constructors.is_empty() && reserves.is_empty() && pops.is_empty() && removes.is_empty() {
             return Ok(None);
         }
         let elements = select(discovery.elements);
@@ -136,7 +161,9 @@ impl Plan {
                 + constructors.len()
                 + 2 * elements.len()
                 + reserves.len()
-                + pushes.len(),
+                + pushes.len()
+                + pops.len()
+                + removes.len(),
             "M4 helper count",
         )?;
         first_function
@@ -160,6 +187,8 @@ impl Plan {
             }))
             .chain(reserves.iter().map(|_| abi::resizable_reserve_signature()))
             .chain(pushes.iter().copied().map(abi::resizable_push_signature))
+            .chain(pops.iter().copied().map(abi::resizable_pop_signature))
+            .chain(removes.iter().copied().map(abi::resizable_remove_signature))
             .map(&mut intern)
             .collect::<Result<Vec<_>, _>>()?;
         let first_function = FunctionIndex::new(first_function);
@@ -184,6 +213,8 @@ impl Plan {
             constructors,
             reserves,
             pushes,
+            pops,
+            removes,
         }))
     }
 
@@ -236,6 +267,37 @@ impl Plan {
                     + self.constructors.len()
                     + 2 * self.elements.len()
                     + self.reserves.len()
+                    + slot,
+            )
+            .expect("bounded helpers"),
+        )
+    }
+
+    pub(super) fn pop(&self, element: ArrayElementType) -> FunctionIndex {
+        self.take_helper(element, Take::Pop)
+    }
+
+    pub(super) fn remove(&self, element: ArrayElementType) -> FunctionIndex {
+        self.take_helper(element, Take::Remove)
+    }
+
+    fn take_helper(&self, element: ArrayElementType, operation: Take) -> FunctionIndex {
+        let (elements, preceding) = match operation {
+            Take::Pop => (&self.pops, 0),
+            Take::Remove => (&self.removes, self.pops.len()),
+        };
+        let slot = elements
+            .iter()
+            .position(|e| *e == element)
+            .expect("pop/remove discovered structurally");
+        self.first_function.offset(
+            u32::try_from(
+                AllocatorHelper::ALL.len()
+                    + self.constructors.len()
+                    + 2 * self.elements.len()
+                    + self.reserves.len()
+                    + self.pushes.len()
+                    + preceding
                     + slot,
             )
             .expect("bounded helpers"),
@@ -321,6 +383,12 @@ impl Plan {
         }
         for &element in &self.pushes {
             code.function(&self.emit_push(element, memory));
+        }
+        for &element in &self.pops {
+            code.function(&self.emit_take(element, Take::Pop, memory));
+        }
+        for &element in &self.removes {
+            code.function(&self.emit_take(element, Take::Remove, memory));
         }
     }
 
@@ -642,6 +710,143 @@ impl Plan {
                 I32Const(1),
                 I32Add,
                 I32Store(mem(LENGTH, 2)),
+                End,
+            ],
+        );
+        f
+    }
+
+    fn emit_take(
+        &self,
+        element: ArrayElementType,
+        operation: Take,
+        memory: &MemoryLayout,
+    ) -> Function {
+        use Instruction::*;
+        let record = match operation {
+            Take::Pop => 1,
+            Take::Remove => 2,
+        };
+        let length = record + 1;
+        let address = record + 2;
+        let cursor = record + 3;
+        let end = record + 4;
+        let value = record + 5;
+        let scalar = abi::value_type("<pop/remove>", "result", element.value_type())
+            .expect("scalar element");
+        let mut f = Function::new([(5, ValType::I32), (1, scalar)]);
+        let helper = |helper| {
+            memory
+                .first_function
+                .offset(memory.plan.helper_index(helper))
+                .raw()
+        };
+        emit(
+            &mut f,
+            &[
+                LocalGet(0),
+                Call(self.validate(element).raw()),
+                LocalSet(record),
+            ],
+        );
+        match operation {
+            Take::Pop => {
+                emit(&mut f, &[LocalGet(record), I32Load(mem(LENGTH, 2)), I32Eqz]);
+                trap_if(&mut f);
+            }
+            Take::Remove => {
+                // Shared indexing owns finite/integral/nonnegative/bounds checks,
+                // including -0, against the post-argument descriptor.
+                emit(
+                    &mut f,
+                    &[
+                        LocalGet(0),
+                        LocalGet(1),
+                        Call(helper(array::address(element))),
+                        LocalSet(address),
+                    ],
+                );
+            }
+        }
+        emit(
+            &mut f,
+            &[
+                LocalGet(record),
+                I32Load(mem(LENGTH, 2)),
+                I32Const(1),
+                I32Sub,
+                LocalSet(length),
+            ],
+        );
+        if matches!(operation, Take::Pop) {
+            emit(
+                &mut f,
+                &[
+                    LocalGet(record),
+                    I32Load(mem(PAYLOAD, 2)),
+                    LocalGet(length),
+                    I32Const(i32::try_from(array::width(element)).expect("element width")),
+                    I32Mul,
+                    I32Add,
+                    LocalSet(address),
+                ],
+            );
+        }
+        emit(&mut f, &[LocalGet(address), array::load(element, 0)]);
+        if let Some(consumer) = array::consumer(element) {
+            emit(&mut f, &[Call(helper(consumer))]);
+        }
+        emit(&mut f, &[LocalSet(value)]);
+        if matches!(operation, Take::Remove) {
+            // Forward byte copying is overlap-safe for a left shift. Only the
+            // returned slot is consumed; unreturned bits/handles are copied raw.
+            emit(
+                &mut f,
+                &[
+                    LocalGet(address),
+                    LocalSet(cursor),
+                    LocalGet(record),
+                    I32Load(mem(PAYLOAD, 2)),
+                    LocalGet(length),
+                    I32Const(i32::try_from(array::width(element)).expect("element width")),
+                    I32Mul,
+                    I32Add,
+                    LocalSet(end),
+                    Block(BlockType::Empty),
+                    Loop(BlockType::Empty),
+                    LocalGet(cursor),
+                    LocalGet(end),
+                    I32GeU,
+                    BrIf(1),
+                    LocalGet(cursor),
+                    LocalGet(cursor),
+                    I32Load8U(mem(u64::from(array::width(element)), 0)),
+                    I32Store8(mem(0, 0)),
+                    LocalGet(cursor),
+                    I32Const(1),
+                    I32Add,
+                    LocalSet(cursor),
+                    Br(0),
+                    End,
+                    End,
+                ],
+            );
+        }
+        // All checks precede the first mutation. Neither operation changes the
+        // payload, capacity or acquisition, and no callback runs during publication.
+        emit(
+            &mut f,
+            &[
+                LocalGet(0),
+                LocalGet(length),
+                I32Store(mem(
+                    abi::DESCRIPTOR_LENGTH_OFFSET,
+                    abi::DESCRIPTOR_FIELD_ALIGN_LOG2,
+                )),
+                LocalGet(record),
+                LocalGet(length),
+                I32Store(mem(LENGTH, 2)),
+                LocalGet(value),
                 End,
             ],
         );

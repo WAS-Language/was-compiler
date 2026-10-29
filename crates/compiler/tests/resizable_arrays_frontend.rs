@@ -4,6 +4,247 @@ use was_compiler::typed_ast::{BuiltinFunction, FunctionRef, TypedExprKind, Typed
 use was_compiler::{ArrayElementType, CompileError, Compiler, Type};
 
 #[test]
+fn pop_and_remove_return_each_exact_receiver_element_type() {
+    for (array, scalar) in [
+        ("number[]", Type::Number),
+        ("bool[]", Type::Bool),
+        ("string[]", Type::String),
+    ] {
+        for method in ["pop()", "remove(-0)"] {
+            let source = format!("fn main(a: {array}) {{ return a.{method}; }}");
+            let program = Compiler::new().analyze(&source).unwrap();
+            assert_eq!(program.functions[0].return_type, scalar);
+        }
+    }
+}
+
+#[test]
+fn pop_remove_check_structure_receiver_and_index_in_order() {
+    for (method, expected, args, found) in [
+        ("pop", 0, "missing", 1),
+        ("pop", 0, "1, 2", 2),
+        ("remove", 1, "", 0),
+        ("remove", 1, "missing, other", 2),
+    ] {
+        let source = format!("fn main() {{ unknown.{method}({args}); }}");
+        assert!(
+            matches!(semantic_error(&source), SemanticError::ArgumentCountMismatch { name, expected: e, found: f, .. } if name == method && e == expected && f == found)
+        );
+    }
+    for method in ["pop", "remove"] {
+        let source = format!("fn main() {{ unknown.{method}(index: missing); }}");
+        assert!(
+            matches!(semantic_error(&source), SemanticError::NamedArgumentsNotSupported { name, .. } if name == method)
+        );
+        for ty in ["number", "bool", "string", "range"] {
+            let args = if method == "pop" { "" } else { "missing" };
+            let source = format!("fn main(a: {ty}) {{ a.{method}({args}); }}");
+            assert!(
+                matches!(
+                    semantic_error(&source),
+                    SemanticError::TypeMismatch {
+                        expected: Type::Array(_),
+                        ..
+                    }
+                ),
+                "{source}"
+            );
+        }
+    }
+    for index in ["true", "\"x\"", "[]", "0..1", "empty()"] {
+        let source = format!("fn empty() {{}} fn main(a: bool[]) {{ a.remove({index}); }}");
+        assert!(
+            matches!(
+                semantic_error(&source),
+                SemanticError::TypeMismatch {
+                    expected: Type::Number,
+                    ..
+                }
+            ),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn pop_remove_keep_identifier_only_contextual_method_syntax_and_purity() {
+    for method in ["pop()", "remove(0)"] {
+        for expression in [
+            format!("(a).{method}"),
+            format!("make().{method}"),
+            format!("a[0].{method}"),
+            format!("[1].{method}"),
+            format!("a.{method}.pop()"),
+            format!("a.{method}[0]"),
+            format!("a.{method}()"),
+            format!("1 |> a.{method}"),
+        ] {
+            let source = format!("fn main(a: number[]) {{ {expression}; }}");
+            assert!(Compiler::new().analyze(&source).is_err(), "{source}");
+        }
+        for source in [
+            format!("fn main(a: number[], n: bool = false && a.{method} == 1) {{}}"),
+            format!("fn main(a: number[]) requires true || a.{method} == 1 {{}}"),
+        ] {
+            assert!(matches!(
+                semantic_error(&source),
+                SemanticError::InvalidDefaultExpression { .. }
+                    | SemanticError::InvalidContractExpression { .. }
+            ));
+        }
+    }
+    assert!(
+        matches!(semantic_error("fn pop() -> number { return 0; } fn main(pop: number[]) { pop.pop(); pop.remove(pop()); }"), SemanticError::NotCallable { name, .. } if name == "pop")
+    );
+    Compiler::new().analyze("fn pop() -> number { return 0; } fn remove() -> number { return 0; } fn main(a: number[]) { a /* λ */ . pop (); a.remove(remove()); }").unwrap();
+    let mut compiler = Compiler::new();
+    for name in ["pop", "remove"] {
+        compiler
+            .register_host_function(name, "env", name, vec![], Type::Number)
+            .unwrap();
+    }
+    compiler
+        .analyze("fn main(a: number[]) { a.remove(pop()); return a.pop() + remove(); }")
+        .unwrap();
+}
+
+#[test]
+fn pop_remove_raw_nodes_preserve_utf8_spans_and_positional_arguments() {
+    use was_compiler::{
+        ast::{Expr, StatementKind},
+        lexer::Lexer,
+        parser::Parser,
+        tokens::Span,
+    };
+    let source = "fn main(a: string[]) { /* 雪 */ a.pop(); a.remove(-0); }";
+    let tokens = Lexer::new(source).tokenize();
+    let program = Parser::new(&tokens).parse_program().unwrap();
+    for (statement, method) in program.functions[0]
+        .body
+        .iter()
+        .zip(["pop()", "remove(-0)"])
+    {
+        let StatementKind::Expression(expression) = &statement.kind else {
+            panic!()
+        };
+        let (receiver, args, span) = match expression {
+            Expr::Pop {
+                receiver,
+                args,
+                span,
+            }
+            | Expr::Remove {
+                receiver,
+                args,
+                span,
+            } => (receiver, args, span),
+            _ => panic!("expected dedicated array method"),
+        };
+        assert_eq!(receiver.as_ref(), &Expr::Identifier("a".into()));
+        assert_eq!(args.len(), usize::from(method.starts_with("remove")));
+        assert!(args.iter().all(|arg| arg.name.is_none()));
+        let start = source.find(&format!("a.{method}")).unwrap();
+        assert_eq!(*span, Span::new(start, start + 2 + method.len()));
+    }
+}
+
+#[test]
+fn pop_remove_placeholder_results_and_indices_use_exact_region_local_evidence() {
+    for (array, scalar, item) in [
+        ("number[]", Type::Number, "1"),
+        ("bool[]", Type::Bool, "true"),
+        ("string[]", Type::String, "\"x\""),
+    ] {
+        let source = format!("fn main(a: {array}) {{ let take = a.remove(_); take(0); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        let TypedStatementKind::Closure(closure) = &program.functions[0].body[0].kind else {
+            panic!()
+        };
+        assert_eq!(closure.params[0].ty, Type::Number);
+        assert_eq!(closure.return_type, scalar);
+        for method in ["pop()", "remove(0)"] {
+            let source = format!(
+                "fn main() {{ let take = {{ let a = _; a.{method} == {item} }}; take([{item}]); }}"
+            );
+            let program = Compiler::new().analyze(&source).unwrap();
+            let TypedStatementKind::Closure(closure) = &program.functions[0].body[0].kind else {
+                panic!()
+            };
+            assert_eq!(
+                closure.params[0].ty,
+                Type::Array(match scalar {
+                    Type::Number => ArrayElementType::Number,
+                    Type::Bool => ArrayElementType::Bool,
+                    Type::String => ArrayElementType::String,
+                    _ => unreachable!(),
+                })
+            );
+            assert_eq!(closure.return_type, Type::Bool);
+        }
+    }
+    for source in [
+        "fn main() { let take = { let a = _; a.pop() }; take([true]); }",
+        "fn main() { let take = { let a = _; a.remove(_) }; take([true], 0); }",
+        "fn main() { let take = { let a = _; return; a.pop() == true }; take([true]); }",
+        "fn main() { let take = { let a = _; let inner = () => a.pop() == true; inner() }; take([true]); }",
+    ] {
+        assert!(
+            matches!(
+                semantic_error(source),
+                SemanticError::CannotInferPlaceholderParameter { .. }
+            ),
+            "{source}"
+        );
+    }
+    Compiler::new().analyze("fn main() { let take = { let a = _; let v = a.pop(); v == true }; take([true]); let later = { let a = _; let index = _; let v = a.remove(index); a == [\"x\"]; v }; later([\"y\"], 0); }").unwrap();
+}
+
+#[test]
+fn pop_remove_preserve_never_skipped_checks_captures_and_result_dependencies() {
+    use was_compiler::typed_ast::{ExprResult, TypedClosureBody};
+    for array in ["number[]", "bool[]", "string[]"] {
+        let source = format!("fn main(a: {array}) -> number {{ a.remove({{ return 7; true }}); }}");
+        let program = Compiler::new().analyze(&source).unwrap();
+        let TypedStatementKind::Expression(value) = &program.functions[0].body[0].kind else {
+            panic!()
+        };
+        assert_eq!(value.ty, ExprResult::Never);
+    }
+    for body in [
+        "return; a.remove(true);",
+        "false && a.remove(true) == 0;",
+        "a.remove({ return; missing });",
+        "if false { missing.pop(); }",
+    ] {
+        assert!(
+            Compiler::new()
+                .analyze(&format!("fn main(a: number[]) {{ {body} }}"))
+                .is_err()
+        );
+    }
+    let program = Compiler::new().analyze("fn main(a: string[]) { let outer = () => { let inner = () => a.remove(index()); inner() }; return outer(); } fn index() { return 0; }").unwrap();
+    assert_eq!(program.functions[0].return_type, Type::String);
+    assert_eq!(program.functions[1].return_type, Type::Number);
+    let TypedStatementKind::Closure(outer) = &program.functions[0].body[0].kind else {
+        panic!()
+    };
+    let TypedClosureBody::Block(block) = &outer.body else {
+        panic!()
+    };
+    let TypedStatementKind::Closure(inner) = &block.statements[0].kind else {
+        panic!()
+    };
+    assert_eq!(outer.captures, inner.captures);
+    let TypedClosureBody::Expression(value) = &inner.body else {
+        panic!()
+    };
+    let TypedExprKind::Remove { receiver, .. } = &value.kind else {
+        panic!()
+    };
+    assert!(matches!(receiver.kind, TypedExprKind::Captured { .. }));
+}
+
+#[test]
 fn push_raw_syntax_retains_receiver_argument_and_utf8_method_span() {
     use was_compiler::{
         ast::{Expr, StatementKind},

@@ -140,7 +140,10 @@ impl Visitor<'_> for TemporaryVisitor {
     fn enter_expression(&mut self, expr: &TypedExpr) -> ControlFlow<CodegenError> {
         if matches!(
             expr.kind,
-            TypedExprKind::Reserve { .. } | TypedExprKind::Push { .. }
+            TypedExprKind::Reserve { .. }
+                | TypedExprKind::Push { .. }
+                | TypedExprKind::Pop { .. }
+                | TypedExprKind::Remove { .. }
         ) {
             self.reserve(&[ValType::I32])?;
         }
@@ -235,6 +238,19 @@ mod tests {
                     index: Box::new(array()),
                 }),
                 2,
+            ),
+            (
+                expr(TypedExprKind::Pop {
+                    receiver: Box::new(array()),
+                }),
+                2,
+            ),
+            (
+                expr(TypedExprKind::Remove {
+                    receiver: Box::new(array()),
+                    index: Box::new(array()),
+                }),
+                3,
             ),
             (
                 expr(TypedExprKind::Push {

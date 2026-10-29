@@ -36,7 +36,7 @@ implemented guarantees to regression tests and current-source adapter evidence.
 
 Revision 1 did not implement resizable arrays, payload relocation/reclamation or
 string-edit operations. Later #65 adds explicit resizable construction and #66 adds
-narrow reserve/relocation-safe writes, followed by #67 push, under
+narrow reserve/relocation-safe writes, followed by #67 push and #68 pop/remove, under
 [the opt-in authority contract](#private-resizable-array-authority-65),
 without changing the public descriptor. Revision 1's fixed-storage lifetime rights
 remain unchanged; opt-in payload borrows must be reacquired after possible relocation.
@@ -255,10 +255,12 @@ Structural validity alone grants no resize authority; fabricating a valid descri
 or using ordinary literals/host encoding does not register it. These private fields
 are not a host construction API or protection against malicious memory mutation.
 
-Private `codegen/resizable.rs` discovers constructors, `Reserve` and `Push` structurally,
+Private `codegen/resizable.rs` discovers constructors, `Reserve`, `Push`, `Pop` and
+`Remove` structurally,
 including nested/skipped/unreachable nodes, and plans helper/type/global indices
 before checked body lowering. Per-element authority lookup/validation, selected
-constructors and reserve helpers (also used by push) are emitted in deterministic
+constructors, reserve helpers (also used by push) and shared-emission take helpers
+for pop/remove are emitted in deterministic
 element order. It uses the required production-internal `codegen/allocator_core.rs`
 emission, acquiring the **entire capacity** as the requested extent, not treating
 allocator rounding slack as authorized storage. Current payload/acquisition/extent
@@ -270,10 +272,15 @@ Publication follows successful copy/validation with no callbacks during preparat
 and publication. Failure can retain earlier successful unpublished allocations;
 there is no rollback or sweeping. Descriptors, authority records, current payloads
 and unreachable arrays remain retained. #65's constructor validation record remains
-historical; #66 adds reserve and relocation-safe writes, and #67 adds push.
-[#66 final validation and review passed](resizable-arrays.md#issue-66-validation);
-that evidence does not validate #67. No #67 evidence is recorded here yet;
-integrated M4 release acceptance remains pending.
+historical; #66 adds reserve and relocation-safe writes, #67 adds push and #68 adds
+pop/remove. Historical [#66](resizable-arrays.md#issue-66-validation) and
+[#67](resizable-arrays.md#issue-67-validation) validation/review retain their scope;
+[#68 validation/review evidence](resizable-arrays.md#issue-68-validation) records
+completed focused/default-suite, portable-build and browser compatibility checks
+and zero findings on both review axes. Rebuilt smoke is ordinary compatibility,
+not #68-specific adapter coverage. The broader ignored workspace run timed out at
+120 seconds; no full ignored workspace success is claimed. Integrated M4 release
+acceptance remains pending.
 
 `identifier.reserve(additional)` supports all three array types and returns void.
 Capture and validate the exact receiver authority before argument evaluation, even
@@ -290,8 +297,8 @@ or string handles, and publish descriptor/private-authority replacement before
 releasing the displaced owned payload. Spare slots remain unreadable. No callbacks
 occur during copy/publication/release. Pre-publication failure preserves the
 post-argument published array; prior effects and allocator history are not rolled
-back. Immutable strings themselves are not released. Pop/remove and shrinking
-remain unimplemented; there is no general reclamation or public management API.
+back. Immutable strings themselves are not released. Capacity shrinking remains
+unimplemented; there is no general reclamation or public management API.
 
 #67 `identifier.push(item)` supports all three array types with one exact scalar
 item and Void/Never result. Capture and validate authority before item effects,
@@ -304,17 +311,32 @@ publishing both public and private increased lengths. No callbacks or expected-t
 checks occur after reserve success. Receiver rebinding cannot redirect the append;
 item effects survive a later failure. The public descriptor layout is unchanged.
 
+#68 `identifier.pop()` and `identifier.remove(index)` return the exact scalar element
+(or Never on noncompletion). Capture and validate storage/authority before argument
+effects. Remove evaluates its one numeric index once, then revalidates the captured
+object and checks against its post-argument length; rebinding cannot redirect it.
+Pop traps when empty; remove uses ordinary finite, integral, nonnegative in-bounds
+indices, including `-0` as zero. Shared `emit_take` consumes only the returned
+bool/string value before any mutation. Remove shifts following live slot bytes
+forward toward the lower index without consuming shifted values. Shared publication
+updates both public and private lengths after consumption/shift. Neither operation
+changes the payload, capacity, acquisition identity or stable handle, releases
+referenced strings, nor adds capacity shrinking or general reclamation.
+
 Fixed-storage writes retain their original pre-RHS checked address, even in M4
 modules. Opt-in indexed writes capture and validate the handle/index before the
 RHS, preserve the old numeric value for compounds, and after RHS evaluation
 revalidate authority/index and resolve the current payload for the final store.
 Receiver rebinding does not redirect the store; RHS relocation cannot leave it
-writing into a released/reused buffer, including after RHS push. Completed effects
-survive traps. Array iteration retains the initial length and checked current-element
-reads, so appended elements do not extend an active iteration.
+writing into a released/reused buffer, including after RHS push. After RHS pop/remove,
+the store targets the current element at the captured index, or traps if shrink
+invalidated it; compounds retain the pre-RHS old value despite shifting. Completed
+effects survive traps. Array iteration retains the initial length and checked
+current-element reads: appends do not extend it, shifts affect subsequent reads,
+and shrinking can trap at a later index rather than end iteration early.
 
 Hosts may retain opt-in stable handles, but must reacquire payload pointers and
-lengths after calls or reentrant callbacks that may relocate storage. These payload
+lengths after calls or reentrant callbacks that may relocate storage or change length. These payload
 borrows are separate from JavaScript views, which must also be refreshed after
 possible memory growth. Existing fixed-storage host lifetime rights are unchanged.
 Regular literals and host encoding remain fixed-storage even in M4 modules.

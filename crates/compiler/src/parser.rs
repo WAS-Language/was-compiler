@@ -894,6 +894,8 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
                     enum ArrayMethod {
                         Reserve,
                         Push,
+                        Pop,
+                        Remove,
                     }
                     let method = match self.peek().map(|token| &token.kind) {
                         Some(TokenKind::Identifier(method)) if method == "reserve" => {
@@ -902,7 +904,11 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
                         Some(TokenKind::Identifier(method)) if method == "push" => {
                             ArrayMethod::Push
                         }
-                        _ => return Err(self.unexpected("reserve or push")),
+                        Some(TokenKind::Identifier(method)) if method == "pop" => ArrayMethod::Pop,
+                        Some(TokenKind::Identifier(method)) if method == "remove" => {
+                            ArrayMethod::Remove
+                        }
+                        _ => return Err(self.unexpected("reserve, push, pop or remove")),
                     };
                     self.advance();
                     self.expect(TokenKind::LeftParen)?;
@@ -911,6 +917,16 @@ impl<'tokens, 'source> Parser<'tokens, 'source> {
                     let receiver = Box::new(Expr::Identifier(name));
                     let span = self.span_since(start);
                     Ok(match method {
+                        ArrayMethod::Pop => Expr::Pop {
+                            receiver,
+                            args,
+                            span,
+                        },
+                        ArrayMethod::Remove => Expr::Remove {
+                            receiver,
+                            args,
+                            span,
+                        },
                         ArrayMethod::Push => Expr::Push {
                             receiver,
                             args,

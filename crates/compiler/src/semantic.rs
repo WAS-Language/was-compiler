@@ -1523,6 +1523,44 @@ impl SemanticAnalyzer {
                 )
             }
 
+            Expr::Pop {
+                receiver,
+                args,
+                span: method_span,
+            }
+            | Expr::Remove {
+                receiver,
+                args,
+                span: method_span,
+            } => {
+                let remove = matches!(expr, Expr::Remove { .. });
+                Self::check_method_arguments(
+                    if remove { "remove" } else { "pop" },
+                    args,
+                    usize::from(remove),
+                    *method_span,
+                )?;
+                let (receiver, receiver_flow) = self.analyze_expr(receiver, span, return_type)?;
+                let element = Self::array_element(&receiver);
+                self.expect_type(Type::Array(element), receiver.ty, span)?;
+                flow = receiver_flow;
+                let kind = if remove {
+                    let (index, index_flow) =
+                        self.analyze_expr(&args[0].value, span, return_type)?;
+                    self.expect_type(Type::Number, index.ty, span)?;
+                    flow = flow.then(index_flow);
+                    TypedExprKind::Remove {
+                        receiver: Box::new(receiver),
+                        index: Box::new(index),
+                    }
+                } else {
+                    TypedExprKind::Pop {
+                        receiver: Box::new(receiver),
+                    }
+                };
+                (kind, element.value_type().into())
+            }
+
             Expr::Array(elements) => {
                 let mut values = Vec::with_capacity(elements.len());
 
@@ -1587,16 +1625,25 @@ impl SemanticAnalyzer {
         args: &[crate::ast::CallArgument],
         span: Span,
     ) -> Result<(), SemanticError> {
+        Self::check_method_arguments(name, args, 1, span)
+    }
+
+    fn check_method_arguments(
+        name: &str,
+        args: &[crate::ast::CallArgument],
+        expected: usize,
+        span: Span,
+    ) -> Result<(), SemanticError> {
         if let Some(arg) = args.iter().find(|arg| arg.name.is_some()) {
             return Err(SemanticError::NamedArgumentsNotSupported {
                 name: name.into(),
                 span: arg.span,
             });
         }
-        if args.len() != 1 {
+        if args.len() != expected {
             return Err(SemanticError::ArgumentCountMismatch {
                 name: name.into(),
-                expected: 1,
+                expected,
                 found: args.len(),
                 span,
             });

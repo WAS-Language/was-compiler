@@ -120,7 +120,10 @@ fn visit_owned(expression: &Expr, visit: &mut impl FnMut(&Expr)) {
                 }
             }
         }
-        Expr::Reserve { receiver, args, .. } | Expr::Push { receiver, args, .. } => {
+        Expr::Reserve { receiver, args, .. }
+        | Expr::Push { receiver, args, .. }
+        | Expr::Pop { receiver, args, .. }
+        | Expr::Remove { receiver, args, .. } => {
             visit_owned(receiver, visit);
             for arg in args {
                 visit_owned(&arg.value, visit);
@@ -937,6 +940,43 @@ impl Region<'_> {
                 }
                 flow = receiver_flow.then(item_flow);
                 Some(self.constraints.concrete(Type::Void))
+            }
+            Expr::Pop {
+                receiver,
+                args,
+                span: method_span,
+            }
+            | Expr::Remove {
+                receiver,
+                args,
+                span: method_span,
+            } => {
+                let remove = matches!(expression, Expr::Remove { .. });
+                SemanticAnalyzer::check_method_arguments(
+                    if remove { "remove" } else { "pop" },
+                    args,
+                    usize::from(remove),
+                    *method_span,
+                )?;
+                let (receiver, receiver_flow) = self.expression(receiver, span, None, reachable)?;
+                let element = self.constraints.variable();
+                let active = reachable && receiver_flow.can_fall_through();
+                if active && let Some(receiver) = receiver {
+                    let relationship = self.constraints.connect(
+                        receiver,
+                        element,
+                        Relationship::ArrayElement,
+                        Site { order: site, span },
+                    );
+                    self.record(relationship, site, span);
+                }
+                flow = receiver_flow;
+                if remove {
+                    let (_, index_flow) =
+                        self.expression(&args[0].value, span, Some(Type::Number), active)?;
+                    flow = flow.then(index_flow);
+                }
+                Some(element)
             }
             Expr::Call {
                 func,

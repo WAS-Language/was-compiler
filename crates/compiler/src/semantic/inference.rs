@@ -411,7 +411,10 @@ impl<'a, F: FnMut(&'a str, Span) -> Option<&'a Function>> LexicalWalker<'a, F> {
                     }
                 }
             }
-            Expr::Reserve { receiver, args, .. } | Expr::Push { receiver, args, .. } => {
+            Expr::Reserve { receiver, args, .. }
+            | Expr::Push { receiver, args, .. }
+            | Expr::Pop { receiver, args, .. }
+            | Expr::Remove { receiver, args, .. } => {
                 self.expr(receiver, span);
                 for arg in args {
                     self.expr(&arg.value, span);

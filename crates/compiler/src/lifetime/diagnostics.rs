@@ -303,6 +303,15 @@ impl Scan<'_> {
                 self.expr(receiver);
                 self.expr(item);
             }
+            TypedExprKind::Pop { receiver } => {
+                self.reason(UnprovenReason::HandleUse);
+                self.expr(receiver);
+            }
+            TypedExprKind::Remove { receiver, index } => {
+                self.reason(UnprovenReason::HandleUse);
+                self.expr(receiver);
+                self.expr(index);
+            }
             TypedExprKind::Index { expr, index } => {
                 self.expr(expr);
                 self.expr(index);

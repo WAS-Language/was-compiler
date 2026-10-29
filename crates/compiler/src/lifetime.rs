@@ -308,6 +308,8 @@ fn scalar(expr: &TypedExpr, bindings: &Bindings) -> Proof<Type> {
         }
         TypedExprKind::Reserve { .. }
         | TypedExprKind::Push { .. }
+        | TypedExprKind::Pop { .. }
+        | TypedExprKind::Remove { .. }
         | TypedExprKind::String(_)
         | TypedExprKind::Captured { .. }
         | TypedExprKind::Range { .. }

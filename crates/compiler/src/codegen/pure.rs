@@ -38,6 +38,8 @@ pub(super) fn check(value: &TypedExpr, readable: &[VariableId]) -> Result<(), Vi
         }
         TypedExprKind::Reserve { .. }
         | TypedExprKind::Push { .. }
+        | TypedExprKind::Pop { .. }
+        | TypedExprKind::Remove { .. }
         | TypedExprKind::Captured { .. }
         | TypedExprKind::Call { .. }
         | TypedExprKind::LexicalCall { .. }

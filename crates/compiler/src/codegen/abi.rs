@@ -121,6 +121,22 @@ pub(super) fn resizable_push_signature(element: crate::ast::ArrayElementType) ->
     }
 }
 
+pub(super) fn resizable_pop_signature(element: crate::ast::ArrayElementType) -> Signature {
+    Signature {
+        params: vec![ValType::I32],
+        results: vec![value_type("<pop>", "result", element.value_type()).expect("scalar element")],
+    }
+}
+
+pub(super) fn resizable_remove_signature(element: crate::ast::ArrayElementType) -> Signature {
+    Signature {
+        params: vec![ValType::I32, ValType::F64],
+        results: vec![
+            value_type("<remove>", "result", element.value_type()).expect("scalar element"),
+        ],
+    }
+}
+
 pub(super) fn resizable_reserve_signature() -> Signature {
     Signature {
         params: vec![ValType::I32, ValType::F64],

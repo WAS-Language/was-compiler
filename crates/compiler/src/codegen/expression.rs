@@ -388,6 +388,56 @@ pub(super) fn emit_as(
             (flow, result(flow, Type::Void))
         }
 
+        TypedExprKind::Pop { receiver } | TypedExprKind::Remove { receiver, .. } => {
+            if !matches!(
+                receiver.kind,
+                TypedExprKind::Identifier { .. } | TypedExprKind::Captured { .. }
+            ) {
+                return Err(CodegenError::InvalidAssignmentTarget {
+                    function: function.into(),
+                    span,
+                });
+            }
+            let element = super::array::element(receiver);
+            expect_operand(function, Type::Array(element), receiver.ty, span)?;
+            let index = match &expr.kind {
+                TypedExprKind::Remove { index, .. } => Some(index.as_ref()),
+                _ => None,
+            };
+            if let Some(index) = index {
+                expect_operand(function, Type::Number, index.ty, span)?;
+            }
+            let predicted = if receiver.ty == ExprResult::Never
+                || index.is_some_and(|index| index.ty == ExprResult::Never)
+            {
+                ExprResult::Never
+            } else {
+                element.value_type().into()
+            };
+            expect_result(function, predicted, expr.ty, span)?;
+            let captured = body.temporary(ValType::I32);
+            let mut flow = body.emit_expr(receiver, span)?;
+            body.local_set(captured);
+            body.local_get(captured);
+            body.call(
+                body.movable_arrays()
+                    .expect("pop/remove planned")
+                    .validate(element),
+            );
+            body.instruction(&Instruction::Drop);
+            body.local_get(captured);
+            let helper = if let Some(index) = index {
+                flow = flow.then(body.emit_expr(index, span)?);
+                body.movable_arrays()
+                    .expect("remove planned")
+                    .remove(element)
+            } else {
+                body.movable_arrays().expect("pop planned").pop(element)
+            };
+            body.call(helper);
+            (flow, result(flow, element.value_type()))
+        }
+
         TypedExprKind::Index { expr: base, index } => {
             values::expect_index_types(base, index, expr.ty, body, span)?;
             let flow = values::emit_address(base, index, body, span)?;

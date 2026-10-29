@@ -111,7 +111,7 @@ impl SemanticAnalyzer {
                     self.check_pure_expression(&arg.value, span, context)?;
                 }
             }
-            Expr::Reserve { .. } | Expr::Push { .. } => {
+            Expr::Reserve { .. } | Expr::Push { .. } | Expr::Pop { .. } | Expr::Remove { .. } => {
                 return Err(invalid("array methods are not allowed"));
             }
             Expr::Lambda(_) => return Err(invalid("closures are not allowed")),

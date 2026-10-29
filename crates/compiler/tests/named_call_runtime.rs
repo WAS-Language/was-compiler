@@ -345,6 +345,11 @@ fn normalize_expr(expr: &mut TypedExpr, next_id: &mut usize) {
             normalize_expr(receiver, next_id);
             normalize_expr(item, next_id);
         }
+        TypedExprKind::Pop { receiver } => normalize_expr(receiver, next_id),
+        TypedExprKind::Remove { receiver, index } => {
+            normalize_expr(receiver, next_id);
+            normalize_expr(index, next_id);
+        }
         TypedExprKind::Unary { expr, .. } => normalize_expr(expr, next_id),
         TypedExprKind::Binary { left, right, .. } => {
             normalize_expr(left, next_id);

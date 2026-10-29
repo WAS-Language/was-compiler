@@ -302,18 +302,24 @@
 <postfix_expression> ::= <identifier> <ws> "(" <ws> <argument_list>? <ws> ")"
                        | <identifier> <ws> "." <ws> "reserve" <ws> "(" <ws> <argument_list>? <ws> ")"
                        | <identifier> <ws> "." <ws> "push" <ws> "(" <ws> <argument_list>? <ws> ")"
+                       | <identifier> <ws> "." <ws> "pop" <ws> "(" <ws> <argument_list>? <ws> ")"
+                       | <identifier> <ws> "." <ws> "remove" <ws> "(" <ws> <argument_list>? <ws> ")"
                        | <identifier> <ws> "[" <ws> <expression> <ws> "]"
                        | <primary_expression>
 
 
-# reserve and push are contextual, not reserved. Only identifier receivers are admitted;
-# no parenthesized/call/index-result receivers or postfix chaining. Semantic
-# checking requires exactly one positional argument and an array receiver.
-# reserve expects number; push expects the receiver's exact scalar element type.
-# The result is Void, or Never when a child cannot complete. Defaults/contracts
-# reject both methods even in skipped operands. Direct method pipeline stages
-# are not admitted. A single dot does not alter range
-# tokens or admit .5 / 1. as numeric literals.
+# reserve, push, pop and remove are contextual, not reserved. Only identifier
+# receivers are admitted; no parenthesized/call/index-result receivers or chaining.
+# All require an array receiver. Semantic checking requires zero arguments for pop,
+# exactly one positional number for reserve/remove, and exactly one positional
+# scalar of the receiver's exact element type for push. reserve/push return Void;
+# pop/remove return the exact scalar element type; noncompletion yields Never.
+# Placeholder ArrayElement relations remain exact and region-local.
+# Defaults/contracts reject all four methods even in skipped operands; direct
+# method pipeline stages are not admitted. Authority precedes argument effects;
+# remove checks the captured receiver's post-argument current index. Empty pop and
+# invalid remove indices trap; remove accepts -0 as zero. Neither reduces capacity.
+# A single dot does not alter range tokens or admit .5 / 1. as numeric literals.
 
 <primary_expression> ::= <number_literal>
                        | <string_literal>

@@ -42,6 +42,471 @@ fn run(source: &str, script: &str) {
 
 #[test]
 #[ignore = "requires Node.js"]
+fn pop_remove_all_types_preserve_identity_capacity_and_payload() {
+    run(
+        r#"
+        fn numbers() -> number[] { return resizable([11, 22, 33, 44]); }
+        fn flags() -> bool[] { return resizable([true, false, true, false]); }
+        fn texts() -> string[] { return resizable(["α🙂", "", "third", "last"]); }
+        fn pop_numbers(a: number[]) -> number { let alias = a; return alias.pop(); }
+        fn pop_flags(a: bool[]) -> bool { let alias = a; return alias.pop(); }
+        fn pop_texts(a: string[]) -> string { let alias = a; return alias.pop(); }
+        fn remove_numbers(a: number[], i: number) -> number { return a.remove(i); }
+        fn remove_flags(a: bool[], i: number) -> bool { return a.remove(i); }
+        fn remove_texts(a: string[], i: number) -> string { return a.remove(i); }
+        fn push_numbers(a: number[]) { a.push(55); }
+        fn push_flags(a: bool[]) { a.push(true); }
+        fn push_texts(a: string[]) { a.push("again"); }
+        "#,
+        r#"
+        const assert=require('node:assert/strict');
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:()=>assert.fail('unexpected callback')}}).exports;
+        const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+        const text=h=>Buffer.from(e.memory.buffer,word(h),word(h+4)).toString('utf8');
+        for(const [kind,width,expected,added] of [
+            ['numbers',8,[11,22,33,44],55],['flags',1,[1,0,1,0],1],
+            ['texts',4,['α🙂','','third','last'],'again']]) {
+            const h=e[kind](),p=word(h),capacity=v().getBigUint64(h+24,true),identity=v().getBigUint64(h+40,true);
+            const scalar=x=>kind==='texts'?text(x):x;
+            const values=()=>Array.from({length:word(h+4)},(_,i)=>scalar(kind==='numbers'?
+                v().getFloat64(p+width*i,true):kind==='flags'?v().getUint8(p+i):word(p+width*i)));
+            assert.equal(scalar(e['remove_'+kind](h,1)),expected[1]);
+            assert.deepEqual(values(),[expected[0],expected[2],expected[3]]);
+            assert.equal(scalar(e['pop_'+kind](h)),expected[3]);
+            assert.equal(scalar(e['remove_'+kind](h,-0)),expected[0]);
+            assert.equal(scalar(e['pop_'+kind](h)),expected[2]);
+            assert.deepEqual(values(),[]);
+            for(const op of [()=>e['pop_'+kind](h),()=>e['remove_'+kind](h,0)])
+                assert.throws(op,WebAssembly.RuntimeError);
+            assert.equal(word(h),p);assert.equal(word(h+4),0);
+            assert.equal(v().getBigUint64(h+24,true),capacity);
+            assert.equal(v().getBigUint64(h+40,true),identity);
+            for(let i=0;i<4;i++)e['push_'+kind](h);
+            assert.equal(word(h),p);assert.deepEqual(values(),Array(4).fill(added));
+            assert.equal(v().getBigUint64(h+24,true),capacity);
+            assert.equal(v().getBigUint64(h+40,true),identity);
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn remove_checks_authority_before_once_only_argument_and_numeric_domain_after_effects() {
+    run(
+        r#"
+        fn numbers() -> number[] { return resizable([7, 19]); }
+        fn flags() -> bool[] { return resizable([true, false]); }
+        fn texts() -> string[] { return resizable(["old", "new"]); }
+        fn fixed_numbers() -> number[] { return [7, 19]; }
+        fn fixed_flags() -> bool[] { return [true, false]; }
+        fn fixed_texts() -> string[] { return ["old", "new"]; }
+        fn remove_numbers(a: number[], i: number) -> number { return a.remove({ effect(1); i }); }
+        fn remove_flags(a: bool[], i: number) -> bool { return a.remove({ effect(2); i }); }
+        fn remove_texts(a: string[], i: number) -> string { return a.remove({ effect(3); i }); }
+        fn pop_numbers(a: number[]) -> number { return a.pop(); }
+        fn pop_flags(a: bool[]) -> bool { return a.pop(); }
+        fn pop_texts(a: string[]) -> string { return a.pop(); }
+        "#,
+        r#"
+        const assert=require('node:assert/strict'),events=[];let mutate=()=>{};
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:n=>{events.push(n);mutate();}}}).exports;
+        const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true),put=(p,n)=>v().setUint32(p,n,true);
+        for(const [kind,event,width] of [['numbers',1,8],['flags',2,1],['texts',3,4]]) {
+            const h=e[kind](),other=e[kind](),p=word(h),fixed=e['fixed_'+kind]();
+            const forged=e.__alloc(8);put(forged,p);put(forged+4,2);
+            const snapshot=()=>Array.from(new Uint8Array(e.memory.buffer,h,48)).concat(
+                Array.from(new Uint8Array(e.memory.buffer,p,width*2)));
+            for(const bad of [fixed,forged,0,4]) {
+                events.length=0;
+                assert.throws(()=>e['remove_'+kind](bad,0),WebAssembly.RuntimeError);
+                assert.throws(()=>e['pop_'+kind](bad),WebAssembly.RuntimeError);
+                assert.deepEqual(events,[]);
+            }
+            for(const index of [-1,-Number.MIN_VALUE,0.5,NaN,Infinity,-Infinity,2,4294967296]) {
+                events.length=0;const before=snapshot();
+                assert.throws(()=>e['remove_'+kind](h,index),WebAssembly.RuntimeError);
+                assert.deepEqual(events,[event]);assert.deepEqual(snapshot(),before);
+            }
+            for(const [offset,bad] of [[0,word(other)],[4,0]]) {
+                put(h+offset,bad);events.length=0;const before=snapshot();
+                assert.throws(()=>e['remove_'+kind](h,0),WebAssembly.RuntimeError);
+                assert.throws(()=>e['pop_'+kind](h),WebAssembly.RuntimeError);
+                assert.deepEqual(events,[]);assert.deepEqual(snapshot(),before);
+                put(h,p);put(h+4,2);
+                mutate=()=>put(h+offset,bad);events.length=0;
+                assert.throws(()=>e['remove_'+kind](h,0),WebAssembly.RuntimeError);
+                assert.deepEqual(events,[event]);assert.equal(word(h+offset),bad);
+                mutate=()=>{};put(h,p);put(h+4,2);
+            }
+            events.length=0;e['remove_'+kind](h,-0);assert.deepEqual(events,[event]);assert.equal(word(h+4),1);
+        }
+        const n=e.numbers();events.length=0;
+        assert.throws(()=>e.remove_flags(n,0),WebAssembly.RuntimeError);
+        assert.throws(()=>e.pop_flags(n),WebAssembly.RuntimeError);assert.deepEqual(events,[]);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn remove_uses_captured_receiver_and_post_argument_length_after_nested_effects() {
+    run(
+        r#"
+        fn seed() -> number[] { return resizable([7, 19, 31]); }
+        fn append(a: number[]) { a.push(43); }
+        fn pop(a: number[]) -> number { return a.pop(); }
+        fn remove(a: number[], i: number) -> number { return a.remove(i); }
+        fn nested(a: number[], replacement: number[], i: number) -> number {
+            let receiver = a;
+            let alias = receiver;
+            let index = () => {
+                effect(1);
+                receiver = replacement;
+                effect(2);
+                return i;
+            };
+            let invoke = () => receiver.remove(index());
+            let result = invoke();
+            effect(3);
+            return result;
+        }
+        "#,
+        r#"
+        const assert=require('node:assert/strict'),events=[];let a,b,mode;
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:n=>{
+                events.push(n);
+                if(n===1){assert.equal(word(a+4),3);assert.equal(e.remove(a,0),7);}
+                if(n===2){
+                    assert.equal(word(a+4),2);assert.equal(word(b+4),3);
+                    if(mode==='grow')e.append(a);else assert.equal(e.pop(a),31);
+                    e.__alloc(70000);
+                }
+            }}}).exports;
+        const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+        const values=h=>Array.from({length:word(h+4)},(_,i)=>v().getFloat64(word(h)+8*i,true));
+        mode='grow';a=e.seed();b=e.seed();
+        assert.equal(e.nested(a,b,2),43);assert.deepEqual(events,[1,2,3]);
+        assert.deepEqual(values(a),[19,31]);assert.deepEqual(values(b),[7,19,31]);
+        mode='shrink';a=e.seed();b=e.seed();events.length=0;
+        assert.throws(()=>e.nested(a,b,1),WebAssembly.RuntimeError);
+        assert.deepEqual(events,[1,2]);assert.deepEqual(values(a),[19]);assert.deepEqual(values(b),[7,19,31]);
+        assert.equal(e.pop(a),19);assert.equal(word(a+4),0);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn pop_remove_validate_only_returned_bool_or_string_before_any_mutation() {
+    run(
+        r#"
+        fn flags() -> bool[] { return resizable([true, false, true, false]); }
+        fn texts() -> string[] { return resizable(["first", "second", "third", "last"]); }
+        fn pop_flags(a: bool[]) -> bool { return a.pop(); }
+        fn pop_texts(a: string[]) -> string { return a.pop(); }
+        fn remove_flags(a: bool[], i: number) -> bool { return a.remove({ effect(1); i }); }
+        fn remove_texts(a: string[], i: number) -> string { return a.remove({ effect(2); i }); }
+        fn push_flags(a: bool[]) { a.push(true); }
+        fn push_texts(a: string[]) { a.push("after"); }
+        "#,
+        r#"
+        const assert=require('node:assert/strict'),events=[];
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:n=>events.push(n)}}).exports;
+        const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+        for(const [kind,width,event] of [['flags',1,1],['texts',4,2]]) {
+            const get=p=>width===1?v().getUint8(p):word(p);
+            const put=(p,x)=>width===1?v().setUint8(p,x):v().setUint32(p,x,true);
+            for(const op of ['pop','remove']) {
+                const h=e[kind](),p=word(h),index=op==='pop'?3:1,slot=p+width*index,good=get(slot);
+                for(const bad of kind==='flags'?[2,255]:[0,4,e.memory.buffer.byteLength-4]) {
+                    put(slot,bad);events.length=0;
+                    const before=Array.from(new Uint8Array(e.memory.buffer,h,48)).concat(
+                        Array.from(new Uint8Array(e.memory.buffer,p,width*4)));
+                    assert.throws(()=>e[op+'_'+kind](h,index),WebAssembly.RuntimeError);
+                    assert.deepEqual(events,op==='remove'?[event]:[]);
+                    assert.deepEqual(Array.from(new Uint8Array(e.memory.buffer,h,48)).concat(
+                        Array.from(new Uint8Array(e.memory.buffer,p,width*4))),before);
+                }
+                put(slot,good);assert.equal(e[op+'_'+kind](h,index),good);assert.equal(word(h+4),3);
+                e['push_'+kind](h);assert.equal(word(h+4),4);assert.equal(word(h),p);
+            }
+            // Both the untouched prefix and the shifted tail can contain invalid unreturned slots.
+            const h=e[kind](),p=word(h),good=get(p+width);
+            put(p,kind==='flags'?255:0);put(p+width*2,kind==='flags'?2:4);
+            assert.equal(e['remove_'+kind](h,1),good);assert.equal(word(h+4),3);
+            assert.equal(get(p),kind==='flags'?255:0);assert.equal(get(p+width),kind==='flags'?2:4);
+            const last=get(p+width*2);assert.equal(e['pop_'+kind](h),last);assert.equal(word(h+4),2);
+            assert.equal(word(h),p);assert.equal(get(p+width),kind==='flags'?2:4);
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn pop_remove_numeric_values_and_raw_shift_preserve_special_value_bits() {
+    run(
+        r#"
+        fn seed() -> number[] { return resizable([0, 0, 0, 0, 0, 0, 0, 0]); }
+        fn pop(a: number[]) -> number { return a.pop(); }
+        fn remove(a: number[], i: number) -> number { return a.remove(i); }
+        "#,
+        r#"
+        const assert=require('node:assert/strict');
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:()=>assert.fail('unexpected callback')}}).exports;
+        const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+        const bits=[0x8000000000000000n,0n,0x7ff0000000000000n,0xfff0000000000000n,
+            1n,0x8000000000000001n,0x7ff8000000000042n,0x7fefffffffffffffn];
+        for(const mode of ['pop','remove']) {
+            const h=e.seed(),p=word(h),remaining=bits.slice();
+            bits.forEach((b,i)=>v().setBigUint64(p+8*i,b,true));
+            while(remaining.length) {
+                const i=mode==='pop'?remaining.length-1:Math.floor(remaining.length/2);
+                const expected=remaining.splice(i,1)[0];
+                const scratch=new DataView(new ArrayBuffer(8));scratch.setBigUint64(0,expected,true);
+                const result=mode==='pop'?e.pop(h):e.remove(h,i);
+                assert(Object.is(result,scratch.getFloat64(0,true)));
+                assert.equal(word(h),p);assert.equal(word(h+4),remaining.length);
+                remaining.forEach((b,j)=>assert.equal(v().getBigUint64(p+8*j,true),b));
+            }
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn pop_remove_pending_numeric_stores_and_all_compounds_use_saved_old_value_and_current_index() {
+    for (operator, expected) in [
+        ("=", "4"),
+        ("+=", "21"),
+        ("-=", "13"),
+        ("*=", "68"),
+        ("/=", "4.25"),
+        ("%=", "1"),
+    ] {
+        let source = r#"
+            fn seed() -> number[] { return resizable([7, 17, 31]); }
+            fn write(a: number[], b: number[], shrink: bool) -> number[] {
+                let receiver = a;
+                let alias = receiver;
+                let change = () => {
+                    if shrink { let removed = alias.pop(); let again = alias.pop(); }
+                    else { let removed = alias.remove(0); }
+                    receiver = b;
+                    effect(20);
+                };
+                receiver[{ effect(10); 1 }] OP { change(); 4 };
+                return receiver;
+            }
+        "#
+        .replace("OP", operator);
+        let script = r#"
+            const assert=require('node:assert/strict'),events=[];let a;
+            const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+                {env:{effect:n=>{events.push(n);if(n===20)v().setFloat64(word(a)+8,999,true);}}}).exports;
+            const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+            const values=h=>Array.from({length:word(h+4)},(_,i)=>v().getFloat64(word(h)+8*i,true));
+            a=e.seed();const b=e.seed(),p=word(a);
+            assert.equal(e.write(a,b,0),b);assert.deepEqual(events,[10,20]);
+            assert.deepEqual(values(a),[17,EXPECTED]);assert.equal(word(a),p);
+            assert.deepEqual(values(b),[7,17,31]);
+            a=e.seed();const shrunk=word(a);events.length=0;
+            assert.throws(()=>e.write(a,b,1),WebAssembly.RuntimeError);
+            assert.deepEqual(events,[10,20]);assert.deepEqual(values(a),[7]);assert.equal(word(a),shrunk);
+            assert.equal(v().getFloat64(shrunk+8,true),999,'post-RHS trap must not store even into spare capacity');
+            assert.deepEqual(values(b),[7,17,31]);
+        "#
+        .replace("EXPECTED", expected);
+        run(&source, &script);
+    }
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn pop_remove_pending_bool_and_string_stores_shift_current_index_or_trap_after_shrink() {
+    run(
+        r#"
+        fn flags() -> bool[] { return resizable([true, false, true]); }
+        fn texts() -> string[] { return resizable(["first", "second", "third"]); }
+        fn write_flags(a: bool[], shrink: bool) {
+            a[{ effect(1); 1 }] = {
+                if shrink { let x = a.pop(); let y = a.pop(); }
+                else { let x = a.remove(0); }
+                effect(2); false
+            };
+        }
+        fn write_texts(a: string[], shrink: bool) {
+            a[{ effect(3); 1 }] = {
+                if shrink { let x = a.pop(); let y = a.pop(); }
+                else { let x = a.remove(0); }
+                effect(4); "replacement"
+            };
+        }
+        "#,
+        r#"
+        const assert=require('node:assert/strict'),events=[];
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:n=>events.push(n)}}).exports;
+        const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+        const text=h=>Buffer.from(e.memory.buffer,word(h),word(h+4)).toString('utf8');
+        for(const [kind,width,markers] of [['flags',1,[1,2]],['texts',4,[3,4]]]) {
+            const read=p=>kind==='flags'?v().getUint8(p):text(word(p));
+            let h=e[kind](),p=word(h);events.length=0;
+            e['write_'+kind](h,0);assert.deepEqual(events,markers);assert.equal(word(h),p);assert.equal(word(h+4),2);
+            assert.equal(read(p),kind==='flags'?0:'second');assert.equal(read(p+width),kind==='flags'?0:'replacement');
+            h=e[kind]();p=word(h);const old=read(p+width);events.length=0;
+            assert.throws(()=>e['write_'+kind](h,1),WebAssembly.RuntimeError);
+            assert.deepEqual(events,markers);assert.equal(word(h),p);assert.equal(word(h+4),1);
+            assert.equal(read(p),kind==='flags'?1:'first');assert.equal(read(p+width),old);
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn pop_remove_recursive_captured_and_reentrant_pending_writes_survive_caught_inner_traps() {
+    run(
+        r#"
+        fn seed(n: number) -> number[] { return resizable([n, n + 1, n + 2, n + 3]); }
+        fn recursive(a: number[], depth: number) -> number {
+            let alias = a;
+            let take = () => alias.pop();
+            if depth > 0 { return recursive(a, depth - 1) + take(); }
+            return take();
+        }
+        fn remove(a: number[], i: number) -> number { return a.remove(i); }
+        fn write(a: number[], marker: number) {
+            let receiver = a;
+            let rhs = () => { effect(marker); return 4; };
+            receiver[{ effect(marker + 10); 1 }] += rhs();
+        }
+        fn fail(a: number[]) { a[3] = { let x = a.pop(); effect(3); 99 }; }
+        fn append(a: number[]) { a.push(77); }
+        "#,
+        r#"
+        const assert=require('node:assert/strict'),events=[];let outer,inner,failed,depth=0;
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:n=>{
+                events.push(n);
+                if(n===1){
+                    assert.equal(depth++,0);e.write(inner,2);
+                    assert.throws(()=>e.fail(failed),WebAssembly.RuntimeError);
+                    assert.equal(e.remove(outer,0),17);e.__alloc(70000);depth--;
+                }else if(n===2){assert.equal(e.remove(inner,0),31);}
+            }}}).exports;
+        const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+        const values=h=>Array.from({length:word(h+4)},(_,i)=>v().getFloat64(word(h)+8*i,true));
+        const recursive=e.seed(1);assert.equal(e.recursive(recursive,2),9);assert.deepEqual(values(recursive),[1]);
+        outer=e.seed(17);inner=e.seed(31);failed=e.seed(43);
+        e.write(outer,1);assert.deepEqual(events,[11,1,12,2,3]);
+        assert.deepEqual(values(outer),[18,22,20]);assert.deepEqual(values(inner),[32,36,34]);
+        assert.deepEqual(values(failed),[43,44,45]);
+        e.append(failed);e.write(failed,4);assert.deepEqual(values(failed),[43,48,45,77]);
+        assert.deepEqual(events,[11,1,12,2,3,14,4]);assert.equal(depth,0);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn pop_remove_iteration_keeps_initial_count_checks_later_yields_and_observes_shifts() {
+    run(
+        r#"
+        fn numbers() -> number[] { return resizable([1, 2, 3]); }
+        fn flags() -> bool[] { return resizable([true, false, true]); }
+        fn texts() -> string[] { return resizable(["first", "second", "third"]); }
+        fn numbers_loop(a: number[], shift: bool) {
+            let first = true;
+            for x in a {
+                effect(x);
+                if first { first = false; if shift { let y = a.remove(0); } else { let y = a.pop(); } }
+            }
+        }
+        fn flags_loop(a: bool[], shift: bool) {
+            let first = true;
+            for x in a {
+                if x { effect(1); } else { effect(0); }
+                if first { first = false; if shift { let y = a.remove(0); } else { let y = a.pop(); } }
+            }
+        }
+        fn texts_loop(a: string[], shift: bool) {
+            let first = true;
+            for x in a {
+                if x == "first" { effect(1); } else if x == "second" { effect(2); } else { effect(3); }
+                if first { first = false; if shift { let y = a.remove(0); } else { let y = a.pop(); } }
+            }
+        }
+        "#,
+        r#"
+        const assert=require('node:assert/strict'),events=[];
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:n=>events.push(n)}}).exports;
+        const word=p=>new DataView(e.memory.buffer).getUint32(p,true);
+        for(const kind of ['numbers','flags','texts'])for(const shift of [0,1]) {
+            const h=e[kind](),p=word(h);events.length=0;
+            assert.throws(()=>e[kind+'_loop'](h,shift),WebAssembly.RuntimeError);
+            assert.deepEqual(events,kind==='flags'?(shift?[1,1]:[1,0]):(shift?[1,3]:[1,2]));
+            assert.equal(word(h),p);assert.equal(word(h+4),2);
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn remove_validates_post_argument_consumed_value_without_rolling_back_argument_effects() {
+    run(
+        r#"
+        fn flags() -> bool[] { return resizable([true, false, true]); }
+        fn texts() -> string[] { return resizable(["first", "second", "third"]); }
+        fn remove_flags(a: bool[]) -> bool { return a.remove({ effect(1); 1 }); }
+        fn remove_texts(a: string[]) -> string { return a.remove({ effect(2); 1 }); }
+        fn pop_flags(a: bool[]) -> bool { return a.pop(); }
+        fn pop_texts(a: string[]) -> string { return a.pop(); }
+        "#,
+        r#"
+        const assert=require('node:assert/strict'),events=[];let mutate=()=>{},after;
+        const e=new WebAssembly.Instance(new WebAssembly.Module(require('node:fs').readFileSync(0)),
+            {env:{effect:n=>{events.push(n);mutate();}}}).exports;
+        const v=()=>new DataView(e.memory.buffer),word=p=>v().getUint32(p,true);
+        for(const [kind,width,event] of [['flags',1,1],['texts',4,2]]) {
+            const h=e[kind](),p=word(h);
+            const snapshot=()=>Array.from(new Uint8Array(e.memory.buffer,h,48)).concat(
+                Array.from(new Uint8Array(e.memory.buffer,p,width*3)));
+            const slot=p+width,good=width===1?v().getUint8(slot):word(slot);
+            // The invalid string handle is aligned and in bounds, but its descriptor is invalid.
+            const invalid=e.__alloc(8);v().setUint32(invalid,0,true);v().setUint32(invalid+4,1,true);
+            mutate=()=>{
+                if(width===1)v().setUint8(slot,255);else v().setUint32(slot,invalid,true);
+                after=snapshot();
+            };
+            events.length=0;
+            assert.throws(()=>e['remove_'+kind](h),WebAssembly.RuntimeError);
+            assert.deepEqual(events,[event]);assert.deepEqual(snapshot(),after);
+            mutate=()=>{};
+            if(width===1)v().setUint8(slot,good);else v().setUint32(slot,good,true);
+            assert.equal(e['remove_'+kind](h),good);assert.equal(word(h+4),2);
+            // A nested successful shrink survives the outer operation's now-out-of-bounds index.
+            const fresh=e[kind](),freshp=word(fresh);events.length=0;
+            mutate=()=>{e['pop_'+kind](fresh);e['pop_'+kind](fresh);};
+            assert.throws(()=>e['remove_'+kind](fresh),WebAssembly.RuntimeError);
+            assert.deepEqual(events,[event]);assert.equal(word(fresh),freshp);assert.equal(word(fresh+4),1);
+            mutate=()=>{};e['pop_'+kind](fresh);assert.equal(word(fresh+4),0);
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js"]
 fn push_traces_once_only_item_and_post_item_length_through_alias() {
     run(
         r#"

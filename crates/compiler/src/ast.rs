@@ -122,6 +122,18 @@ pub enum Expr {
         span: Span,
     },
 
+    Pop {
+        receiver: Box<Expr>,
+        args: Vec<CallArgument>,
+        span: Span,
+    },
+
+    Remove {
+        receiver: Box<Expr>,
+        args: Vec<CallArgument>,
+        span: Span,
+    },
+
     Lambda(Lambda),
 
     Loop {

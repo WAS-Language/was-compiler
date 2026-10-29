@@ -173,19 +173,28 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   only. The M3 adapter, configuration, observations and instrumentation remain
   `cfg(test)` in `allocator.rs`. Before changing shared emission, read [the adapter
   contract](docs/m3-private-allocator.md#reusable-emission-boundary-64); before changing
-  constructor/reserve/push typing, authority, relocation, pending writes or host payload
-  borrows, read [the #65–#67 contract](docs/resizable-arrays.md).
+  constructor/reserve/push/pop/remove typing, authority, relocation, pending writes
+  or host payload borrows, read [the #65–#68 contract](docs/resizable-arrays.md).
   #66 adds narrow reserve and relocation-safe writes; #67 adds push for all three
-  array types. Preserve structural `Reserve`/`Push` discovery, shared reserve growth,
+  array types; #68 adds pop/remove. Preserve structural `Reserve`/`Push`/`Pop`/`Remove`
+  discovery, shared reserve growth,
   planned per-element authority helpers, full-capacity acquisition and
   publish-before-release ordering. Fixed writes retain saved addresses; resizable
   writes revalidate captured handle/index after RHS effects, preserving compound old
   values. Push checks authority before its once-only item, revalidates current state,
   consumes only the new bool/string value, and initializes the typed slot before
   public/private length publication; no callbacks or expected failures follow reserve
-  success. Pop/remove/shrink, M2 migration, ordinary-array management and general
-  reclamation remain outside this slice. [#66 final validation/review passed](docs/resizable-arrays.md#issue-66-validation);
-  that record does not validate #67. Integrated M4 release remains pending.
+  success. Shared `emit_take` validates only the returned bool/string before any
+  mutation and raw-shifts remove's following bytes; preserve shared public/private
+  length publication, payload/capacity/acquisition identity and referenced strings.
+  After shrink/shift, pending writes use the current captured index or trap,
+  preserving pre-RHS compound old values; initial-count iteration reads current
+  elements and traps if shrink invalidates a later index. Capacity shrinking, M2
+  migration, ordinary-array management and general reclamation remain outside this
+  slice. Historical #65–#67 records retain scope; [#68 validation/review evidence](docs/resizable-arrays.md#issue-68-validation)
+  records completed focused/default/build/browser checks and zero two-axis findings.
+  The broader ignored workspace run timed out at 120 seconds; no full ignored
+  workspace success is claimed. Integrated M4 release remains pending.
   Expose no M3 controls or observations.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
@@ -339,16 +348,26 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   scalar with Void/Never result and exact region-local placeholder inference.
   Push is forbidden in pure defaults/contracts; pipeline/discard rules are unchanged.
   Receiver rebinding does not redirect it; pending writes remain relocation-safe and
-  iteration retains its initial length. Pop/remove/shrink remain unimplemented.
+  iteration retains its initial length. #68 adds contextual identifier-only `pop()`
+  (zero arguments) and `remove(index)` (one positional number), returning the exact
+  scalar element or Never. Both are forbidden in pure defaults/contracts and use
+  exact region-local `ArrayElement` placeholder relations. Authority precedes index
+  effects; remove uses the captured receiver's post-argument current index. Empty
+  pop traps; remove uses ordinary index rules, accepting `-0`. Neither reduces
+  capacity or reclaims referenced strings. Capacity shrinking remains unimplemented.
   `resizable` newly reserves global/host-language names,
   permits lexical shadowing, and is forbidden in pure defaults/contracts and direct
   builtin pipeline stages. Programs without M4 retain existing bytes/helper order;
-  see [the construction/reserve/push contract](docs/resizable-arrays.md) for numeric bounds,
+  see [the construction and mutation contract](docs/resizable-arrays.md) for numeric bounds,
   raw unconsumed-slot copying, source/typed-node migration and focused evidence.
   [#66 final validation/review passed](docs/resizable-arrays.md#issue-66-validation);
   integrated M4 release remains pending. Historical #65/#66 gates retain their scope;
   [#67 validation/review passed](docs/resizable-arrays.md#issue-67-validation), including
-  all ignored workspace tests and freshly rebuilt browser compatibility.
+  all ignored workspace tests and freshly rebuilt browser compatibility. Those
+  historical records do not validate #68; see its [validation/review evidence](docs/resizable-arrays.md#issue-68-validation)
+  for completed checks and zero two-axis findings. The broader ignored workspace run
+  timed out at 120 seconds, so full ignored workspace success is not claimed; the
+  rebuilt browser smoke is ordinary compatibility coverage, not #68-specific scenarios.
 - `//` line comments and non-nesting `/* ... */` block comments are supported
   between tokens anywhere whitespace can appear; delimiters inside strings remain text.
 - Statement/value `loop` supports all concrete result types through value breaks;

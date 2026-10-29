@@ -217,6 +217,8 @@ impl Visitor<'_> for Recorder {
             TypedExprKind::Range { .. } => "range".into(),
             TypedExprKind::Reserve { .. } => "reserve".into(),
             TypedExprKind::Push { .. } => "push".into(),
+            TypedExprKind::Pop { .. } => "pop".into(),
+            TypedExprKind::Remove { .. } => "remove".into(),
             TypedExprKind::Call { .. } => "call".into(),
             TypedExprKind::LexicalCall { .. } => "lexical-call".into(),
             TypedExprKind::NormalizedCall(_) => "normalized-call".into(),
@@ -253,9 +255,22 @@ fn array_methods_visit_receiver_then_argument_and_obey_abort_and_skip_hooks() {
                 item: Box::new(identifier("additional")),
             },
         ),
+        (
+            "pop",
+            TypedExprKind::Pop {
+                receiver: Box::new(identifier("receiver")),
+            },
+        ),
+        (
+            "remove",
+            TypedExprKind::Remove {
+                receiver: Box::new(identifier("receiver")),
+                index: Box::new(identifier("additional")),
+            },
+        ),
     ] {
         let block = vec![statement(0, TypedStatementKind::Expression(expr(kind)))];
-        let expected = [
+        let mut expected = vec![
             "block+1",
             "statement:0",
             method,
@@ -263,6 +278,9 @@ fn array_methods_visit_receiver_then_argument_and_obey_abort_and_skip_hooks() {
             "identifier:additional",
             "block-1",
         ];
+        if method == "pop" {
+            expected.remove(4);
+        }
         let mut recorder = Recorder::default();
         assert!(walk_block(&block, &mut recorder).is_continue());
         assert_eq!(recorder.events, expected);

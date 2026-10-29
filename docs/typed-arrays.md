@@ -26,10 +26,10 @@ The [memory ABI](memory-abi.md) owns layout and consumption rules;
 [ADR 0006](adr/0006-typed-array-layout-and-lazy-element-validation.md) records the
 untagged-layout/lazy-validation decision. This extension improves extensibility,
 not reclamation or optimization; ordinary array allocation remains monotonic.
-Later [#65 construction, #66 reserve and #67 push](resizable-arrays.md) add opt-in fresh
-copies, length-preserving reserve, single-element append and relocation-safe writes
-for all three types. Pop/remove/shrink remain unimplemented; these additions do not
-extend #37 release evidence.
+Later [#65–#68 construction and mutations](resizable-arrays.md) add opt-in fresh
+copies, length-preserving reserve, single-element push/pop/remove and relocation-safe
+writes for all three types. Capacity shrinking remains unimplemented; these additions
+do not extend #37 release evidence.
 [#66 final validation/review passed](resizable-arrays.md#issue-66-validation);
 integrated M4 release remains pending.
 
@@ -86,7 +86,7 @@ annotation syntax. String `len`/indexing/concatenation remain unsupported.
 
 <a id="resizable-arrays-65-construction-66-reserve"></a>
 
-## Resizable arrays (#65 construction; #66 reserve; #67 push)
+## Resizable arrays (#65 construction; #66 reserve; #67 push; #68 pop/remove)
 
 `resizable(source)` accepts any of the three array types and returns a fresh copy
 of the exact same type with private resize authority. Source evaluation happens
@@ -105,7 +105,7 @@ byte sizing within the 2^31-byte request ceiling; allocation may still fail.
 
 Growth acquires the full selected capacity, raw-copies live slots without consuming
 otherwise unconsumed bool bytes or string handles, then publishes the replacement
-before releasing the displaced owned payload. Pop/remove, shrinking and general
+before releasing the displaced owned payload. Capacity shrinking and general
 reclamation remain unimplemented. See [the reserve contract](resizable-arrays.md#reserve-contract-66)
 for complete ordering and failure rules.
 
@@ -119,6 +119,20 @@ without scanning old elements; initialize the typed slot before publishing publi
 length, with no callbacks or expected failures after reserve succeeds. Rebinding cannot
 redirect the append; pending writes revalidate current storage, and iteration keeps its
 initial length. See [the push contract](resizable-arrays.md#push-contract-67).
+
+#68 adds contextual identifier-only `pop()` with no arguments and `remove(index)`
+with one positional number, returning the exact scalar element type or Never.
+Both are forbidden in pure defaults/contracts. Exact region-local `ArrayElement`
+placeholder relations connect receiver and result without caller refinement.
+Authority precedes argument effects; remove captures the receiver, evaluates its
+index once and checks the captured object's post-argument current state. Empty pop
+traps; remove uses ordinary index rules, including `-0`. Shared `emit_take` validates
+only the returned bool/string before any mutation and raw-shifts following slot
+bytes for remove, without consuming shifted values. Both share public/private length
+publication and retain payload, capacity, acquisition identity and referenced strings.
+Pending writes use the current captured index after shrink/shift, or trap if invalid,
+while compounds retain pre-RHS old values. Iteration keeps its initial count and
+current reads; shrinking can trap on a later read. See [the pop/remove contract](resizable-arrays.md#popremove-contract-68).
 
 Expected array context reaches the source: `let flags: bool[] = resizable([]);`
 works, including through nested constructors. Unconstrained `resizable([])` retains
@@ -136,11 +150,16 @@ stage. A lexical callable shadowing that name uses normal callable rules.
 
 Ordinary literals/host copies stay fixed-storage even in M4 modules; fixed-storage
 host lifetime rights are unchanged. No-M4 programs retain existing bytes and helper
-order. See [the construction/reserve/push contract](resizable-arrays.md)
+order. See [the construction and mutation contract](resizable-arrays.md)
 and [private authority layout](memory-abi.md#private-resizable-array-authority-65).
-The #37, #65 and [#66 validation/review records](resizable-arrays.md#issue-66-validation)
-retain their historical scope and do not validate #67. No #67 evidence is recorded
-here yet; integrated M4 release acceptance remains pending.
+The #37 and #65–#67 validation/review records retain their historical scope;
+[#67 evidence](resizable-arrays.md#issue-67-validation) does not validate #68.
+[#68 validation/review evidence](resizable-arrays.md#issue-68-validation) records
+completed focused/default-suite, portable-build and browser compatibility checks
+and zero findings on both review axes. Browser smoke is ordinary regression
+compatibility, not #68-specific adapter coverage. The broader ignored workspace
+run timed out at 120 seconds; no full ignored workspace success is claimed.
+Integrated M4 release acceptance remains pending.
 
 ## Contextual literal typing and stable inference
 

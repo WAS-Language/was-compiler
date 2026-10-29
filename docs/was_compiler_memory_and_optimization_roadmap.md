@@ -762,7 +762,7 @@ remain separately authorized work; no default or release decision is implied.
 
 **Goal:** Add collection operations without changing the current alias model.
 
-**Current slices (#65/#66/#67):** `resizable(source)` creates a fresh, resize-authorized
+**Current slices (#65/#66/#67/#68):** `resizable(source)` creates a fresh, resize-authorized
 copy of `number[]`, `bool[]` or `string[]` with the existing public descriptor.
 #66 adds only `identifier.reserve(additional)` and relocation-safe indexed writes
 for all three types: reserve preserves length/handle, may relocate, and releases
@@ -786,10 +786,29 @@ new bool/string item; shared reserve growth raw-copies old slots without scans.
 Typed-slot initialization
 precedes public/private length publication, with no callbacks or expected failures
 after reserve succeeds. Pending writes remain safe; iteration retains its initial
-length. Historical #65/#66 evidence retains its original scope and does not validate
-#67; no #67 evidence is recorded here yet. Pop/remove, shrinking and general
-reclamation remain unimplemented. The interview decisions and
-original acceptance criteria below retain their full-milestone scope.
+length.
+#68 adds contextual identifier-only `pop()` (zero arguments) and `remove(index)`
+(one positional number), with exact scalar/Never results and exact region-local
+`ArrayElement` placeholder relations. Both are forbidden in pure defaults/contracts.
+Authority precedes argument effects; remove checks the captured receiver's current
+index after once-only argument evaluation. Empty pop traps; remove uses normal
+index rules, including `-0`. Shared `emit_take` validates only the returned bool/string
+before any mutation and raw-shifts following slot bytes without consuming them.
+Shared public/private length publication retains payload, capacity, acquisition
+identity and referenced strings. Pending writes target the current captured index
+after shrink/shift, or trap, preserving pre-RHS compound old values. Initial-count
+iteration reads current elements; shrinking can trap a later read.
+Historical #65–#67 evidence retains its original scope; see
+[#67 validation/review](resizable-arrays.md#issue-67-validation) and
+[#68 validation/review evidence](resizable-arrays.md#issue-68-validation).
+Focused/default-suite, portable-build and browser compatibility checks passed,
+with zero findings on both review axes. Rebuilt smoke covers ordinary regressions,
+not #68-specific adapter scenarios. The broader ignored workspace run timed out
+at 120 seconds; no full ignored workspace success is claimed. Capacity shrinking
+and general reclamation remain unimplemented; integrated M4 release acceptance
+remains pending.
+The interview decisions and original acceptance criteria below retain their
+full-milestone scope.
 
 ### M4 interview decisions (2026-10-28; confirmed)
 
@@ -1020,10 +1039,14 @@ len(values)
 
 The interview selected identifier-receiver method syntax and the explicit copy
 constructor `resizable(source)`. Push/reserve return void; pop/remove return an element,
-with empty pop trapping in the proposed design. The constructor is implemented by
-#65, reserve by #66, push by #67, and `len` already exists. Pop/remove remain
-confirmed design choices, not implemented features. The full-milestone exit gate
-below remains pending; #65/#66 evidence does not validate #67 or close M4.
+with empty pop trapping. The constructor is implemented by #65, reserve by #66,
+push by #67 and pop/remove by #68; `len` already exists. Capacity shrinking remains
+unimplemented. The full-milestone exit gate below remains pending; historical
+#65–#67 evidence does not validate #68 or close M4. See
+[#68 validation/review evidence](resizable-arrays.md#issue-68-validation) for the
+completed checks and zero two-axis findings. The broader ignored workspace run
+timed out at 120 seconds; no full ignored workspace success is claimed, and
+integrated M4 release acceptance remains pending.
 
 ### Specific tests
 

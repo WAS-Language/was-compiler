@@ -31,8 +31,8 @@ _Avoid_: List, growable list
 
 **Resizable array**:
 An array explicitly created as a fresh copy with resize authority, using the same
-array type as its source. Construction, length-preserving reserve and single-element
-push are supported; pop, remove and shrinking remain proposed.
+array type as its source. Reserve preserves length, push appends one element, and
+pop/remove return and delete one element without reducing capacity.
 _Avoid_: Growable list, separate list type
 
 **Reserve**:

@@ -10,6 +10,573 @@ use was_compiler::{
 };
 use wasmparser::{Operator, Parser, Payload, Validator};
 
+#[test]
+fn pop_lowering_validates_authority_and_consumed_value_before_length_publication() {
+    for (ty, consumer) in [("number", None), ("bool", Some(8)), ("string", Some(2))] {
+        let mut program = Compiler::new()
+            .analyze(&format!("fn main(a: {ty}[]) -> {ty} {{ return a[0]; }}"))
+            .unwrap();
+        let value = result(&mut program);
+        let TypedExprKind::Index { expr: receiver, .. } = &value.kind else {
+            panic!("index")
+        };
+        value.kind = TypedExprKind::Pop {
+            receiver: receiver.clone(),
+        };
+        let bytes = codegen::compile(&program).unwrap();
+        let bodies = operators(&bytes);
+        let helper = bodies.last().unwrap();
+        let helper_calls = calls(helper);
+        assert!(matches!(&helper[..9], [
+            Operator::LocalGet { local_index: 0 }, Operator::Call { .. }, Operator::LocalSet { local_index: 1 },
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg }, Operator::I32Eqz,
+            Operator::If { .. }, Operator::Unreachable, Operator::End
+        ] if memarg.offset == 12));
+        assert!(matches!(&helper[9..14], [
+            Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg }, Operator::I32Const { value: 1 }, Operator::I32Sub, Operator::LocalSet { local_index: 2 }
+        ] if memarg.offset == 12));
+        let load = &helper[22];
+        assert!(
+            match load {
+                Operator::F64Load { memarg } if ty == "number" =>
+                    memarg.offset == 0 && memarg.align == 3,
+                Operator::I32Load8U { memarg } if ty == "bool" =>
+                    memarg.offset == 0 && memarg.align == 0,
+                Operator::I32Load { memarg } if ty == "string" =>
+                    memarg.offset == 0 && memarg.align == 2,
+                _ => false,
+            },
+            "{ty}: {load:?}"
+        );
+        assert_eq!(helper_calls.len(), if consumer.is_some() { 2 } else { 1 });
+        if let Some(consumer) = consumer {
+            assert_eq!(helper_calls[1], consumer);
+        }
+        let first_store = helper
+            .iter()
+            .position(|op| matches!(op, Operator::I32Store { .. }))
+            .unwrap();
+        let last_call = helper
+            .iter()
+            .rposition(|op| matches!(op, Operator::Call { .. }))
+            .unwrap();
+        assert!(last_call < first_store);
+        let offsets = helper
+            .iter()
+            .filter_map(|op| match op {
+                Operator::I32Store { memarg } => Some(memarg.offset),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(offsets, [4, 12]);
+        assert!(!helper.iter().any(|op| matches!(
+            op,
+            Operator::MemoryGrow { .. } | Operator::I64Store { .. } | Operator::I32Store8 { .. }
+        )));
+    }
+}
+
+fn take_from_index(value: &mut TypedExpr, method: &str) {
+    let TypedExprKind::Index {
+        expr: receiver,
+        index,
+    } = &value.kind
+    else {
+        panic!("index seam")
+    };
+    value.kind = match method {
+        "pop" => TypedExprKind::Pop {
+            receiver: receiver.clone(),
+        },
+        "remove" => TypedExprKind::Remove {
+            receiver: receiver.clone(),
+            index: index.clone(),
+        },
+        _ => unreachable!(),
+    };
+}
+
+#[test]
+fn forged_pop_remove_check_shapes_types_results_and_original_captures() {
+    use was_compiler::typed_ast::{TypedClosureBody, VariableId};
+    for ty in ["number", "bool", "string"] {
+        for method in ["pop", "remove"] {
+            for captured in [false, true] {
+                for case in 0..17 {
+                    let source = if captured {
+                        format!(
+                            "fn main(a: {ty}[]) -> {ty} {{ let take = () => a[0]; return take(); }}"
+                        )
+                    } else {
+                        format!("fn main(a: {ty}[]) -> {ty} {{ return a[0]; }}")
+                    };
+                    let mut program = Compiler::new().analyze(&source).unwrap();
+                    let value = if captured {
+                        let TypedStatementKind::Closure(closure) =
+                            &mut program.functions[0].body[0].kind
+                        else {
+                            panic!()
+                        };
+                        if case == 16 {
+                            closure.captures[0].variable = VariableId(999);
+                        }
+                        let TypedClosureBody::Expression(value) = &mut closure.body else {
+                            panic!()
+                        };
+                        value.as_mut()
+                    } else {
+                        result(&mut program)
+                    };
+                    take_from_index(value, method);
+                    let receiver = match &mut value.kind {
+                        TypedExprKind::Pop { receiver }
+                        | TypedExprKind::Remove { receiver, .. } => receiver,
+                        _ => unreachable!(),
+                    };
+                    match case {
+                        0 => receiver.ty = Type::Number.into(),
+                        1 => receiver.ty = ExprResult::Void,
+                        2 => receiver.ty = ExprResult::Value(Type::Void),
+                        3 => receiver.ty = ExprResult::Never,
+                        4 => receiver.kind = TypedExprKind::Array(vec![], ArrayElementType::Number),
+                        5 => **receiver = constructor((**receiver).clone()),
+                        6 => receiver.kind = TypedExprKind::Number("1".into()),
+                        7 => value.ty = ExprResult::Void,
+                        8 => value.ty = ExprResult::Never,
+                        9 => value.ty = ExprResult::Value(Type::Void),
+                        10 => value.ty = Type::Array(ArrayElementType::Number).into(),
+                        11 => {
+                            receiver.ty = Type::Array(if ty == "bool" {
+                                ArrayElementType::String
+                            } else {
+                                ArrayElementType::Bool
+                            })
+                            .into();
+                            value.ty = if ty == "bool" {
+                                Type::String
+                            } else {
+                                Type::Bool
+                            }
+                            .into();
+                        }
+                        12..=15 if method == "remove" => {
+                            let TypedExprKind::Remove { index, .. } = &mut value.kind else {
+                                unreachable!()
+                            };
+                            index.ty = match case {
+                                12 => Type::Bool.into(),
+                                13 => ExprResult::Never,
+                                14 => ExprResult::Void,
+                                _ => ExprResult::Value(Type::Void),
+                            };
+                            if case == 13 {
+                                value.ty = ExprResult::Never;
+                            }
+                        }
+                        16 if captured => {}
+                        _ => continue,
+                    }
+                    let error = rejected_push(&program);
+                    assert!(
+                        error.span().is_some(),
+                        "{method}, {ty}, {captured}, {case}: {error:?}"
+                    );
+                    if (4..=6).contains(&case) {
+                        assert!(matches!(
+                            error,
+                            CodegenError::InvalidAssignmentTarget { .. }
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn remove_lowering_captures_once_revalidates_and_shifts_raw_bytes_before_shared_lengths() {
+    use was_compiler::typed_ast::TypedClosureBody;
+    for (ty, ordinary, address_helper, consumer, width) in [
+        ("number", 7, 5, None, 8),
+        ("bool", 12, 11, Some(9), 1),
+        ("string", 11, 10, Some(3), 4),
+    ] {
+        for captured in [false, true] {
+            let source = if captured {
+                format!(
+                    "fn index() -> number {{ return 0; }} fn main(a: {ty}[]) -> {ty} {{ let take = () => a[index()]; return take(); }}"
+                )
+            } else {
+                format!(
+                    "fn index() -> number {{ return 0; }} fn main(a: {ty}[]) -> {ty} {{ return a[index()]; }}"
+                )
+            };
+            let mut program = Compiler::new().analyze(&source).unwrap();
+            let value = if captured {
+                let TypedStatementKind::Closure(closure) = &mut program.functions[1].body[0].kind
+                else {
+                    panic!()
+                };
+                let TypedClosureBody::Expression(value) = &mut closure.body else {
+                    panic!()
+                };
+                value.as_mut()
+            } else {
+                let TypedStatementKind::Return(Some(value)) =
+                    &mut program.functions[1].body[0].kind
+                else {
+                    panic!()
+                };
+                value
+            };
+            take_from_index(value, "remove");
+            let mut enabled = None;
+            for level in levels() {
+                let mut compiler = Compiler::new();
+                compiler.set_optimization_level(level);
+                let bytes = compiler.compile(&program).unwrap();
+                let bodies = operators(&bytes);
+                let callable = 2 + ordinary;
+                let first = callable + usize::from(captured);
+                let validate = (first + 8) as u32;
+                let remove = (first + 9) as u32;
+                assert_eq!(bodies.len(), first + 10);
+                let body = &bodies[if captured { callable } else { 1 }];
+                let body_calls = calls(body);
+                assert_eq!(&body_calls[body_calls.len() - 3..], [validate, 0, remove]);
+                let check = body.iter().position(|op| matches!(op, Operator::Call { function_index } if *function_index == validate)).unwrap();
+                let saved = match &body[check - 2..check] {
+                    [
+                        Operator::LocalSet { local_index: a },
+                        Operator::LocalGet { local_index: b },
+                    ] if a == b => *a,
+                    _ => panic!("saved receiver"),
+                };
+                assert!(
+                    matches!(&body[check+1..check+5], [Operator::Drop, Operator::LocalGet { local_index }, Operator::Call { function_index: 0 }, Operator::Call { function_index }] if *local_index == saved && *function_index == remove)
+                );
+                let helper = &bodies[remove as usize];
+                let mut expected = vec![validate, address_helper];
+                expected.extend(consumer);
+                assert_eq!(calls(helper), expected);
+                assert!(matches!(&helper[..8], [
+                    Operator::LocalGet { local_index: 0 }, Operator::Call { function_index }, Operator::LocalSet { local_index: 2 },
+                    Operator::LocalGet { local_index: 0 }, Operator::LocalGet { local_index: 1 }, Operator::Call { function_index: checked_address }, Operator::LocalSet { local_index: 4 }, Operator::LocalGet { local_index: 2 }
+                ] if *function_index == validate && *checked_address == address_helper));
+                let consumed_load = helper
+                    .iter()
+                    .position(|op| match op {
+                        Operator::F64Load { memarg } if ty == "number" => memarg.offset == 0,
+                        Operator::I32Load8U { memarg } if ty == "bool" => memarg.offset == 0,
+                        Operator::I32Load { memarg } if ty == "string" => memarg.offset == 0,
+                        _ => false,
+                    })
+                    .unwrap();
+                let first_write = helper
+                    .iter()
+                    .position(|op| matches!(op, Operator::I32Store8 { .. }))
+                    .unwrap();
+                let last_call = helper
+                    .iter()
+                    .rposition(|op| matches!(op, Operator::Call { .. }))
+                    .unwrap();
+                assert!(consumed_load < first_write && last_call < first_write);
+                assert!(matches!(&helper[first_write-3..first_write+1], [
+                    Operator::LocalGet { local_index: 5 }, Operator::LocalGet { local_index: 5 }, Operator::I32Load8U { memarg: load }, Operator::I32Store8 { memarg: store }
+                ] if load.offset == width && load.align == 0 && store.offset == 0 && store.align == 0));
+                assert!(helper.windows(4).any(|ops| matches!(
+                    ops,
+                    [
+                        Operator::LocalGet { local_index: 5 },
+                        Operator::LocalGet { local_index: 6 },
+                        Operator::I32GeU,
+                        Operator::BrIf { relative_depth: 1 }
+                    ]
+                )));
+                assert!(matches!(&helper[helper.len()-8..], [
+                    Operator::LocalGet { local_index: 0 }, Operator::LocalGet { local_index: 3 }, Operator::I32Store { memarg: public },
+                    Operator::LocalGet { local_index: 2 }, Operator::LocalGet { local_index: 3 }, Operator::I32Store { memarg: private }, Operator::LocalGet { local_index: 7 }, Operator::End
+                ] if public.offset == 4 && private.offset == 12));
+                assert!(!helper[first_write..].iter().any(|op| matches!(
+                    op,
+                    Operator::Call { .. } | Operator::Unreachable | Operator::MemoryGrow { .. }
+                )));
+                assert!(!helper.iter().any(|op| matches!(
+                    op,
+                    Operator::F64Store { .. }
+                        | Operator::I64Store { .. }
+                        | Operator::F64Add
+                        | Operator::F64Sub
+                )));
+                if level != OptimizationLevel::None {
+                    if let Some(expected) = &enabled {
+                        assert_eq!(&bytes, expected);
+                    } else {
+                        enabled = Some(bytes);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn pop_remove_remain_forbidden_in_defaults_contracts_skipped_and_unreachable_nodes() {
+    for (ty, literal) in [("number", "1"), ("bool", "true"), ("string", "\"x\"")] {
+        for method in ["pop", "remove"] {
+            let mut source = Compiler::new()
+                .analyze(&format!("fn main(a: {ty}[]) -> {ty} {{ return a[0]; }}"))
+                .unwrap();
+            take_from_index(result(&mut source), method);
+            let operation = result(&mut source).clone();
+            let mut program = Compiler::new().analyze(&format!("fn target(a: {ty}[], item: {ty} = {literal}) {{}} fn main(a: {ty}[]) {{ target(a); }}")).unwrap();
+            let TypedStatementKind::Expression(value) = &mut program.functions[1].body[0].kind
+            else {
+                panic!()
+            };
+            let TypedExprKind::NormalizedCall(sequence) = &mut value.kind else {
+                panic!()
+            };
+            sequence.bindings[1].value = operation.clone();
+            assert!(matches!(
+                rejected_push(&program),
+                CodegenError::InvalidNormalizedCall { .. }
+            ));
+
+            let mut program = Compiler::new()
+                .analyze(&format!("fn main(a: {ty}[]) {{}}"))
+                .unwrap();
+            let comparison = TypedExpr {
+                ty: Type::Bool.into(),
+                kind: TypedExprKind::Binary {
+                    left: Box::new(operation.clone()),
+                    op: BinaryOp::Equal,
+                    right: Box::new(operation.clone()),
+                },
+            };
+            program.functions[0].contracts.push(TypedContract {
+                span: Span::new(10, 20),
+                value: TypedExpr {
+                    ty: Type::Bool.into(),
+                    kind: TypedExprKind::Binary {
+                        left: Box::new(TypedExpr {
+                            ty: Type::Bool.into(),
+                            kind: TypedExprKind::Bool(false),
+                        }),
+                        op: BinaryOp::And,
+                        right: Box::new(comparison),
+                    },
+                },
+            });
+            assert!(
+                matches!(rejected_push(&program), CodegenError::InvalidContractExpression { span, .. } if span == Span::new(10, 20))
+            );
+
+            for unreachable in [false, true] {
+                let source = if unreachable {
+                    format!("fn main(a: {ty}[]) {{ return; a[0]; }}")
+                } else {
+                    format!("fn main(a: {ty}[]) -> bool {{ return false && (a[0] == {literal}); }}")
+                };
+                let mut program = Compiler::new().analyze(&source).unwrap();
+                let (value, span) = if unreachable {
+                    let statement = &mut program.functions[0].body[1];
+                    let TypedStatementKind::Expression(value) = &mut statement.kind else {
+                        panic!()
+                    };
+                    (value, statement.span)
+                } else {
+                    let span = program.functions[0].body[0].span;
+                    let TypedExprKind::Binary { right, .. } = &mut result(&mut program).kind else {
+                        panic!()
+                    };
+                    let TypedExprKind::Binary { left, .. } = &mut right.kind else {
+                        panic!()
+                    };
+                    (left.as_mut(), span)
+                };
+                take_from_index(value, method);
+                let receiver = match &mut value.kind {
+                    TypedExprKind::Pop { receiver } | TypedExprKind::Remove { receiver, .. } => {
+                        receiver
+                    }
+                    _ => unreachable!(),
+                };
+                receiver.kind = TypedExprKind::Array(vec![], ArrayElementType::Number);
+                assert!(
+                    matches!(rejected_push(&program), CodegenError::InvalidAssignmentTarget { span: found, .. } if found == span)
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn remove_preserves_genuine_never_and_plans_every_index_child() {
+    for ty in ["number", "bool", "string"] {
+        for index in ["loop {}", "{ return 7; 0 }"] {
+            let mut program = Compiler::new()
+                .analyze(&format!(
+                    "fn main(a: {ty}[]) -> number {{ a[{index}]; return 1; }}"
+                ))
+                .unwrap();
+            take_from_index(expression(&mut program), "remove");
+            assert_eq!(expression(&mut program).ty, ExprResult::Never);
+            for level in levels() {
+                let mut compiler = Compiler::new();
+                compiler.set_optimization_level(level);
+                operators(&compiler.compile(&program).unwrap());
+            }
+        }
+    }
+    let mut program = Compiler::new().analyze("fn main(a: number[]) -> number { return a[{ let n = 5 % 2; let text = \"remove-index-child\"; n }]; }").unwrap();
+    take_from_index(result(&mut program), "remove");
+    let bytes = codegen::compile(&program).unwrap();
+    let bodies = operators(&bytes);
+    assert!(
+        bodies
+            .iter()
+            .any(|body| body.iter().any(|op| matches!(op, Operator::F64Abs)))
+    );
+    assert!(
+        Parser::new(0)
+            .parse_all(&bytes)
+            .any(|payload| match payload.unwrap() {
+                Payload::DataSection(section) => section.into_iter().any(|segment| segment
+                    .unwrap()
+                    .data
+                    .windows(18)
+                    .any(|window| window == b"remove-index-child")),
+                _ => false,
+            })
+    );
+    // Parameter, nested n/text declarations, then receiver scratch: each policy
+    // must traverse the index block even though the operation owns its receiver.
+    assert_eq!(
+        first_body_locals(&bytes),
+        vec![
+            wasmparser::ValType::F64,
+            wasmparser::ValType::I32,
+            wasmparser::ValType::I32
+        ]
+    );
+}
+
+#[test]
+fn pop_remove_append_helpers_without_changing_push_reserve_or_other_existing_bodies() {
+    use was_compiler::typed_ast::TypedStatement;
+    let bodies = |bytes: &[u8]| {
+        Parser::new(0)
+            .parse_all(bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(body.as_bytes().to_vec()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    for (ty, literal) in [("number", "3"), ("bool", "true"), ("string", "\"x\"")] {
+        let mut program = Compiler::new()
+            .analyze(&format!(
+                "fn main(a: {ty}[]) {{ a.reserve(2); a.push({literal}); }}"
+            ))
+            .unwrap();
+        let before = codegen::compile(&program).unwrap();
+        let before_bodies = bodies(&before);
+        for method in ["pop", "remove"] {
+            let mut source = Compiler::new()
+                .analyze(&format!("fn main(a: {ty}[]) -> {ty} {{ return a[0]; }}"))
+                .unwrap();
+            take_from_index(result(&mut source), method);
+            program.functions[0].body.push(TypedStatement {
+                span: Span::new(0, 0),
+                kind: TypedStatementKind::Expression(result(&mut source).clone()),
+            });
+        }
+        let after = codegen::compile(&program).unwrap();
+        operators(&after);
+        let after_bodies = bodies(&after);
+        assert_eq!(after_bodies.len(), before_bodies.len() + 2);
+        assert_eq!(&after_bodies[1..before_bodies.len()], &before_bodies[1..]);
+        assert_eq!(after, codegen::compile(&program).unwrap());
+    }
+}
+
+#[test]
+fn pop_remove_only_helpers_use_scalar_signatures_and_are_discovered_when_skipped() {
+    use wasmparser::ValType::{F64, I32};
+    for (ty, literal, scalar) in [
+        ("number", "1", F64),
+        ("bool", "true", I32),
+        ("string", "\"x\"", I32),
+    ] {
+        for method in ["pop", "remove"] {
+            let mut program = Compiler::new()
+                .analyze(&format!(
+                    "fn main(a: {ty}[]) -> bool {{ return false && (a[0] == {literal}); }}"
+                ))
+                .unwrap();
+            let TypedExprKind::Binary { right, .. } = &mut result(&mut program).kind else {
+                panic!()
+            };
+            let TypedExprKind::Binary { left, .. } = &mut right.kind else {
+                panic!()
+            };
+            take_from_index(left, method);
+            let mut enabled = None;
+            for level in levels() {
+                let mut compiler = Compiler::new();
+                compiler.set_optimization_level(level);
+                let bytes = compiler.compile(&program).unwrap();
+                let bodies = operators(&bytes);
+                let mut signatures = Vec::new();
+                let mut functions = Vec::new();
+                let mut exports = Vec::new();
+                for payload in Parser::new(0).parse_all(&bytes) {
+                    match payload.unwrap() {
+                        Payload::TypeSection(reader) => signatures
+                            .extend(reader.into_iter_err_on_gc_types().map(Result::unwrap)),
+                        Payload::FunctionSection(reader) => {
+                            functions.extend(reader.into_iter().map(Result::unwrap))
+                        }
+                        Payload::ExportSection(reader) => exports.extend(
+                            reader
+                                .into_iter()
+                                .map(|entry| entry.unwrap().name.to_owned()),
+                        ),
+                        _ => {}
+                    }
+                }
+                let signature = &signatures[*functions.last().unwrap() as usize];
+                assert_eq!(
+                    signature.params(),
+                    if method == "pop" {
+                        vec![I32]
+                    } else {
+                        vec![I32, F64]
+                    }
+                );
+                assert_eq!(signature.results(), [scalar]);
+                // No constructor/reserve/push is needed: ordinary memory helpers,
+                // seven allocator helpers, one lookup/validate pair and one take.
+                let ordinary = match ty {
+                    "number" => 7,
+                    "bool" => 12,
+                    _ => 11,
+                };
+                assert_eq!(bodies.len(), 1 + ordinary + 7 + 2 + 1);
+                assert_eq!(exports, ["main", "memory", "__alloc"]);
+                if level != OptimizationLevel::None {
+                    if let Some(expected) = &enabled {
+                        assert_eq!(&bytes, expected);
+                    } else {
+                        enabled = Some(bytes);
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn operators(bytes: &[u8]) -> Vec<Vec<Operator<'_>>> {
     Validator::new().validate_all(bytes).unwrap();
     Parser::new(0)
