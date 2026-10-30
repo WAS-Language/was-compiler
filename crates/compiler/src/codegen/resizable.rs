@@ -1,4 +1,7 @@
 //! Private opt-in array construction, authority checks, relocation and append.
+#[cfg(test)]
+#[path = "resizable_construction_observations.rs"]
+pub(super) mod construction_observations;
 use std::ops::ControlFlow;
 
 use crate::{

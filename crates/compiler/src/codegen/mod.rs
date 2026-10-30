@@ -35,6 +35,8 @@ mod representation;
 mod resizable;
 mod statement;
 #[cfg(test)]
+mod string_construction_tests;
+#[cfg(test)]
 mod string_observation_tests;
 mod temporaries;
 mod validation;

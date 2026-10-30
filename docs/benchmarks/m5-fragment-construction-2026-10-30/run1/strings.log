@@ -1,0 +1,14 @@
+
+running 6 tests
+test codegen::string_observation_tests::collisions_are_rejected_only_by_the_private_variant ... ok
+test codegen::string_observation_tests::join_collisions_are_rejected_only_by_the_private_variant ... ok
+test codegen::string_observation_tests::join_observation_isolation_and_direct_final_payload_copying ... ok
+test codegen::string_observation_tests::observations_are_private_and_deterministic ... ok
+test codegen::string_observation_tests::paired_concat_events_effects_growth_and_caught_trap_retention ... ok
+test codegen::string_observation_tests::removing_only_expected_counter_sites_restores_every_body_and_local ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 589 filtered out; finished in 0.13s
+
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.85s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-eb8c15a554b28099.exe)

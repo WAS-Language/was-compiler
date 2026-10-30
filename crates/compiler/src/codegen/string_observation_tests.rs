@@ -1,4 +1,4 @@
-//! Private concat tracer. Integration dependencies cannot select this module.
+//! Private concat/join tracer. Integration dependencies cannot select this module.
 use super::{CodegenError, memory::Helper, validation::ValidatedProgram};
 use crate::{Compiler, exports::ExportOptions};
 use wasm_encoder::{
@@ -17,20 +17,33 @@ const COUNTERS: [&str; 7] = [
     "__m5_string_copied_bytes",
 ];
 
-fn modules(compiler: &Compiler, source: &str) -> [Vec<u8>; 2] {
+pub(super) fn modules(compiler: &Compiler, source: &str) -> [Vec<u8>; 2] {
     let program = compiler.analyze(source).unwrap();
     let checked = ValidatedProgram::new(&program, &ExportOptions::All).unwrap();
     let memory = checked.layout().memory.as_ref().unwrap();
     let index = |helper| memory.first_function.raw() + memory.plan.helper_index(helper);
     let ordinary = super::assemble(&checked);
-    let observed = observe(&ordinary, index(Helper::Alloc), index(Helper::StringConcat)).unwrap();
+    let helpers = memory.plan.helpers();
+    let optional_index = |helper| helpers.contains(&helper).then(|| index(helper));
+    let observed = observe(
+        &ordinary,
+        index(Helper::Alloc),
+        optional_index(Helper::StringConcat),
+        optional_index(Helper::StringJoin),
+    )
+    .unwrap();
     for bytes in [&ordinary, &observed] {
         Validator::new().validate_all(bytes).unwrap();
     }
     [ordinary, observed]
 }
 
-fn observe(original: &[u8], alloc: u32, concat: u32) -> Result<Vec<u8>, CodegenError> {
+fn observe(
+    original: &[u8],
+    alloc: u32,
+    concat: Option<u32>,
+    join: Option<u32>,
+) -> Result<Vec<u8>, CodegenError> {
     let base = Parser::new(0)
         .parse_all(original)
         .find_map(|payload| {
@@ -124,16 +137,19 @@ fn observe(original: &[u8], alloc: u32, concat: u32) -> Result<Vec<u8>, CodegenE
                                 );
                                 add(&mut additions, base + 2, &[Instruction::LocalGet(2)]);
                                 additions
-                            } else if function_index == concat
+                            } else if (Some(function_index) == concat
+                                || Some(function_index) == join)
                                 && matches!(op, Operator::LocalTee { local_index: 4 })
                             {
                                 sites += 1;
                                 let mut additions = Vec::new();
                                 add(&mut additions, base + 3, &[Instruction::I64Const(1)]);
-                                add(&mut additions, base + 4, &[Instruction::LocalGet(9)]);
+                                let length = if Some(function_index) == join { 14 } else { 9 };
+                                add(&mut additions, base + 4, &[Instruction::LocalGet(length)]);
                                 add(&mut additions, base + 5, &[Instruction::I64Const(8)]);
                                 additions
-                            } else if function_index == concat
+                            } else if (Some(function_index) == concat
+                                || Some(function_index) == join)
                                 && matches!(op, Operator::I32Store8 { .. })
                             {
                                 sites += 1;
@@ -155,8 +171,11 @@ fn observe(original: &[u8], alloc: u32, concat: u32) -> Result<Vec<u8>, CodegenE
                         if function_index == alloc {
                             assert_eq!(sites, 1, "allocator observation contract changed");
                         }
-                        if function_index == concat {
+                        if Some(function_index) == concat {
                             assert_eq!(sites, 3, "concat observation contract changed");
+                        }
+                        if Some(function_index) == join {
+                            assert_eq!(sites, 3, "join observation contract changed");
                         }
                         rewritten.extend_from_slice(&body.as_bytes()[previous..]);
                         code.raw(&rewritten);
@@ -240,7 +259,7 @@ fn removing_only_expected_counter_sites_restores_every_body_and_local() {
         &Compiler::new(),
         "fn concat(a: string, b: string) -> string { return string_concat(a, b); }",
     );
-    assert_isolation(&ordinary, &observed, 1, 1, 8);
+    assert_isolation(&ordinary, &observed, 1, 1, Some(8), None);
     let mut compiler = Compiler::new();
     compiler
         .register_host_function("effect", "env", "effect", vec![], crate::Type::Void)
@@ -251,7 +270,7 @@ fn removing_only_expected_counter_sites_restores_every_body_and_local() {
     );
     // Imported functions occupy function indices, but not code-body indices.
     // M4 contributes 32 globals after the ordinary cursor and four typed helpers.
-    assert_isolation(&ordinary, &observed, 33, 2, 13);
+    assert_isolation(&ordinary, &observed, 33, 2, Some(13), None);
 }
 
 fn assert_isolation(
@@ -259,7 +278,8 @@ fn assert_isolation(
     observed: &[u8],
     base: u32,
     alloc_body: usize,
-    concat_body: usize,
+    concat_body: Option<usize>,
+    join_body: Option<usize>,
 ) {
     let untouched = |bytes: &[u8]| {
         sections(bytes)
@@ -343,7 +363,12 @@ fn assert_isolation(
                         assert!(matches!(ops.read().unwrap(), Operator::I64ExtendI32U));
                     }
                     3 => assert!(matches!(value, Operator::LocalGet { local_index: 2 })),
-                    5 => assert!(matches!(value, Operator::LocalGet { local_index: 9 })),
+                    5 => {
+                        let expected = if Some(index) == join_body { 14 } else { 9 };
+                        assert!(
+                            matches!(value, Operator::LocalGet { local_index } if local_index == expected)
+                        );
+                    }
                     6 => assert!(matches!(value, Operator::I64Const { value: 8 })),
                     _ => unreachable!(),
                 }
@@ -361,21 +386,23 @@ fn assert_isolation(
         }
         assert_eq!(original.as_bytes(), restored, "body {index}");
     }
-    // One user function, seven baseline memory helpers, then concat. This
-    // independent expectation catches targeting the wrong helper or extra sites.
-    assert_eq!(
-        removed,
-        [
-            (alloc_body, base),
-            (alloc_body, base + 1),
-            (alloc_body, base + 2),
-            (concat_body, base + 3),
-            (concat_body, base + 4),
-            (concat_body, base + 5),
-            (concat_body, base + 6),
-            (concat_body, base + 6)
-        ]
-    );
+    // Body indices and complete site lists come from the fixture contracts,
+    // independently of the helper selection and rewriting in observe.
+    let mut expected = vec![
+        (alloc_body, base),
+        (alloc_body, base + 1),
+        (alloc_body, base + 2),
+    ];
+    for body in [concat_body, join_body].into_iter().flatten() {
+        expected.extend([
+            (body, base + 3),
+            (body, base + 4),
+            (body, base + 5),
+            (body, base + 6),
+            (body, base + 6),
+        ]);
+    }
+    assert_eq!(removed, expected);
     let globals = |bytes: &[u8]| {
         Parser::new(0)
             .parse_all(bytes)
@@ -413,6 +440,180 @@ fn assert_isolation(
 }
 
 #[test]
+fn join_observation_isolation_and_direct_final_payload_copying() {
+    let compiler = Compiler::new();
+    let source = "fn join(parts: string[], separator: string) -> string { return string_join(parts, separator); }";
+    let [ordinary, observed] = modules(&compiler, source);
+    // One user body, seven baseline helpers, four string-array helpers, join.
+    assert_isolation(&ordinary, &observed, 1, 1, None, Some(12));
+    assert_join_lowering(&ordinary, 12, 1, 2, 8);
+    assert!(
+        !export_names(&ordinary)
+            .iter()
+            .any(|name| name.starts_with("__m5_"))
+    );
+    assert_eq!(ordinary, compiler.compile_source(source).unwrap());
+    assert_eq!([ordinary, observed], modules(&compiler, source));
+
+    let mut compiler = Compiler::new();
+    compiler
+        .register_host_function("effect", "env", "effect", vec![], crate::Type::Void)
+        .unwrap();
+    let source = "fn join(parts: string[], separator: string) -> string { effect(); return string_concat(string_join(parts, separator), separator); } fn fragments() -> string[] { return resizable([]); }";
+    let [ordinary, observed] = modules(&compiler, source);
+    // The import shifts function indices by one, not body indices. M4 adds
+    // 32 globals; concat precedes join after the four string-array helpers.
+    assert_isolation(&ordinary, &observed, 33, 2, Some(13), Some(14));
+    assert_join_lowering(&ordinary, 14, 3, 4, 10);
+    assert_eq!(ordinary, compiler.compile_source(source).unwrap());
+    assert_eq!([ordinary, observed], modules(&compiler, source));
+}
+
+fn assert_join_lowering(
+    bytes: &[u8],
+    join_body: usize,
+    alloc: u32,
+    string_validator: u32,
+    array_validator: u32,
+) {
+    let bodies = bodies(bytes);
+    let body = &bodies[join_body];
+    let locals = body
+        .get_locals_reader()
+        .unwrap()
+        .into_iter()
+        .map(Result::unwrap)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        locals,
+        [
+            (12, wasmparser::ValType::I32),
+            (1, wasmparser::ValType::I64)
+        ]
+    );
+    let ops = body
+        .get_operators_reader()
+        .unwrap()
+        .into_iter()
+        .map(Result::unwrap)
+        .collect::<Vec<_>>();
+    let calls = ops
+        .iter()
+        .filter_map(|op| match op {
+            Operator::Call { function_index } => Some(*function_index),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    // All static calls: separator, outer storage, each fragment, one final
+    // allocation. In particular there is no concat or intermediate string call.
+    assert_eq!(
+        calls,
+        [string_validator, array_validator, string_validator, alloc]
+    );
+    let allocation = ops
+        .iter()
+        .position(|op| matches!(op, Operator::Call { function_index } if *function_index == alloc))
+        .unwrap();
+    assert!(matches!(
+        ops[allocation + 1],
+        Operator::LocalTee { local_index: 4 }
+    ));
+    assert!(matches!(
+        ops[allocation - 4],
+        Operator::LocalGet { local_index: 14 }
+    ));
+    assert!(matches!(
+        ops[allocation - 3],
+        Operator::I64Const { value: 8 }
+    ));
+    assert!(matches!(ops[allocation - 2], Operator::I64Add));
+    assert!(matches!(ops[allocation - 1], Operator::I32WrapI64));
+    let sizing = &ops[..allocation];
+    assert_eq!(
+        sizing
+            .iter()
+            .filter(|op| matches!(op, Operator::LocalSet { local_index: 14 }))
+            .count(),
+        2
+    );
+    assert_eq!(
+        sizing
+            .iter()
+            .filter(|op| matches!(op, Operator::I64Mul))
+            .count(),
+        1
+    );
+    assert_eq!(
+        sizing
+            .iter()
+            .filter(|op| matches!(op, Operator::I64GtU))
+            .count(),
+        1
+    );
+    assert_eq!(
+        sizing
+            .iter()
+            .filter(|op| matches!(op, Operator::Return))
+            .count(),
+        1
+    );
+    assert!(
+        !sizing
+            .iter()
+            .any(|op| matches!(op, Operator::I32Store8 { .. }))
+    );
+    let stores = ops
+        .iter()
+        .enumerate()
+        .filter_map(|(index, op)| matches!(op, Operator::I32Store8 { .. }).then_some(index))
+        .collect::<Vec<_>>();
+    assert_eq!(stores.len(), 2);
+    for store in stores {
+        assert!(store > allocation);
+        assert!(matches!(ops[store - 1], Operator::I32Load8U { .. }));
+        // Both copy loops write final payload + byte offset, not another
+        // descriptor or an intermediate fragment buffer.
+        assert!(matches!(
+            ops[store - 7],
+            Operator::LocalGet { local_index: 5 }
+        ));
+        assert!(matches!(
+            ops[store - 6],
+            Operator::LocalGet { local_index: 8 }
+        ));
+        assert!(matches!(ops[store - 5], Operator::I32Add));
+    }
+}
+
+#[test]
+fn join_collisions_are_rejected_only_by_the_private_variant() {
+    for name in COUNTERS.into_iter().chain(["__m5_cursor"]) {
+        let source = format!(
+            "fn {name}(parts: string[], separator: string) -> string {{ return string_join(parts, separator); }}"
+        );
+        let compiler = Compiler::new();
+        let program = compiler.analyze(&source).unwrap();
+        let checked = ValidatedProgram::new(&program, &ExportOptions::All).unwrap();
+        let ordinary = super::assemble(&checked);
+        Validator::new().validate_all(&ordinary).unwrap();
+        let memory = checked.layout().memory.as_ref().unwrap();
+        let first = memory.first_function.raw();
+        assert_eq!(
+            observe(
+                &ordinary,
+                first,
+                None,
+                Some(first + memory.plan.helper_index(Helper::StringJoin)),
+            ),
+            Err(CodegenError::DuplicateExportName {
+                name: name.to_owned()
+            })
+        );
+        assert_eq!(ordinary, compiler.compile_source(&source).unwrap());
+    }
+}
+
+#[test]
 fn collisions_are_rejected_only_by_the_private_variant() {
     for name in COUNTERS.into_iter().chain(["__m5_cursor"]) {
         let source = format!("fn {name}(a: string) -> string {{ return string_concat(a, a); }}");
@@ -427,7 +628,8 @@ fn collisions_are_rejected_only_by_the_private_variant() {
             observe(
                 &ordinary,
                 first,
-                first + memory.plan.helper_index(Helper::StringConcat)
+                Some(first + memory.plan.helper_index(Helper::StringConcat)),
+                None,
             ),
             Err(CodegenError::DuplicateExportName {
                 name: name.to_owned()
@@ -439,7 +641,7 @@ fn collisions_are_rejected_only_by_the_private_variant() {
 
 // A finite, fixture-only allocation failure: cap both variants at their initial
 // pages rather than relying on machine exhaustion or attempting memory32's limit.
-fn cap_memory(original: &[u8]) -> Vec<u8> {
+pub(super) fn cap_memory(original: &[u8]) -> Vec<u8> {
     let mut module = Module::new();
     for payload in Parser::new(0).parse_all(original) {
         match payload.unwrap() {

@@ -1,0 +1,52 @@
+// #79 private deterministic construction corpus; default None lowering.
+fn empty() -> string { return ""; }
+fn fragment() -> string { return "a"; }
+fn multibyte() -> string { return "λ猫"; }
+fn separator() -> string { return "界"; }
+fn bar() -> string { return "|"; }
+fn b() -> string { return "b"; }
+fn fixed_zero() -> string[] { return []; }
+fn fixed_one() -> string[] { return [""]; }
+fn fixed_two() -> string[] { return ["", ""]; }
+fn fixed_mixed() -> string[] { return ["a", "", "b"]; }
+fn fixed_duplicates() -> string[] { return ["λ猫", "λ猫", ""]; }
+fn fragments() -> string[] { return resizable([]); }
+fn append(parts: string[], item: string) -> void { parts.push(item); }
+fn join(parts: string[], separator: string) -> string { return string_join(parts, separator); }
+fn concat(left: string, right: string) -> string { return string_concat(left, right); }
+fn reserve(parts: string[], count: number) -> void { parts.reserve(count); }
+fn produced() -> string { return string_concat("λ猫", "a"); }
+fn separator_effects() -> string {
+    let parts: string[] = resizable(["a", ""]);
+    let separator = () => {
+        parts.push("b");
+        parts[0] = "λ猫";
+        parts = resizable(["ignored"]);
+        return "界";
+    };
+    return string_join(parts, separator());
+}
+fn ordered_argument_effects() -> string {
+    let parts: string[] = resizable(["a"]);
+    let order = 0;
+    let obtain = () => {
+        order = order * 10 + 1;
+        return parts;
+    };
+    let separator = () => {
+        order = order * 10 + 2;
+        parts.push("b");
+        return "|";
+    };
+    let result = string_join(obtain(), separator());
+    if order != 12 { return "incorrect argument order or count"; }
+    return result;
+}
+fn fixed_separator_effects() -> string {
+    let parts = ["a", "", "b"];
+    let separator = () => {
+        parts[1] = "λ猫";
+        return "|";
+    };
+    return string_join(parts, separator());
+}

@@ -1,5 +1,11 @@
 # M5 private string-construction observations (#78)
 
+[#79's construction evidence](benchmarks/m5-fragment-construction-2026-10-30/README.md)
+extends this historical concat-only foundation with join byte stores, array-handle
+copying, acquisition/release and an intra-call active-capacity peak. The unavailable
+observations below describe #78 at its completion, not the later #79 extension.
+The extension remains private `cfg(test)` machinery; production contracts do not change.
+
 ## Activation and isolation
 
 `crates/compiler/src/codegen/string_observation_tests.rs` is private `cfg(test)`

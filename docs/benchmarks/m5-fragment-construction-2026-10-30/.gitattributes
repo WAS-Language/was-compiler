@@ -1,0 +1,5 @@
+# Preserve the recorded bytes across Windows checkouts.
+*.json -text whitespace=cr-at-eol
+# Raw logs retain terminal final blank lines as well as original line endings.
+*.log -text whitespace=cr-at-eol,-blank-at-eof
+workload.was -text whitespace=cr-at-eol

@@ -1,0 +1,10 @@
+
+running 3 tests
+test codegen::resizable::construction_observations::tests::array_export_collisions_do_not_affect_ordinary_compilation ... ok
+test codegen::resizable::construction_observations::tests::paired_array_capacity_reuse_transient_peaks_copy_stores_and_failures ... ok
+test codegen::resizable::construction_observations::tests::removing_array_observations_restores_layered_bodies_locals_and_sections ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 592 filtered out; finished in 0.16s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-eb8c15a554b28099.exe)
