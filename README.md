@@ -7,7 +7,9 @@ host ABI, milestones, and acceptance criteria. The [memory ABI](docs/memory-abi.
 documents string/array layouts, allocation, ownership, and host examples.
 Its [revision 1 baseline](docs/m0-memory-baseline.md) records memory-contract
 coverage and validation. [Opt-in construction, reserve, push and pop/remove](docs/resizable-arrays.md)
-are implemented; integrated M4 release and general reclamation remain pending.
+are implemented; [M4 integrated gates passed](docs/m4-release-readiness.md), but
+release acceptance remains **pending explicit performance-signal disposition**.
+General reclamation remains unimplemented.
 A [private test-only M2 prototype](docs/m2-region-prototype.md) reuses proven temporary
 array storage; it adds no public compiler option or adapter activation.
 
@@ -364,16 +366,20 @@ host lifetimes are unchanged.
 
 Ordinary literals and host encoding remain fixed-storage, even in M4 modules;
 programs without M4 retain existing bytes/helper order. See [contracts and Rust node
-migration](docs/resizable-arrays.md). [#66 final validation and review passed](docs/resizable-arrays.md#issue-66-validation);
-integrated M4 release acceptance remains pending.
-Historical #65–#67/#37/M3 records retain their original scope; see
-[#67 validation/review](docs/resizable-arrays.md#issue-67-validation) and
-[#68 validation/review evidence](docs/resizable-arrays.md#issue-68-validation).
-Focused tests, the default suite, portable builds and browser compatibility checks
-passed; both review axes reported zero findings. Rebuilt browser smoke covers
-ordinary regressions, not #68-specific adapter scenarios. The broader ignored
-workspace run timed out at 120 seconds; no full ignored workspace success is claimed.
-Integrated M4 release acceptance remains pending.
+migration](docs/resizable-arrays.md). Historical #37/M3 and #65–#71 records retain
+their original scope, including [#68's subset checks and timeout](docs/resizable-arrays.md#issue-68-validation).
+
+The authoritative [#72 M4 release-readiness record](docs/m4-release-readiness.md)
+records all eight gates passed on unchanged sources at
+`52a28557cb41652581ed247e045ca27a6a5ed75f`: the full ignored workspace run passed
+1,602 tests across 86 result targets (zero failed or ignored), and freshly rebuilt
+browser smoke passed 25 groups. Correctness, portability, adapter and measurement
+execution gates passed. Two sequential measurement runs reproduced #71 accounting
+and module bytes exactly, but timing varied materially: first-run medians were
+1.8–3× #71; repeat number append was about 0.85× and other cases about 1.13–1.44×.
+Integrated release acceptance remains **pending explicit performance-signal
+disposition**. The variation is unexplained on unchanged code; it establishes
+neither a compiler regression nor a speed claim.
 
 ### Local callables and shared captures (WP11; release gates passed)
 

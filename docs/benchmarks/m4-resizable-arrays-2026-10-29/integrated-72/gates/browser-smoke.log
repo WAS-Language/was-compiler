@@ -1,0 +1,26 @@
+ok 1 - arithmetic, control flow, recursion, and internal calls
+ok 2 - while transfers target nearest loops, recheck conditions, and retain diagnostics
+ok 3 - statement and value loops preserve types, effects, transfers, Never, diagnostics, and parity
+ok 4 - compound updates preserve old values, target traps, and optimization parity
+ok 5 - match preserves ordered fractional patterns, effects, values, transfers, and diagnostics
+ok 6 - comments preserve within-level bytes and execute without changing strings or division
+ok 7 - inferred locals preserve all types, host order, and annotated bytes at every level
+ok 8 - inferred acyclic named/default diamonds retain concrete ABI, effects, and private ranges
+ok 9 - inferred result rejection matrix preserves independent native diagnostic origins and recovery
+ok 10 - inferred reassignment and void diagnostics retain locations and recover
+ok 11 - value blocks and if preserve concrete results, effects, transfers, errors, and parity
+ok 12 - remainder arithmetic, IEEE-754 inputs, host order, and guest-only memory
+ok 13 - string and array execution with explicit raw memory descriptors
+ok 14 - numeric array content equality, mutation, IEEE-754, and descriptor traps
+ok 15 - compile and compileWat report each stage and recover
+ok 16 - unterminated block comments retain original locations and compilation recovers
+ok 17 - host imports cover every supported type without wrappers
+ok 18 - host registration rejects invalid names, types, and arrays atomically
+ok 19 - private ranges require explicit exports and allow contextual by host calls
+ok 20 - ranges and array for compose with value regions, aliases, compounds, and abrupt flow
+ok 21 - range and for diagnostics preserve source spans, skipped checks, and recovery
+ok 22 - range host parameters, results, and reserved names are rejected atomically
+ok 23 - all, none, selected, and invalid exports preserve compilation
+ok 24 - optimization levels specialize integer expressions, require exact integers, and preserve state
+ok 25 - returned wasm bytes remain owned across calls and compiler disposal
+browser compiler: 25 tests passed

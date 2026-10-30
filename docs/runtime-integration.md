@@ -542,7 +542,14 @@ rename prior global uses. Host module/field names may still be `resizable`, and
 normal lexical shadowing remains valid. [#69 adapter/raw-host evidence](resizable-arrays.md#issue-69-validation)
 covers this implemented subset, not final M4 acceptance. No invocation wrappers,
 cleanup APIs or allocator-management exports are required or introduced.
-Historical #37/#65–#68 records retain their original scope.
+Historical #37/#65–#69 records retain their original scope. The authoritative
+[#72 M4 release-readiness record](m4-release-readiness.md) records all eight gates
+passed, including correctness, portability, adapters and measurement execution.
+The full ignored workspace run passed 1,602 tests with zero failed or ignored;
+freshly rebuilt browser smoke passed 25 groups. Accounting and module bytes
+reproduced exactly, but timing varied materially on unchanged code. Integrated
+release acceptance remains **pending explicit performance-signal disposition**;
+no compiler regression or speed claim is established.
 
 ## Programmatic Node interface
 

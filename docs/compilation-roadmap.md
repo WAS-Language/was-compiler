@@ -24,6 +24,17 @@ release manifest. See [contracts, Rust migration and release evidence](typed-arr
 Earlier milestone/extension records below retain their historical scope.
 This work adds neither reclamation nor optimization transformations.
 
+## Opt-in resizable arrays (memory-roadmap M4)
+
+`resizable(source)` and identifier-receiver reserve/push/pop/remove are implemented
+for all three array types; this milestone is distinct from historical compiler
+M4 (calls) and #37's measurement phase. [#72's integrated record](m4-release-readiness.md)
+reports all execution gates passed, fresh browser coverage and sequential
+measurement reproduction. Integrated release acceptance remains pending explicit
+performance-signal disposition. See [the contract-to-test map](m4-contract-test-map.md)
+and [memory roadmap §8](was_compiler_memory_and_optimization_roadmap.md#8-milestone-m4--resizable-typed-arrays).
+Fixed-storage rights remain unchanged; no general reclamation or new default is added.
+
 ## Proven integer specialization (#38 contract; experimental #39/#40/#41 subset)
 
 [The maintained contract](integer-specialization.md) separates #38's broader

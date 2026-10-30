@@ -1,0 +1,11 @@
+
+running 3 tests
+test shared_compatibility_assets_resolve_outside_package_directory ... ok
+test core_production_dependency_graph_is_adapter_free ... ok
+test standalone_downstream_consumer_builds_and_uses_public_api ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.48s
+     Running tests\workspace_contract.rs (target\debug\deps\workspace_contract-6a7362cc7da017da.exe)

@@ -193,8 +193,8 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   migration, ordinary-array management and general reclamation remain outside this
   slice. Historical #65–#67 records retain scope; [#68 validation/review evidence](docs/resizable-arrays.md#issue-68-validation)
   records completed focused/default/build/browser checks and zero two-axis findings.
-  The broader ignored workspace run timed out at 120 seconds; no full ignored
-  workspace success is claimed. Integrated M4 release remains pending.
+  That slice's broader ignored workspace timeout remains historical; final-source
+  execution evidence is recorded separately under #72 below.
   #69 adds [dedicated CLI/browser and raw-host compatibility evidence](docs/resizable-arrays.md#issue-69-validation),
   not final M4 acceptance. Keep Node encoding fixed-storage and decoding copy-based;
   hosts obtain movable arrays through guest construction and reacquire payload/length
@@ -205,7 +205,13 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   integrated M4 release acceptance. Before changing M4 measurement instrumentation,
   workloads or storage/timing interpretation, read [#71's observation boundaries and evidence](docs/benchmarks/m4-resizable-arrays-2026-10-29/README.md).
   Its unit-only observations stay separate from fresh ordinary-instance timing;
-  completed-call peaks exclude transient growth residency. Integrated M4 release remains pending.
+  completed-call peaks exclude transient growth residency. Before interpreting M4
+  acceptance or planning follow-up performance work, read [#72's final-source gates
+  and release decision](docs/m4-release-readiness.md) and [contract-to-test map](docs/m4-contract-test-map.md).
+  All eight execution gates passed, including 1,602 full-workspace tests with none
+  failed/ignored and freshly rebuilt browser coverage. Sequential accounting and
+  module bytes reproduce; material timing variability leaves integrated release
+  acceptance pending explicit performance-signal disposition.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating
@@ -370,14 +376,10 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   builtin pipeline stages. Programs without M4 retain existing bytes/helper order;
   see [the construction and mutation contract](docs/resizable-arrays.md) for numeric bounds,
   raw unconsumed-slot copying, source/typed-node migration and focused evidence.
-  [#66 final validation/review passed](docs/resizable-arrays.md#issue-66-validation);
-  integrated M4 release remains pending. Historical #65/#66 gates retain their scope;
-  [#67 validation/review passed](docs/resizable-arrays.md#issue-67-validation), including
-  all ignored workspace tests and freshly rebuilt browser compatibility. Those
-  historical records do not validate #68; see its [validation/review evidence](docs/resizable-arrays.md#issue-68-validation)
-  for completed checks and zero two-axis findings. The broader ignored workspace run
-  timed out at 120 seconds, so full ignored workspace success is not claimed; the
-  rebuilt browser smoke is ordinary compatibility coverage, not #68-specific scenarios.
+  Historical #65–#71 records retain their slice scope. For final-source execution
+  gates, contract coverage and the pending performance-signal decision, use
+  [#72's integrated release record](docs/m4-release-readiness.md), not earlier
+  subset successes or timeouts.
 - `//` line comments and non-nesting `/* ... */` block comments are supported
   between tokens anywhere whitespace can appear; delimiters inside strings remain text.
 - Statement/value `loop` supports all concrete result types through value breaks;

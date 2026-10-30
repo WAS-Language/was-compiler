@@ -1,0 +1,28 @@
+// Private #71 measurement corpus. The host records every bounded operation.
+// Index-derived items have an independent JavaScript oracle; strings are static.
+fn new_number() -> number[] { return resizable([]); }
+fn new_bool() -> bool[] { return resizable([]); }
+fn new_string() -> string[] { return resizable([]); }
+
+fn small_number() -> number[] { return resizable([0.25, -1.75, 4.25]); }
+fn small_bool() -> bool[] { return resizable([true, false, true]); }
+fn small_string() -> string[] { return resizable(["even", "odd-λ", "even"]); }
+
+fn push_number(a: number[], index: number) -> void {
+    a.push(index * 3 - 7.25);
+}
+fn push_bool(a: bool[], index: number) -> void { a.push(index % 2 == 0); }
+fn push_string(a: string[], index: number) -> void {
+    a.push(if index % 2 == 0 { "even" } else { "odd-λ" });
+}
+
+fn reserve_number(a: number[], additional: number) -> void { a.reserve(additional); }
+fn reserve_bool(a: bool[], additional: number) -> void { a.reserve(additional); }
+fn reserve_string(a: string[], additional: number) -> void { a.reserve(additional); }
+
+fn remove_number(a: number[], index: number) -> number { return a.remove(index); }
+fn remove_bool(a: bool[], index: number) -> bool { return a.remove(index); }
+fn remove_string(a: string[], index: number) -> string { return a.remove(index); }
+fn pop_number(a: number[]) -> number { return a.pop(); }
+fn pop_bool(a: bool[]) -> bool { return a.pop(); }
+fn pop_string(a: string[]) -> string { return a.pop(); }

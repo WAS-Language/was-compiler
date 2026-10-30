@@ -762,6 +762,14 @@ remain separately authorized work; no default or release decision is implied.
 
 **Goal:** Add collection operations without changing the current alias model.
 
+**Final integrated status (#72, 2026-10-30):** [All eight execution gates passed](m4-release-readiness.md),
+including 1,602 full-workspace tests with none failed/ignored, freshly rebuilt
+browser coverage and two sequential measurement recordings. The
+[contract-to-test map](m4-contract-test-map.md) records actual coverage and limits.
+Accounting and module bytes reproduce #71 exactly; material timing variability
+leaves **integrated release acceptance pending explicit performance-signal disposition**.
+No new default, optimization or general reclamation is authorized.
+
 **Current slices (#65/#66/#67/#68):** `resizable(source)` creates a fresh, resize-authorized
 copy of `number[]`, `bool[]` or `string[]` with the existing public descriptor.
 #66 adds only `identifier.reserve(additional)` and relocation-safe indexed writes
@@ -776,7 +784,7 @@ after possible relocation, separately from refreshing views after memory growth.
 Programs without M4 retain existing bytes/helper order. See [the slice contract](resizable-arrays.md)
 for ordering, numeric bounds, raw-copy consumption rules, helper planning and node
 migration. [#66 final validation and review passed](resizable-arrays.md#issue-66-validation);
-integrated M4 release acceptance remains pending.
+that historical slice does not substitute for #72's integrated record above.
 #67 adds identifier-only `push(item)` for all three array types: exactly one
 positional receiver-derived scalar, Void/Never result and exact region-local
 placeholder inference. It preserves purity rejection and pipeline/discard rules.
@@ -801,12 +809,11 @@ iteration reads current elements; shrinking can trap a later read.
 Historical #65–#67 evidence retains its original scope; see
 [#67 validation/review](resizable-arrays.md#issue-67-validation) and
 [#68 validation/review evidence](resizable-arrays.md#issue-68-validation).
-Focused/default-suite, portable-build and browser compatibility checks passed,
-with zero findings on both review axes. Rebuilt smoke covers ordinary regressions,
-not #68-specific adapter scenarios. The broader ignored workspace run timed out
-at 120 seconds; no full ignored workspace success is claimed. Capacity shrinking
-and general reclamation remain unimplemented; integrated M4 release acceptance
-remains pending.
+#68's focused/default/build/browser checks and two-axis review retain their
+historical scope, including its incomplete ignored-workspace run. #69 supplied
+dedicated adapter/raw-host cases; #70 supplied failure/recovery checks; #71 supplied
+measurements. #72 now records completed integrated gates independently. Capacity
+shrinking and general reclamation remain unimplemented.
 The interview decisions and original acceptance criteria below retain their
 full-milestone scope.
 
@@ -1023,7 +1030,7 @@ Acquire the full selected capacity and raw-copy live slots without scanning
 unconsumed bool/string values; publish before releasing the old owned buffer.
 Constructor/`Reserve`/`Push` discovery and per-element authority helpers are planned before
 checked lowering. A failed allocation preserves the post-argument published array,
-not prior effects or allocator history. Proposed pop/remove validate their returned
+not prior effects or allocator history. Implemented pop/remove validate their returned
 element before mutation and retain capacity.
 
 ### API status (implemented versus proposed)
@@ -1041,12 +1048,10 @@ The interview selected identifier-receiver method syntax and the explicit copy
 constructor `resizable(source)`. Push/reserve return void; pop/remove return an element,
 with empty pop trapping. The constructor is implemented by #65, reserve by #66,
 push by #67 and pop/remove by #68; `len` already exists. Capacity shrinking remains
-unimplemented. The full-milestone exit gate below remains pending; historical
-#65–#67 evidence does not validate #68 or close M4. See
-[#68 validation/review evidence](resizable-arrays.md#issue-68-validation) for the
-completed checks and zero two-axis findings. The broader ignored workspace run
-timed out at 120 seconds; no full ignored workspace success is claimed, and
-integrated M4 release acceptance remains pending.
+unimplemented. [#72's final-source evidence](m4-release-readiness.md) supplies
+completed correctness/portability/adapter gates and sequential measurements;
+historical slice records alone do not close M4. Integrated release acceptance
+remains pending explicit disposition of the material timing signal.
 
 ### Specific tests
 

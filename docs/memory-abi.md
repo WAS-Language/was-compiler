@@ -275,12 +275,14 @@ and unreachable arrays remain retained. #65's constructor validation record rema
 historical; #66 adds reserve and relocation-safe writes, #67 adds push and #68 adds
 pop/remove. Historical [#66](resizable-arrays.md#issue-66-validation) and
 [#67](resizable-arrays.md#issue-67-validation) validation/review retain their scope;
-[#68 validation/review evidence](resizable-arrays.md#issue-68-validation) records
-completed focused/default-suite, portable-build and browser compatibility checks
-and zero findings on both review axes. Rebuilt smoke is ordinary compatibility,
-not #68-specific adapter coverage. The broader ignored workspace run timed out at
-120 seconds; no full ignored workspace success is claimed. Integrated M4 release
-acceptance remains pending.
+[#68 validation/review evidence](resizable-arrays.md#issue-68-validation), including
+its subset coverage and timeout, remains historical. The authoritative
+[#72 M4 release-readiness record](m4-release-readiness.md) records all eight gates
+passed, including correctness, portability, adapters and measurement execution.
+Accounting and module bytes reproduced exactly, but timing varied materially on
+unchanged code. Integrated release acceptance remains **pending explicit
+performance-signal disposition**; no compiler regression or speed claim is
+established.
 
 `identifier.reserve(additional)` supports all three array types and returns void.
 Capture and validate the exact receiver authority before argument evaluation, even

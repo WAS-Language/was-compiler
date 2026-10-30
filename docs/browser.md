@@ -264,7 +264,13 @@ logical length after possible resize or reentry, including trapped calls with
 completed effects. Refresh views separately after possible memory growth. Ordinary
 literals/host encoding stay fixed-storage. See [the raw/copy integration contract](runtime-integration.md#opt-in-resizable-storage-6569)
 and [#69 current-source adapter evidence](resizable-arrays.md#issue-69-validation).
-This validates an implemented subset, not final integrated M4 acceptance.
+#69's evidence retains its subset scope. The authoritative
+[#72 M4 release-readiness record](m4-release-readiness.md) records all eight gates
+passed, including correctness, portability, adapters and measurement execution,
+with 25 freshly rebuilt browser smoke groups. Accounting and module bytes
+reproduced exactly, but timing varied materially on unchanged code. Integrated
+release acceptance remains **pending explicit performance-signal disposition**;
+no compiler regression or speed claim is established.
 
 ## Named arguments and defaults (WP6)
 

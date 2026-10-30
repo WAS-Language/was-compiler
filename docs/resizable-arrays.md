@@ -1,6 +1,6 @@
 <a id="resizable-arrays--65-construction-and-66-reserve"></a>
 
-# Resizable arrays — #65–#70 construction, mutations and verification
+# Resizable arrays — construction, mutations and M4 evidence
 
 ## Scope and status
 
@@ -20,14 +20,14 @@ or general reclamation.
 retains the full milestone design; [ADR 0009](adr/0009-opt-in-resizable-array-storage.md)
 records the design trade-offs, not release evidence.
 
-This document describes implemented #65–#68 slices, not an integrated M4 release.
-[#66 final validation and review passed](#issue-66-validation), as did
-[#67 validation and review](#issue-67-validation). Those records do not validate #68;
-[#68 validation and review evidence](#issue-68-validation) records completed
-focused, default-suite, portable-build and browser compatibility checks, plus zero
-findings on both review axes. The broader ignored workspace run timed out after
-120 seconds; full ignored workspace success is not established. Integrated M4
-release acceptance remains pending. Historical #65–#67, #37 typed-array and #63 M3 records retain their scope.
+[#72 integrated validation](m4-release-readiness.md) passed all eight execution
+gates on final sources, including 1,602 full-workspace tests with none failed or
+ignored and freshly rebuilt browser coverage. Two sequential recordings reproduce
+accounting and module bytes, but reveal material timing variability: integrated M4
+release acceptance remains **pending explicit performance-signal disposition**.
+The [contract-to-test map](m4-contract-test-map.md) names actual coverage and limits.
+Historical #65–#71, #37 typed-array and #63 M3 records below retain their scope;
+#68's earlier timeout is not retroactively a pass.
 [#70 adversarial verification](#issue-70-validation) adds private deterministic
 failure and public composition coverage without changing production behavior.
 [#71 growth, reuse and retained-storage measurements](benchmarks/m4-resizable-arrays-2026-10-29/README.md)

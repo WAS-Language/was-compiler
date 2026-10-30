@@ -30,8 +30,14 @@ Later [#65–#68 construction and mutations](resizable-arrays.md) add opt-in fre
 copies, length-preserving reserve, single-element push/pop/remove and relocation-safe
 writes for all three types. Capacity shrinking remains unimplemented; these additions
 do not extend #37 release evidence.
-[#66 final validation/review passed](resizable-arrays.md#issue-66-validation);
-integrated M4 release remains pending.
+[#66 final validation/review passed](resizable-arrays.md#issue-66-validation).
+The authoritative [#72 M4 release-readiness record](m4-release-readiness.md) records
+all eight integrated gates passed, including correctness, portability, adapters
+and measurement execution. Accounting and module bytes reproduced exactly, but
+material timing variation on unchanged code remains unexplained. Integrated M4
+release acceptance is **pending explicit performance-signal disposition**; no
+compiler regression or speed claim is established. The #37 release record above
+retains its original scope.
 
 ## Language contract
 
@@ -154,12 +160,10 @@ order. See [the construction and mutation contract](resizable-arrays.md)
 and [private authority layout](memory-abi.md#private-resizable-array-authority-65).
 The #37 and #65–#67 validation/review records retain their historical scope;
 [#67 evidence](resizable-arrays.md#issue-67-validation) does not validate #68.
-[#68 validation/review evidence](resizable-arrays.md#issue-68-validation) records
-completed focused/default-suite, portable-build and browser compatibility checks
-and zero findings on both review axes. Browser smoke is ordinary regression
-compatibility, not #68-specific adapter coverage. The broader ignored workspace
-run timed out at 120 seconds; no full ignored workspace success is claimed.
-Integrated M4 release acceptance remains pending.
+[#68 validation/review evidence](resizable-arrays.md#issue-68-validation), including
+its subset coverage and timeout, remains historical. See the authoritative
+[#72 integrated evidence and pending performance disposition](m4-release-readiness.md)
+for the completed gates and current release decision.
 
 ## Contextual literal typing and stable inference
 
