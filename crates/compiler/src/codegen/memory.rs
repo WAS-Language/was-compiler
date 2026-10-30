@@ -41,6 +41,7 @@ pub(super) enum Helper {
     StringByteLen,
     StringConcat,
     StringSliceBytes,
+    StringReplaceAll,
 }
 
 impl Helper {
@@ -95,6 +96,7 @@ impl Helper {
             Self::BoolArrayLen | Self::StringArrayLen | Self::StringByteLen => (vec![I32], F64),
             Self::StringConcat => (vec![I32, I32], I32),
             Self::StringSliceBytes => (vec![I32, F64, F64], I32),
+            Self::StringReplaceAll => (vec![I32, I32, I32], I32),
         };
 
         Signature {
@@ -121,6 +123,7 @@ pub struct MemoryPlan {
     string_byte_len: bool,
     string_concat: bool,
     string_slice_bytes: bool,
+    string_replace_all: bool,
 }
 
 impl MemoryPlan {
@@ -134,6 +137,7 @@ impl MemoryPlan {
             string_byte_len: false,
             string_concat: false,
             string_slice_bytes: false,
+            string_replace_all: false,
         };
         let mut used = false;
 
@@ -195,6 +199,7 @@ impl MemoryPlan {
             .chain(self.string_byte_len.then_some(Helper::StringByteLen))
             .chain(self.string_concat.then_some(Helper::StringConcat))
             .chain(self.string_slice_bytes.then_some(Helper::StringSliceBytes))
+            .chain(self.string_replace_all.then_some(Helper::StringReplaceAll))
     }
 
     pub(super) fn helpers(&self) -> Vec<Helper> {
@@ -326,6 +331,8 @@ impl Visitor<'_> for MemoryVisitor<'_> {
                     *func == FunctionRef::Builtin(BuiltinFunction::StringConcat);
                 self.plan.string_slice_bytes |=
                     *func == FunctionRef::Builtin(BuiltinFunction::StringSliceBytes);
+                self.plan.string_replace_all |=
+                    *func == FunctionRef::Builtin(BuiltinFunction::StringReplaceAll);
                 *self.used |= matches!(
                     func,
                     FunctionRef::Builtin(
@@ -334,6 +341,7 @@ impl Visitor<'_> for MemoryVisitor<'_> {
                             | BuiltinFunction::StringByteLen
                             | BuiltinFunction::StringConcat
                             | BuiltinFunction::StringSliceBytes
+                            | BuiltinFunction::StringReplaceAll
                     )
                 );
             }
@@ -395,6 +403,11 @@ pub(super) fn emit_planned(helper: Helper, first: u32, plan: &MemoryPlan) -> Fun
         Helper::StringSliceBytes => {
             emit_string_slice_bytes(index(Helper::ValidateString), index(Helper::Alloc))
         }
+        Helper::StringReplaceAll => emit_string_replace_all(
+            index(Helper::ValidateString),
+            index(Helper::StringEqual),
+            index(Helper::Alloc),
+        ),
         Helper::ValidateBoolArray => emit_validate(abi::BOOL_ELEMENT_SIZE),
         Helper::ValidateBool => {
             use Instruction::*;
@@ -1039,6 +1052,225 @@ fn emit_string_slice_bytes(validator: u32, alloc: u32) -> Function {
         ],
     );
     emit_string_copy(&mut body);
+    instructions(&mut body, &[LocalGet(4), End]);
+    body
+}
+
+fn emit_string_replace_all(validator: u32, equal: u32, alloc: u32) -> Function {
+    use Instruction::*;
+
+    // 0..2: input handles; 3: source length; 4..8: existing copy scratch;
+    // 9/10: needle/replacement lengths; 11..13: payload pointers;
+    // 14: source cursor; 15: comparison cursor; 16: match flag; 17: match count;
+    // 18: widened result length. Both passes search only the original source.
+    let mut body = Function::new([(15, ValType::I32), (1, ValType::I64)]);
+    let byte = MemArg {
+        offset: 0,
+        align: 0,
+        memory_index: 0,
+    };
+
+    for handle in 0..3 {
+        instructions(&mut body, &[LocalGet(handle), Call(validator), Drop]);
+    }
+    for (handle, length, pointer) in [(0, 3, 11), (1, 9, 12), (2, 10, 13)] {
+        instructions(
+            &mut body,
+            &[
+                LocalGet(handle),
+                I32Load(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+                LocalSet(length),
+                LocalGet(handle),
+                I32Load(header(abi::DESCRIPTOR_DATA_OFFSET)),
+                LocalSet(pointer),
+            ],
+        );
+    }
+    instructions(&mut body, &[LocalGet(9), I32Eqz]);
+    trap_if(&mut body);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(1),
+            LocalGet(2),
+            Call(equal),
+            If(BlockType::Empty),
+            LocalGet(0),
+            Return,
+            End,
+        ],
+    );
+
+    // Emit the same bounded-memory search for sizing and final construction.
+    // The copy pass has no calls except the already-planned allocation before it,
+    // so the immutable input bytes and the match decisions cannot change.
+    for copying in [false, true] {
+        instructions(
+            &mut body,
+            &[
+                I32Const(0),
+                LocalSet(14),
+                Block(BlockType::Empty),
+                Loop(BlockType::Empty),
+                LocalGet(14),
+                LocalGet(3),
+                I32GeU,
+                BrIf(1),
+                I32Const(0),
+                LocalSet(16),
+                LocalGet(9),
+                LocalGet(3),
+                LocalGet(14),
+                I32Sub,
+                I32LeU,
+                If(BlockType::Empty),
+                I32Const(0),
+                LocalSet(15),
+                Block(BlockType::Empty),
+                Loop(BlockType::Empty),
+                LocalGet(15),
+                LocalGet(9),
+                I32GeU,
+                If(BlockType::Empty),
+                I32Const(1),
+                LocalSet(16),
+                Br(2),
+                End,
+                LocalGet(11),
+                LocalGet(14),
+                I32Add,
+                LocalGet(15),
+                I32Add,
+                I32Load8U(byte),
+                LocalGet(12),
+                LocalGet(15),
+                I32Add,
+                I32Load8U(byte),
+                I32Ne,
+                BrIf(1),
+                LocalGet(15),
+                I32Const(1),
+                I32Add,
+                LocalSet(15),
+                Br(0),
+                End,
+                End,
+                End,
+                LocalGet(16),
+                If(BlockType::Empty),
+            ],
+        );
+        if copying {
+            instructions(
+                &mut body,
+                &[
+                    LocalGet(13),
+                    LocalSet(6),
+                    LocalGet(10),
+                    LocalSet(7),
+                    I32Const(0),
+                    LocalSet(8),
+                ],
+            );
+            emit_string_copy(&mut body);
+            instructions(&mut body, &[LocalGet(5), LocalGet(10), I32Add, LocalSet(5)]);
+        } else {
+            instructions(
+                &mut body,
+                &[
+                    LocalGet(18),
+                    LocalGet(10),
+                    I64ExtendI32U,
+                    I64Add,
+                    LocalSet(18),
+                    LocalGet(17),
+                    I32Const(1),
+                    I32Add,
+                    LocalSet(17),
+                ],
+            );
+        }
+        instructions(
+            &mut body,
+            &[LocalGet(14), LocalGet(9), I32Add, LocalSet(14), Else],
+        );
+        if copying {
+            instructions(
+                &mut body,
+                &[
+                    LocalGet(5),
+                    LocalGet(11),
+                    LocalGet(14),
+                    I32Add,
+                    I32Load8U(byte),
+                    I32Store8(byte),
+                    LocalGet(5),
+                    I32Const(1),
+                    I32Add,
+                    LocalSet(5),
+                ],
+            );
+        } else {
+            instructions(
+                &mut body,
+                &[LocalGet(18), I64Const(1), I64Add, LocalSet(18)],
+            );
+        }
+        instructions(
+            &mut body,
+            &[
+                LocalGet(14),
+                I32Const(1),
+                I32Add,
+                LocalSet(14),
+                End,
+                Br(0),
+                End,
+                End,
+            ],
+        );
+        if !copying {
+            instructions(
+                &mut body,
+                &[
+                    LocalGet(17),
+                    I32Eqz,
+                    If(BlockType::Empty),
+                    LocalGet(0),
+                    Return,
+                    End,
+                    // At most source_length replacements, each at most u32::MAX
+                    // bytes: even the unrepresentable result plus header fits u64.
+                    LocalGet(18),
+                    I64Const(i64::from(abi::DESCRIPTOR_SIZE)),
+                    I64Add,
+                    I64Const(MAX_BYTES as i64),
+                    I64GtU,
+                ],
+            );
+            trap_if(&mut body);
+            instructions(
+                &mut body,
+                &[
+                    LocalGet(18),
+                    I64Const(i64::from(abi::DESCRIPTOR_SIZE)),
+                    I64Add,
+                    I32WrapI64,
+                    Call(alloc),
+                    LocalTee(4),
+                    LocalGet(4),
+                    I32Const(abi::DESCRIPTOR_SIZE as i32),
+                    I32Add,
+                    LocalTee(5),
+                    I32Store(header(abi::DESCRIPTOR_DATA_OFFSET)),
+                    LocalGet(4),
+                    LocalGet(18),
+                    I32WrapI64,
+                    I32Store(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+                ],
+            );
+        }
+    }
     instructions(&mut body, &[LocalGet(4), End]);
     body
 }

@@ -52,7 +52,11 @@ boundaries before reuse; full-range slices return the source and proper nonempty
 slices bump-allocate one descriptor plus copied payload. Empty proper slices also
 allocate a descriptor. Endpoint checks skip payload loads at zero and byte length;
 valid immutable UTF-8 remains a host obligation, not a mandatory full scan.
-See [the implemented slices](string-operations.md).
+#75 adds literal replacement with ordered three-string validation before empty-needle
+checks or source reuse. No-match/content-identical replacements return the source;
+other results bump-allocate one descriptor plus directly copied final payload after
+widened sizing. Published strings remain immutable and retained; no M4 storage or
+reclamation is added. See [the implemented slices](string-operations.md).
 The remaining agreed future constraints live in
 [the memory roadmap's M0 decisions](was_compiler_memory_and_optimization_roadmap.md#4-milestone-m0--semantics-and-regression-baseline),
 not in the revision 1 baseline. A future management protocol must establish

@@ -359,6 +359,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   `string_slice_bytes(string, number, number) -> string` with strict half-open
   byte bounds at Unicode-scalar boundaries, accepting negative zero. Full ranges
   reuse the validated source; proper slices copy through the ordinary allocator.
+  #75 adds `string_replace_all(string, string, string) -> string`: exact nonoverlapping
+  byte matching without rescanning inserted text; empty needles trap after all three
+  operands validate. No-match/content-identical replacement reuses the source;
+  other results use checked widened sizing and direct final-payload copying with
+  constant auxiliary state, without a linear-time search guarantee.
   Before changing their resolution,
   checked helpers, storage or trap ordering, read [the implemented contract](docs/string-operations.md).
   They remain outside pure defaults/contracts and direct builtin pipeline stages;

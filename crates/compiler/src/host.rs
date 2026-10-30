@@ -108,6 +108,7 @@ impl HostFunctions {
                 | "string_byte_len"
                 | "string_concat"
                 | "string_slice_bytes"
+                | "string_replace_all"
         ) {
             return Err(HostRegistrationError::ReservedName { name });
         }

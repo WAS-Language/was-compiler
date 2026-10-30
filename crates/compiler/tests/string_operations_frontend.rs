@@ -1,5 +1,8 @@
 use was_compiler::host::HostRegistrationError;
 use was_compiler::semantic::SemanticError;
+use was_compiler::typed_ast::{
+    BuiltinFunction, ExprResult, FunctionRef, TypedExprKind, TypedStatementKind,
+};
 use was_compiler::{CompileError, Compiler, Type};
 
 fn error(source: &str) -> SemanticError {
@@ -7,6 +10,167 @@ fn error(source: &str) -> SemanticError {
         CompileError::Semantic(error) => error,
         other => panic!("expected semantic error, got {other:?}"),
     }
+}
+
+#[test]
+fn replace_all_signature_supplies_exact_region_local_contexts() {
+    for source in [
+        "fn main() { return string_replace_all(\"雪雪\", \"雪\", \"!\"); }",
+        "fn main() { return string_replace_all(\"x\", \"\", \"\"); }",
+        "fn main(s: string) { let f = string_replace_all(_, \"x\", \"!\"); return f(s); }",
+        "fn main() { let f = string_replace_all(\"x\", _, _); return f(\"x\", \"!\"); }",
+        "fn main() { let f = string_replace_all(_, _, _); return f(\"x\", \"x\", \"!\"); }",
+        "fn main() { return \"x\" |> (string_replace_all(_, \"x\", \"!\")); }",
+        "fn main(s: string) { let f = (x: string) => string_replace_all(s, x, \"!\"); return f(\"x\"); }",
+        "fn main() { return replace(\"x\"); } fn replace(s: string) { return string_replace_all(s, \"x\", \"!\"); }",
+    ] {
+        let program = Compiler::new().analyze(source).unwrap();
+        assert_eq!(program.functions[0].return_type, Type::String, "{source}");
+    }
+}
+
+#[test]
+fn replace_all_retains_builtin_identity_and_ordered_arguments() {
+    let program = Compiler::new()
+        .analyze(
+            "fn main() { return string_replace_all(\"source\", \"needle\", \"replacement\"); }",
+        )
+        .unwrap();
+    let TypedStatementKind::Return(Some(value)) = &program.functions[0].body[0].kind else {
+        panic!("expected explicit return");
+    };
+    assert_eq!(value.ty, ExprResult::Value(Type::String));
+    let TypedExprKind::Call { func, name, args } = &value.kind else {
+        panic!("expected ordinary typed call");
+    };
+    assert_eq!(
+        *func,
+        FunctionRef::Builtin(BuiltinFunction::StringReplaceAll)
+    );
+    assert_eq!(name, "string_replace_all");
+    assert_eq!(args.len(), 3);
+    for (arg, expected) in args.iter().zip(["source", "needle", "replacement"]) {
+        assert_eq!(arg.ty, ExprResult::Value(Type::String));
+        assert!(matches!(&arg.kind, TypedExprKind::String(text) if text == expected));
+    }
+}
+
+#[test]
+fn replace_all_requires_three_exact_positional_strings_before_checking_children() {
+    for (args, found) in [
+        ("", 0),
+        ("missing", 1),
+        ("missing, other", 2),
+        ("missing, other, third, fourth", 4),
+    ] {
+        assert!(matches!(
+            error(&format!("fn main() {{ string_replace_all({args}); }}")),
+            SemanticError::ArgumentCountMismatch { expected: 3, found: count, .. } if count == found
+        ));
+    }
+    for args in [
+        "source: missing, needle: other, replacement: third",
+        "missing, needle: other, replacement: third",
+    ] {
+        assert!(matches!(
+            error(&format!("fn main() {{ string_replace_all({args}); }}")),
+            SemanticError::NamedArgumentsNotSupported { .. }
+        ));
+    }
+    for value in ["1", "true", "[]", "0..1", "empty()"] {
+        for position in 0..3 {
+            let mut args = ["\"x\""; 3];
+            args[position] = value;
+            assert!(matches!(
+                error(&format!(
+                    "fn empty() {{}} fn main() {{ string_replace_all({}); }}",
+                    args.join(", ")
+                )),
+                SemanticError::TypeMismatch {
+                    expected: Type::String,
+                    ..
+                }
+            ));
+        }
+    }
+    assert!(matches!(
+        error("fn main() { string_replace_all(first, second, third); }"),
+        SemanticError::UndefinedVariable { name, .. } if name == "first"
+    ));
+}
+
+#[test]
+fn replace_all_rejects_direct_stages_and_pure_defaults_and_contracts() {
+    for source in [
+        "fn main() { return \"x\" |> string_replace_all; }",
+        "fn main() { return \"x\" |> string_replace_all(\"x\", \"!\"); }",
+        "fn main() { let f = string_replace_all(_, \"x\", \"!\") |> string_replace_all(\"x\", \"!\"); }",
+    ] {
+        assert!(
+            matches!(error(source), SemanticError::InvalidPipeline { .. }),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        error("fn main(s: string = string_replace_all(\"x\", \"x\", \"!\")) {}"),
+        SemanticError::InvalidDefaultExpression { .. }
+    ));
+    for guard in ["true ||", "false &&"] {
+        assert!(matches!(
+            error(&format!(
+                "fn main() requires {guard} string_replace_all(\"x\", \"x\", \"!\") == \"!\" {{}}"
+            )),
+            SemanticError::InvalidContractExpression { .. }
+        ));
+    }
+}
+
+#[test]
+fn replace_all_propagates_never_but_checks_all_children_and_skipped_calls() {
+    for position in 0..3 {
+        let mut args = ["\"x\""; 3];
+        args[position] = "loop {}";
+        let program = Compiler::new()
+            .analyze(&format!(
+                "fn main() -> string {{ return string_replace_all({}); }}",
+                args.join(", ")
+            ))
+            .unwrap();
+        let TypedStatementKind::Return(Some(value)) = &program.functions[0].body[0].kind else {
+            panic!("expected explicit return");
+        };
+        assert_eq!(value.ty, ExprResult::Never);
+        let TypedExprKind::Call { args, .. } = &value.kind else {
+            panic!("expected call even when divergent");
+        };
+        assert_eq!(args.len(), 3);
+        assert_eq!(args[position].ty, ExprResult::Never);
+    }
+    for source in [
+        "fn main() -> string { return string_replace_all(loop {}, false, \"!\"); }",
+        "fn main() -> string { return string_replace_all(\"x\", loop {}, false); }",
+        "fn main() { return; string_replace_all(\"x\", \"x\", false); }",
+        "fn main() { return false && string_replace_all(false, \"x\", \"!\") == \"!\"; }",
+    ] {
+        assert!(
+            matches!(
+                error(source),
+                SemanticError::TypeMismatch {
+                    expected: Type::String,
+                    ..
+                }
+            ),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        error("fn main() { let f = string_replace_all(_, \"x\", false); }"),
+        SemanticError::ConflictingPlaceholderConstraints { .. }
+    ));
+    assert!(matches!(
+        error("fn main() -> string { return string_replace_all(loop {}, \"x\", missing); }"),
+        SemanticError::UndefinedVariable { name, .. } if name == "missing"
+    ));
 }
 
 #[test]
@@ -97,7 +261,12 @@ fn calls_check_structure_before_expressions_and_require_exact_types() {
 
 #[test]
 fn builtin_names_are_reserved_globally_but_lexically_shadowable() {
-    for name in ["string_byte_len", "string_concat", "string_slice_bytes"] {
+    for name in [
+        "string_byte_len",
+        "string_concat",
+        "string_slice_bytes",
+        "string_replace_all",
+    ] {
         assert!(
             Compiler::new()
                 .analyze(&format!("fn {name}() {{}}"))

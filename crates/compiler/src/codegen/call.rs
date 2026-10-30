@@ -24,13 +24,15 @@ pub(super) fn emit(
     if let FunctionRef::Builtin(
         builtin @ (BuiltinFunction::StringByteLen
         | BuiltinFunction::StringConcat
-        | BuiltinFunction::StringSliceBytes),
+        | BuiltinFunction::StringSliceBytes
+        | BuiltinFunction::StringReplaceAll),
     ) = reference
     {
         let (arity, ty, helper) = match builtin {
             BuiltinFunction::StringByteLen => (1, Type::Number, Helper::StringByteLen),
             BuiltinFunction::StringConcat => (2, Type::String, Helper::StringConcat),
             BuiltinFunction::StringSliceBytes => (3, Type::String, Helper::StringSliceBytes),
+            BuiltinFunction::StringReplaceAll => (3, Type::String, Helper::StringReplaceAll),
             _ => unreachable!("matched string builtin"),
         };
         if args.len() != arity {

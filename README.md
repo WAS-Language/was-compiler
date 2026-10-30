@@ -747,8 +747,10 @@ existing function/statement-block vector aliases are unchanged.
 
 Strings support literals, parameters/locals/returns, content-based `==`/`!=`,
 and the positional-only builtins `string_byte_len(source: string) -> number`,
-`string_concat(left: string, right: string) -> string` (#73), and
-`string_slice_bytes(source: string, start: number, end: number) -> string` (#74). Byte length counts
+`string_concat(left: string, right: string) -> string` (#73),
+`string_slice_bytes(source: string, start: number, end: number) -> string` (#74), and
+`string_replace_all(source: string, needle: string, replacement: string) -> string`
+(#75). Byte length counts
 UTF-8 bytes, including embedded NUL, not Unicode scalars or graphemes. Concat
 preserves immutable inputs and aliases. Arguments execute once, left-to-right,
 then both strings are structurally validated before empty-operand reuse or a
@@ -757,8 +759,13 @@ but lexical bindings may shadow them. Slicing uses strict half-open UTF-8 byte
 bounds: finite integers with `0 <= start <= end <= byte_length` and both endpoints
 at Unicode-scalar boundaries, including empty slices; negative zero is accepted.
 It validates after all arguments, reuses full ranges, and copies proper nonempty
-slices. These operations are excluded from pure defaults/contracts and direct
-builtin pipeline stages. String `+`, methods, replacement, and join are not added.
+slices. Replacement performs exact case-sensitive nonoverlapping byte matching,
+without rescanning inserted text; empty needles trap after all three strings
+validate. No-match/content-identical replacements reuse the source; other results
+use checked sizing and direct final-payload copying. Search uses bounded auxiliary
+state, without a linear-time guarantee. These operations are excluded from pure
+defaults/contracts and direct builtin pipeline stages. String `+`, methods, and
+join are not added.
 See [implemented scope and validation](docs/string-operations.md); M5 completion
 and integrated release acceptance remain separate.
 Numeric arrays support literals (including `[]`), reference assignment, parameters,

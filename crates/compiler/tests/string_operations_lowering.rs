@@ -239,6 +239,523 @@ fn slice_helper_validates_before_numeric_checks_reuse_and_widened_copy_allocatio
     )));
 }
 
+fn replace_args() -> Vec<TypedExpr> {
+    vec![string("aaa"), string("aa"), string("b")]
+}
+
+#[test]
+fn replace_validates_three_strings_before_checks_and_content_reuse_then_allocates_once() {
+    let bytes = codegen::compile(&program(call(
+        BuiltinFunction::StringReplaceAll,
+        replace_args(),
+        Type::String,
+    )))
+    .unwrap();
+    let bodies = operations(&bytes);
+    assert_eq!(
+        bodies.len(),
+        9,
+        "one user, seven legacy helpers, replace only"
+    );
+    assert_eq!(calls(&bodies[0]), [8]);
+
+    let mut signatures = Vec::new();
+    let mut function_types = Vec::new();
+    for payload in Parser::new(0).parse_all(&bytes) {
+        match payload.unwrap() {
+            Payload::TypeSection(reader) => {
+                signatures.extend(reader.into_iter_err_on_gc_types().map(Result::unwrap))
+            }
+            Payload::FunctionSection(reader) => {
+                function_types.extend(reader.into_iter().map(Result::unwrap))
+            }
+            Payload::ImportSection(reader) => {
+                assert_eq!(reader.count(), 0, "no host search/copy imports")
+            }
+            _ => {}
+        }
+    }
+    let signature = &signatures[function_types[8] as usize];
+    assert_eq!(signature.params(), [wasmparser::ValType::I32; 3]);
+    assert_eq!(signature.results(), [wasmparser::ValType::I32]);
+
+    let replace = &bodies[8];
+    assert_eq!(
+        calls(replace),
+        [2, 2, 2, 6, 1],
+        "three validations, content equality, one ordinary allocation; no intermediate strings"
+    );
+    assert!(
+        matches!(
+            &replace[..9],
+            [
+                Operator::LocalGet { local_index: 0 },
+                Operator::Call { function_index: 2 },
+                Operator::Drop,
+                Operator::LocalGet { local_index: 1 },
+                Operator::Call { function_index: 2 },
+                Operator::Drop,
+                Operator::LocalGet { local_index: 2 },
+                Operator::Call { function_index: 2 },
+                Operator::Drop,
+            ]
+        ),
+        "even unused operands are validated before constraints or reuse"
+    );
+    let equality = replace
+        .iter()
+        .position(|op| matches!(op, Operator::Call { function_index: 6 }))
+        .unwrap();
+    assert!(
+        matches!(
+            &replace[equality - 2..=equality],
+            [
+                Operator::LocalGet { local_index: 1 },
+                Operator::LocalGet { local_index: 2 },
+                Operator::Call { function_index: 6 }
+            ]
+        ),
+        "reuse compares needle/replacement contents, not handles"
+    );
+    assert!(replace[9..equality].windows(2).any(|ops| matches!(ops,
+        [Operator::LocalGet { local_index: 1 }, Operator::I32Load { memarg }] if memarg.offset == 4
+    )), "read needle byte length after all three validations");
+    assert!(
+        replace[9..equality]
+            .iter()
+            .any(|op| matches!(op, Operator::I32Eqz))
+    );
+    assert!(
+        replace[9..equality]
+            .iter()
+            .any(|op| matches!(op, Operator::Unreachable)),
+        "empty needle traps even on content-identical reuse"
+    );
+    let first_return = replace
+        .iter()
+        .position(|op| matches!(op, Operator::Return))
+        .unwrap();
+    assert!(
+        equality < first_return,
+        "no source reuse before content equality"
+    );
+    assert!(matches!(
+        replace[first_return - 1],
+        Operator::LocalGet { local_index: 0 }
+    ));
+
+    let allocation = replace
+        .iter()
+        .position(|op| matches!(op, Operator::Call { function_index: 1 }))
+        .unwrap();
+    assert!(first_return < allocation);
+    assert!(
+        replace[..allocation]
+            .windows(2)
+            .filter(|ops| matches!(
+                ops,
+                [Operator::LocalGet { local_index: 0 }, Operator::Return]
+            ))
+            .count()
+            >= 2,
+        "both content-identical and no-match paths reuse the validated source before allocation"
+    );
+    let sizing = &replace[equality + 1..allocation];
+    assert!(
+        sizing
+            .iter()
+            .any(|op| matches!(op, Operator::I64ExtendI32U)),
+        "unsigned widened lengths"
+    );
+    assert!(
+        sizing.iter().any(|op| matches!(op, Operator::I64Add)),
+        "widened result/descriptor sizing"
+    );
+    assert!(
+        sizing.iter().any(|op| matches!(op, Operator::I64GtU)),
+        "checked memory32 allocation bound"
+    );
+    assert!(
+        sizing.iter().any(|op| matches!(
+            op,
+            Operator::I64Const {
+                value: 4_294_901_760
+            }
+        )),
+        "existing allocator ceiling, not an arbitrary string cap"
+    );
+    assert!(
+        sizing
+            .iter()
+            .any(|op| matches!(op, Operator::I64Const { value: 8 })),
+        "descriptor included before allocation"
+    );
+    assert!(sizing.iter().any(|op| matches!(op, Operator::Unreachable)));
+    assert!(
+        sizing.iter().any(|op| matches!(op, Operator::I32WrapI64)),
+        "narrow only after checked sizing"
+    );
+    assert!(
+        replace[..allocation]
+            .iter()
+            .all(|op| !matches!(op, Operator::I32Store8 { .. })),
+        "sizing/search does not mutate input payloads"
+    );
+    assert!(
+        sizing.iter().any(|op| matches!(op, Operator::Loop { .. })),
+        "search/count pass before allocation"
+    );
+    assert!(sizing.iter().filter(|op| matches!(op, Operator::I32Load8U { memarg } if memarg.offset == 0 && memarg.align == 0)).count() >= 2, "compare source and needle bytes, not descriptor identity");
+    assert!(
+        sizing
+            .iter()
+            .any(|op| matches!(op, Operator::I32Ne | Operator::I32Eq)),
+        "byte content comparison"
+    );
+    let construction = &replace[allocation + 1..];
+    assert!(
+        construction
+            .iter()
+            .any(|op| matches!(op, Operator::Loop { .. })),
+        "construct directly in final payload"
+    );
+    assert!(construction.iter().any(
+        |op| matches!(op, Operator::I32Load8U { memarg } if memarg.offset == 0 && memarg.align == 0)
+    ));
+    assert!(construction.iter().any(
+        |op| matches!(op, Operator::I32Store8 { memarg } if memarg.offset == 0 && memarg.align == 0)
+    ));
+    let stores = replace
+        .iter()
+        .filter_map(|op| match op {
+            Operator::I32Store { memarg } => Some((memarg.offset, memarg.align)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        stores,
+        [(0, 2), (4, 2)],
+        "only final descriptor fields are published"
+    );
+}
+
+#[test]
+fn replace_checked_input_rejects_forged_arity_types_categories_and_all_children() {
+    let builtin = BuiltinFunction::StringReplaceAll;
+    for count in [0, 1, 2, 4] {
+        let mut value = call(builtin, vec![string("x"); count], Type::String);
+        value.ty = ExprResult::Never;
+        assert!(
+            matches!(
+                codegen::compile_with_exports(&program(value), &ExportOptions::None),
+                Err(CodegenError::ArgumentCountMismatch { expected: 3, found, .. }) if found == count
+            ),
+            "arity {count} is checked even with a forged Never result and no exports"
+        );
+    }
+    for category in [
+        Type::Number.into(),
+        Type::Bool.into(),
+        Type::Range.into(),
+        Type::Array(was_compiler::ArrayElementType::String).into(),
+        ExprResult::Void,
+        ExprResult::Value(Type::Void),
+        ExprResult::Never,
+    ] {
+        let mut value = call(builtin, replace_args(), Type::String);
+        value.ty = category;
+        let mut program = program(value);
+        // Keep the enclosing signature valid so the forged call reaches emission.
+        program.functions[0].return_type = Type::String;
+        assert!(
+            matches!(
+                codegen::compile_with_exports(&program, &ExportOptions::None),
+                Err(CodegenError::TypeMismatch { .. } | CodegenError::ExprResultMismatch { .. })
+            ),
+            "forged result {category:?} is rejected by checked lowering, not missing helper discovery"
+        );
+    }
+    for position in 0..3 {
+        for bad in [
+            number("1"),
+            TypedExpr {
+                kind: TypedExprKind::Bool(true),
+                ty: Type::Bool.into(),
+            },
+            TypedExpr {
+                kind: TypedExprKind::Number("1".into()),
+                ty: Type::String.into(),
+            },
+        ] {
+            let mut args = replace_args();
+            args[position] = bad;
+            assert!(
+                codegen::compile_with_exports(
+                    &program(call(builtin, args, Type::String)),
+                    &ExportOptions::None
+                )
+                .is_err(),
+                "operand {position}: exact type and child kind"
+            );
+        }
+        for category in [
+            ExprResult::Void,
+            ExprResult::Value(Type::Void),
+            ExprResult::Never,
+        ] {
+            let mut args = replace_args();
+            args[position].ty = category;
+            let mut value = call(builtin, args, Type::String);
+            if category == ExprResult::Never {
+                value.ty = ExprResult::Never;
+            }
+            assert!(
+                codegen::compile(&program(value)).is_err(),
+                "operand {position}: forged category {category:?}"
+            );
+        }
+        for earlier in 0..position {
+            for bad in [
+                number("1"),
+                TypedExpr {
+                    kind: TypedExprKind::Bool(true),
+                    ty: Type::String.into(),
+                },
+            ] {
+                let mut args = replace_args();
+                args[earlier] = divergent();
+                args[position] = bad;
+                let mut value = call(builtin, args, Type::String);
+                value.ty = ExprResult::Never;
+                assert!(
+                    codegen::compile_with_exports(&program(value), &ExportOptions::None).is_err(),
+                    "check child {position} after Never child {earlier}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn replace_structural_discovery_handles_each_never_operand_and_all_never_annotations() {
+    for divergent_positions in [vec![0], vec![1], vec![2], vec![0, 1, 2]] {
+        let mut args = replace_args();
+        for position in divergent_positions {
+            args[position] = divergent();
+            let TypedExprKind::Loop { id, .. } = &mut args[position].kind else {
+                panic!()
+            };
+            *id = was_compiler::typed_ast::LoopId(position);
+        }
+        let mut value = call(BuiltinFunction::StringReplaceAll, args, Type::String);
+        value.ty = ExprResult::Never;
+        let bytes = codegen::compile_with_exports(&program(value), &ExportOptions::None).unwrap();
+        let bodies = operations(&bytes);
+        assert_eq!(
+            bodies.len(),
+            9,
+            "Never calls still require replace, but no other M5 helper"
+        );
+        assert_eq!(calls(&bodies[0]), [8]);
+        assert_eq!(calls(&bodies[8]), [2, 2, 2, 6, 1]);
+    }
+}
+
+#[test]
+fn replace_helper_is_appended_after_slice_and_other_required_m5_helpers_only() {
+    for with_concat_and_length in [false, true] {
+        let value = call(
+            BuiltinFunction::StringReplaceAll,
+            vec![
+                call(
+                    BuiltinFunction::StringSliceBytes,
+                    slice_args(),
+                    Type::String,
+                ),
+                string("é"),
+                string("x"),
+            ],
+            Type::String,
+        );
+        let value = if with_concat_and_length {
+            call(
+                BuiltinFunction::StringByteLen,
+                vec![call(
+                    BuiltinFunction::StringConcat,
+                    vec![value, string("!")],
+                    Type::String,
+                )],
+                Type::Number,
+            )
+        } else {
+            value
+        };
+        let bytes = codegen::compile(&program(value)).unwrap();
+        let bodies = operations(&bytes);
+        if with_concat_and_length {
+            assert_eq!(bodies.len(), 12);
+            assert_eq!(
+                calls(&bodies[0]),
+                [10, 11, 9, 8],
+                "legacy group, byte length, concat, slice, replace"
+            );
+        } else {
+            assert_eq!(
+                bodies.len(),
+                10,
+                "slice and replace do not acquire concat or byte length"
+            );
+            assert_eq!(calls(&bodies[0]), [8, 9]);
+        }
+        assert_eq!(calls(bodies.last().unwrap()), [2, 2, 2, 6, 1]);
+    }
+}
+
+#[test]
+fn replace_nested_arguments_are_once_in_order_with_a_live_prefix_at_all_presets() {
+    let source = r#"
+        fn source() -> string { return "aaa"; }
+        fn needle() -> string { return "aa"; }
+        fn replacement() -> string { return "b"; }
+        fn main() -> number {
+            return 7 + string_byte_len(string_replace_all(source(), needle(), replacement()));
+        }
+    "#;
+    let mut enabled = None;
+    for level in [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        let mut compiler = Compiler::new();
+        compiler.set_optimization_level(level);
+        let bytes = compiler.compile_source(source).unwrap();
+        let bodies = operations(&bytes);
+        assert_eq!(
+            bodies.len(),
+            13,
+            "four users, seven legacy helpers, length, replace"
+        );
+        assert_eq!(
+            calls(&bodies[3]),
+            [0, 1, 2, 12, 11],
+            "each argument once, source/needle/replacement, then builtin checks"
+        );
+        assert!(
+            matches!(bodies[3][0], Operator::F64Const { value } if value.bits() == 7.0_f64.to_bits())
+                || matches!(bodies[3][0], Operator::I32Const { value: 7 })
+        );
+        assert!(bodies[3].iter().any(|op| matches!(op, Operator::F64Add)));
+        assert_eq!(bytes, compiler.compile_source(source).unwrap());
+        if level != OptimizationLevel::None {
+            if let Some(expected) = &enabled {
+                assert_eq!(&bytes, expected);
+            } else {
+                enabled = Some(bytes);
+            }
+        }
+    }
+}
+
+#[test]
+fn replace_discovery_visits_nested_capturing_callables_and_unreachable_calls() {
+    let source = r#"
+        fn main(s: string) -> string {
+            let outer = () => {
+                let inner = () => string_replace_all(s, "a", "b");
+                inner()
+            };
+            return outer();
+        }
+    "#;
+    let bytes = Compiler::new().compile_source(source).unwrap();
+    let bodies = operations(&bytes);
+    assert_eq!(
+        bodies.len(),
+        11,
+        "user, seven legacy helpers, replace, two callables"
+    );
+    assert_eq!(calls(&bodies[8]), [2, 2, 2, 6, 1]);
+    assert_eq!(
+        calls(bodies.last().unwrap())
+            .iter()
+            .filter(|index| **index == 8)
+            .count(),
+        1
+    );
+    assert_eq!(
+        calls(&bodies[0])
+            .iter()
+            .filter(|index| **index == 8)
+            .count(),
+        0,
+        "replace is discovered only inside the nested callable, not the creator"
+    );
+
+    let mut unreachable = program(call(
+        BuiltinFunction::StringReplaceAll,
+        replace_args(),
+        Type::String,
+    ));
+    unreachable.functions[0].body.insert(
+        0,
+        was_compiler::typed_ast::TypedStatement {
+            kind: TypedStatementKind::Return(Some(string("early"))),
+            span: was_compiler::tokens::Span::new(1, 2),
+        },
+    );
+    let bytes = codegen::compile_with_exports(&unreachable, &ExportOptions::None).unwrap();
+    let bodies = operations(&bytes);
+    assert_eq!(bodies.len(), 9);
+    assert_eq!(
+        calls(&bodies[0]),
+        [8],
+        "unreachable unexported call is still discovered/emitted"
+    );
+
+    let mut program = Compiler::new()
+        .analyze("fn main() -> string { let f = () => { return \"x\"; }; return f(); }")
+        .unwrap();
+    let TypedStatementKind::Closure(closure) = &mut program.functions[0].body[0].kind else {
+        panic!()
+    };
+    let TypedClosureBody::Block(block) = &mut closure.body else {
+        panic!()
+    };
+    let mut value = call(
+        BuiltinFunction::StringReplaceAll,
+        vec![divergent(), divergent(), divergent()],
+        Type::String,
+    );
+    let TypedExprKind::Call { args, .. } = &mut value.kind else {
+        panic!()
+    };
+    for (position, arg) in args.iter_mut().enumerate() {
+        let TypedExprKind::Loop { id, .. } = &mut arg.kind else {
+            panic!()
+        };
+        *id = was_compiler::typed_ast::LoopId(position);
+    }
+    value.ty = ExprResult::Never;
+    // Preserve a valid closure result while checking discovery in unreachable code.
+    block
+        .statements
+        .push(was_compiler::typed_ast::TypedStatement {
+            kind: TypedStatementKind::Expression(value),
+            span: closure.body_span,
+        });
+    let bytes = codegen::compile(&program).unwrap();
+    let bodies = operations(&bytes);
+    assert_eq!(
+        bodies.len(),
+        10,
+        "all-Never nested call still discovers memory and replace structurally"
+    );
+    assert_eq!(calls(&bodies[8]), [2, 2, 2, 6, 1]);
+    assert_eq!(calls(&bodies[9]), [8]);
+}
+
 fn slice_args() -> Vec<TypedExpr> {
     vec![string("é"), number("0"), number("2")]
 }
@@ -620,6 +1137,11 @@ fn discovery_visits_capture_helpers_and_unreachable_expressions() {
 #[test]
 fn m5_calls_remain_forbidden_in_forged_contracts_and_defaults() {
     for value in [
+        call(
+            BuiltinFunction::StringReplaceAll,
+            replace_args(),
+            Type::String,
+        ),
         call(
             BuiltinFunction::StringSliceBytes,
             slice_args(),

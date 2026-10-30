@@ -674,3 +674,329 @@ fn retained_slices_survive_growth_reentry_and_caught_traps_with_suspended_argume
         "#,
     );
 }
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn replace_all_matches_literal_nonoverlapping_utf8_and_copies_only_changed_nonempty_results() {
+    run(
+        r#"
+        fn replace(s: string, n: string, r: string) -> string {
+            return string_replace_all(s, n, r);
+        }
+        fn aliases() -> string[] {
+            let source = "aaaé🙂";
+            let alias = source;
+            let saved = [source, alias];
+            source = string_replace_all(source, "aa", "b");
+            return [saved[0], saved[1], alias, source, "aaaé🙂"];
+        }
+        fn replace_slot(a: string[]) { a[0] = string_replace_all(a[0], "aa", "b"); }
+        "#,
+        r#"
+        for (const [text, needle, replacement, expected] of [
+            ['aaa', 'aa', 'b', 'ba'], ['aaaaa', 'aa', 'b', 'bba'],
+            ['abcabc', 'abc', '', ''], ['abcabcZ', 'abc', '', 'Z'],
+            ['aaa', 'a', 'aa', 'aaaaaa'], ['aba', 'a', 'aba', 'abababa'],
+            ['AaA', 'a', 'x', 'AxA'], ['abc', 'abcd', 'x', 'abc'],
+            ['', 'a', 'x', ''], ['abc', 'z', '', 'abc'],
+            ['a\0b\0', '\0', '🙂\0', 'a🙂\0b🙂\0'],
+            ['éλ🙂éλ🙂', 'λ🙂', '界', 'é界é界'],
+            ['é/e\u0301/É', 'é', 'λ', 'λ/e\u0301/É'],
+            ['a.a.a', '.', '$&$`$\'', 'a$&$`$\'a$&$`$\'a'],
+            ['aaa', 'aa', 'aa', 'aaa'], ['é🙂', 'é', 'é', 'é🙂']
+        ]) {
+            const handles = [text, needle, replacement].map(s => abi.encode('string', s));
+            const [s, n, r] = handles;
+            assert.notEqual(n, r, 'equal contents still have distinct input descriptors');
+            const result = e.replace(s, n, r);
+            assert.equal(abi.decode('string', result), expected);
+            assert.equal(e.replace(s, n, r) === s, result === s, 'reuse policy is deterministic');
+            for (let i = 0; i < handles.length; i++) {
+                assert.equal(abi.decode('string', handles[i]), [text, needle, replacement][i]);
+            }
+            if (!text.includes(needle) || needle === replacement) {
+                assert.equal(result, s, 'no-match and content-identical replacement reuse source');
+            } else if (expected.length !== 0) {
+                const view = new DataView(e.memory.buffer);
+                const data = view.getUint32(result, true), length = view.getUint32(result + 4, true);
+                assert.equal(length, Buffer.byteLength(expected));
+                assert.deepEqual(Buffer.from(e.memory.buffer, data, length), Buffer.from(expected));
+                for (const h of handles) {
+                    assert.notEqual(result, h);
+                    const inputData = view.getUint32(h, true), inputLength = view.getUint32(h + 4, true);
+                    assert.ok(data + length <= inputData || inputData + inputLength <= data,
+                        'changed nonempty result owns a disjoint copied payload');
+                }
+            }
+        }
+        const values = e.aliases();
+        assert.deepEqual(abi.decode('string[]', values), ['aaaé🙂', 'aaaé🙂', 'aaaé🙂', 'baé🙂', 'aaaé🙂']);
+        const view = new DataView(e.memory.buffer), slots = view.getUint32(values, true);
+        const literal = view.getUint32(slots, true);
+        for (const i of [1, 2, 4]) assert.equal(view.getUint32(slots + 4 * i, true), literal);
+        e.replace_slot(values);
+        assert.deepEqual(abi.decode('string[]', values), ['baé🙂', 'aaaé🙂', 'aaaé🙂', 'baé🙂', 'aaaé🙂']);
+        assert.equal(abi.decode('string', literal), 'aaaé🙂');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn replace_all_runs_arguments_once_before_empty_needle_checks_and_retains_effects_after_traps() {
+    run(
+        r#"
+        fn ordered() -> string {
+            return string_replace_all({ effect(1); produce(10) },
+                { effect(2); produce(20) }, { effect(3); produce(30) });
+        }
+        fn fail() -> string { let a: string[] = []; return a[0]; }
+        fn source_trap() -> string {
+            return string_replace_all({ effect(4); fail() }, { effect(5); "a" }, { effect(6); "b" });
+        }
+        fn needle_trap(s: string) -> string {
+            return string_replace_all({ effect(7); s }, { effect(8); fail() }, { effect(9); "b" });
+        }
+        fn replacement_trap(s: string) -> string {
+            return string_replace_all({ effect(11); let saved = string_replace_all(s, "a", "λ");
+                retain(saved); s }, { effect(12); "" }, { effect(13); fail() });
+        }
+        fn empty_needle(s: string) -> string {
+            return string_replace_all({ effect(14); s }, { effect(15); "" },
+                { effect(16); let saved = string_replace_all(s, "a", "🙂"); retain(saved); "x" });
+        }
+        "#,
+        r#"
+        const events = [], retained = [], source = abi.encode('string', 'aba');
+        effect = n => events.push(n);
+        retain = h => retained.push([h, abi.decode('string', h)]);
+        for (const [texts, expected] of [
+            [['aba', 'a', 'λ'], 'λbλ'], [['aba', 'z', 'x'], 'aba'],
+            [['aba', 'a', 'a'], 'aba'], [['', 'a', 'x'], '']
+        ]) {
+            events.length = 0;
+            produce = n => { events.push(n); return abi.encode('string', texts[n / 10 - 1]); };
+            assert.equal(abi.decode('string', e.ordered()), expected);
+            assert.deepEqual(events, [1, 10, 2, 20, 3, 30]);
+        }
+        for (const text of ['', 'aba']) {
+            events.length = 0;
+            produce = n => { events.push(n); return abi.encode('string', n === 10 ? text : ''); };
+            assert.throws(() => e.ordered(), WebAssembly.RuntimeError);
+            assert.deepEqual(events, [1, 10, 2, 20, 3, 30], 'empty needle checked after replacement effects');
+        }
+        for (const [call, expected] of [
+            [() => e.source_trap(), [4]], [() => e.needle_trap(source), [7, 8]],
+            [() => e.replacement_trap(source), [11, 12, 13]],
+            [() => e.empty_needle(source), [14, 15, 16]]
+        ]) {
+            events.length = 0;
+            assert.throws(call, WebAssembly.RuntimeError);
+            assert.deepEqual(events, expected);
+        }
+        assert.deepEqual(retained.map(([, text]) => text), ['λbλ', '🙂b🙂']);
+        for (const badAt of [10, 20, 30]) {
+            events.length = 0;
+            produce = n => { events.push(n); return n === badAt ? 0 : abi.encode('string', 'a'); };
+            assert.throws(() => e.ordered(), WebAssembly.RuntimeError);
+            assert.deepEqual(events, [1, 10, 2, 20, 3, 30].slice(0, badAt / 5),
+                'existing host-return validation stops later argument evaluation');
+        }
+        for (const [h, text] of retained) assert.equal(abi.decode('string', h), text);
+        assert.equal(abi.decode('string', source), 'aba');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn replace_all_revalidates_even_unused_operands_after_all_argument_effects() {
+    run(
+        r#"
+        fn replace(s: string, n: string, r: string) -> string {
+            return string_replace_all({ effect(1); s }, { effect(2); n }, { effect(3); r });
+        }
+        "#,
+        r#"
+        const events = [];
+        // Corrupt only after entry so fast-path omissions cannot hide behind parameter checks.
+        for (const texts of [
+            ['', 'a', 'x'], ['abc', 'z', 'x'], ['aaa', 'aa', 'aa'],
+            ['aaa', 'a', ''], ['aaa', '', ''], ['', '', 'x'], ['aaa', 'a', 'λ']
+        ]) {
+            const handles = texts.map(s => abi.encode('string', s));
+            for (const target of handles) {
+                for (const corruptAt of [1, 2, 3]) {
+                    for (const [field, bad] of [[0, 0], [0, 0xfffffff8], [4, 0x80000000], [4, 0xffffffff]]) {
+                        const address = target + field;
+                        const original = new DataView(e.memory.buffer).getUint32(address, true);
+                        events.length = 0;
+                        effect = n => {
+                            events.push(n);
+                            if (n === corruptAt) new DataView(e.memory.buffer).setUint32(address, bad, true);
+                        };
+                        assert.throws(() => e.replace(...handles), WebAssembly.RuntimeError);
+                        assert.deepEqual(events, [1, 2, 3]);
+                        new DataView(e.memory.buffer).setUint32(address, original, true);
+                    }
+                }
+            }
+            effect = () => {};
+            if (texts[1] === '') {
+                assert.throws(() => e.replace(...handles), WebAssembly.RuntimeError);
+            } else {
+                assert.equal(abi.decode('string', e.replace(...handles)), texts[0].split(texts[1]).join(texts[2]));
+            }
+            for (let i = 0; i < handles.length; i++) assert.equal(abi.decode('string', handles[i]), texts[i]);
+        }
+        effect = n => events.push(n);
+        const valid = abi.encode('string', 'a');
+        events.length = 0;
+        for (let i = 0; i < 3; i++) {
+            const handles = [valid, valid, valid]; handles[i] = 0;
+            assert.throws(() => e.replace(...handles), WebAssembly.RuntimeError);
+        }
+        assert.deepEqual(events, [], 'entry validation remains before body effects');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn replace_all_results_survive_growth_reentry_and_traps_with_suspended_arguments() {
+    run(
+        r#"
+        fn replace(s: string, n: string, r: string) -> string { return string_replace_all(s, n, r); }
+        fn publish(s: string) -> string {
+            let result = string_replace_all(s, "a", "🙂"); retain(result); return result;
+        }
+        fn fail(s: string) {
+            let result = string_replace_all(s, "a", "λ"); retain(result);
+            let invalid = string_replace_all(s, "", "unused");
+        }
+        fn outer(s: string) -> string {
+            return string_concat("outer:", string_replace_all(
+                string_replace_all(s, "a", "é"), { effect(1); "é" }, { effect(2); "🙂" }));
+        }
+        "#,
+        r#"
+        const retained = [], events = [], source = abi.encode('string', 'aba');
+        retain = h => retained.push([h, abi.decode('string', h)]);
+        const published = e.publish(source), oldBuffer = e.memory.buffer;
+        effect = n => {
+            events.push(n);
+            if (n !== 1) return;
+            const large = abi.encode('string', 'a'.repeat(90000));
+            const marker = e.__alloc(8) >>> 0;
+            const remaining = e.memory.buffer.byteLength - (marker + 8);
+            if (remaining > 0) e.__alloc(remaining);
+            const beforeReplace = e.memory.buffer;
+            const grown = e.publish(large);
+            assert.notEqual(e.memory.buffer, beforeReplace, 'replacement allocation itself grows memory');
+            assert.notEqual(e.memory.buffer, oldBuffer);
+            assert.equal(abi.decode('string', grown), '🙂'.repeat(90000));
+            assert.throws(() => e.fail(source), WebAssembly.RuntimeError);
+            assert.equal(abi.decode('string', e.publish(abi.encode('string', 'aλ'))), '🙂λ');
+            for (const [h, text] of retained) assert.equal(abi.decode('string', h), text);
+        };
+        const outer = e.outer(source);
+        assert.deepEqual(events, [1, 2]);
+        assert.equal(abi.decode('string', outer), 'outer:🙂b🙂');
+        assert.equal(abi.decode('string', published), '🙂b🙂');
+        assert.equal(abi.decode('string', source), 'aba');
+        assert.deepEqual(retained.map(([, text]) => text),
+            ['🙂b🙂', '🙂'.repeat(90000), 'λbλ', '🙂λ']);
+        assert.throws(() => e.fail(source), WebAssembly.RuntimeError);
+        e.publish(abi.encode('string', 'a'.repeat(150000)));
+        for (const [h, text] of retained) assert.equal(abi.decode('string', h), text);
+        assert.equal(abi.decode('string', outer), 'outer:🙂b🙂');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn replace_all_preserves_live_stack_captures_recursion_and_bounded_repetitive_searches() {
+    run(
+        r#"
+        fn replace(s: string, n: string, r: string) -> string { return string_replace_all(s, n, r); }
+        fn sum(a: number, b: number, c: number) -> number { return a + b + c; }
+        fn nested(s: string) -> number {
+            let build = () => string_replace_all(s, "aa", "🙂");
+            return 100 + sum(7, string_byte_len(string_replace_all(build(), "🙂", "λ")),
+                3 + string_byte_len(string_replace_all("aaa", "aa", "b")));
+        }
+        fn arrays(s: string) -> string[] {
+            return ["prefix", string_replace_all(s, "aa", "b"), string_replace_all(s, "a", "aa")];
+        }
+        fn recursive(depth: number, s: string) -> string {
+            if depth == 0 { return string_replace_all(s, "aa", "b"); }
+            return string_concat(string_replace_all(s, "aa", "λ"), recursive(depth - 1, s));
+        }
+        "#,
+        r#"
+        const source = abi.encode('string', 'aaa');
+        assert.equal(e.nested(source), 115);
+        assert.deepEqual(abi.decode('string[]', e.arrays(source)), ['prefix', 'ba', 'aaaaaa']);
+        assert.equal(abi.decode('string', e.recursive(3, source)), 'λaλaλaba');
+        // Bounded adversarial near-matches, periodic overlaps, dense expansion and deletion.
+        // These are correctness/deadline checks, not a linear-time search or timing claim.
+        for (const [text, needle, replacement, expected] of [
+            ['a'.repeat(8192), 'a'.repeat(127) + 'b', 'x', 'a'.repeat(8192)],
+            ['a'.repeat(8192) + 'b', 'a'.repeat(127) + 'b', 'λ', 'a'.repeat(8065) + 'λ'],
+            ['ab'.repeat(4096), 'abababa', 'x', 'xb'.repeat(1024)],
+            ['a'.repeat(8193), 'aa', '', 'a'],
+            ['a'.repeat(4096), 'a', 'aa🙂', 'aa🙂'.repeat(4096)],
+            ['界'.repeat(4097), '界界', '🙂', '🙂'.repeat(2048) + '界']
+        ]) {
+            const handles = [text, needle, replacement].map(s => abi.encode('string', s));
+            const result = e.replace(...handles);
+            assert.equal(abi.decode('string', result), expected);
+            assert.equal(abi.decode('string', handles[0]), text);
+            if (!text.includes(needle)) assert.equal(result, handles[0]);
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn replace_all_checked_expansion_traps_before_allocation_without_large_memory() {
+    run(
+        r#"
+        fn replace(s: string, n: string, r: string) -> string {
+            return string_replace_all(s, n, r);
+        }
+        "#,
+        r#"
+        const needle = abi.encode('string', 'a');
+        const small = abi.encode('string', 'aba'), item = abi.encode('string', 'λ');
+        const retained = e.replace(small, needle, item);
+        assert.equal(abi.decode('string', retained), 'λbλ');
+        for (const [sourceLength, replacementLength, expectedSize] of [
+            [65536, 65536, 0x100000000n],
+            // Payload fits u32, but adding the eight-byte descriptor cannot fit memory32.
+            [65535, 65537, 0xffffffffn]
+        ]) {
+            assert.equal(BigInt(sourceLength) * BigInt(replacementLength), expectedSize);
+            const sourceText = 'a'.repeat(sourceLength), replacementText = 'b'.repeat(replacementLength);
+            const source = abi.encode('string', sourceText);
+            const replacement = abi.encode('string', replacementText);
+            const before = e.__alloc(8) >>> 0, buffer = e.memory.buffer;
+            assert.throws(() => e.replace(source, needle, replacement), WebAssembly.RuntimeError);
+            assert.equal(e.memory.buffer, buffer, 'overflow must not attempt memory growth');
+            const after = e.__alloc(8) >>> 0;
+            assert.equal(after, before + 8, 'overflow must not advance the heap cursor');
+            assert.equal(e.memory.buffer, buffer);
+            assert.equal(abi.decode('string', source), sourceText);
+            assert.equal(abi.decode('string', needle), 'a');
+            assert.equal(abi.decode('string', replacement), replacementText);
+            assert.equal(abi.decode('string', retained), 'λbλ');
+            assert.equal(abi.decode('string', e.replace(small, needle, item)), 'λbλ',
+                'a later valid allocation and replacement still succeeds');
+            assert.equal(abi.decode('string', small), 'aba');
+            assert.equal(abi.decode('string', item), 'λ');
+        }
+        "#,
+    );
+}

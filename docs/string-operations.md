@@ -1,4 +1,4 @@
-# Immutable string operations — issues #73–#74
+# Immutable string operations — issues #73–#75
 
 ## Implemented scope
 
@@ -6,22 +6,24 @@
 string_byte_len(source: string) -> number
 string_concat(left: string, right: string) -> string
 string_slice_bytes(source: string, start: number, end: number) -> string
+string_replace_all(source: string, needle: string, replacement: string) -> string
 ```
 
 These fixed-arity, exact-type, positional-only named builtins implement the M5
-concat/byte-length foundation (#73) and strict byte-slicing slice (#74). They use ordinary identifier/call syntax, not new keywords or AST
+concat/byte-length foundation (#73), strict byte slicing (#74), and literal
+replacement (#75). They use ordinary identifier/call syntax, not new keywords or AST
 expression shapes. Global user functions and host-language registration cannot
 use these names; lexical values/callables may shadow them. A noncallable shadow
 produces the ordinary call error. Host module/field names remain unrestricted.
 
-All three builtins are excluded from pure defaults/contracts and direct builtin
+All four builtins are excluded from pure defaults/contracts and direct builtin
 pipeline stages. Existing lexical callable stages and parenthesized placeholder
 stages can call them in their bodies. String `+`, string `len`, methods,
-replacement, join and fusion remain absent. M5 completion, integrated adapter/
+join and fusion remain absent. M5 completion, integrated adapter/
 release validation and measurements remain separate parent-owned work.
 
 The accepted design is recorded in local ADR 0010 and memory-roadmap §9; design
-confirmation is not release evidence. This document records implemented #73–#74.
+confirmation is not release evidence. This document records implemented #73–#75.
 
 ## Evaluation and storage contract
 
@@ -63,11 +65,34 @@ not views into source storage. Sizing is widened and checked before allocation.
 No callbacks occur between validation and copying. Aliases and retained results
 keep the existing immutable, instance-long lifetime across growth/reentry/traps.
 
+### Literal replacement (#75)
+
+Replacement matches exact, case-sensitive UTF-8 bytes left-to-right, without
+overlapping matches or rescanning inserted text: replacing `aa` with `b` in
+`aaa` produces `ba`. Empty needles trap, including on empty sources. There are
+no regexes, replacement templates, normalization or locale rules.
+
+All three arguments execute before the helper structurally validates source,
+needle, then replacement. It rejects empty needles only after those validations.
+No-match and content-identical needle/replacement cases return the validated
+source, including when equal contents have distinct handles. Otherwise a sizing
+pass precedes one ordinary descriptor-plus-payload allocation, and a second pass
+copies directly into final storage. Empty changed results also allocate a descriptor.
+Inputs, aliases and array-held strings remain immutable and retained.
+
+Both passes use constant auxiliary Wasm locals and search only the original
+source. Result lengths and descriptor-inclusive bounds use widened arithmetic;
+unrepresentable expansion traps before allocation. Search is straightforward and
+may be quadratic on repetitive inputs; this slice makes no linear-time search or
+performance-acceptance claim. There are no per-match collections/intermediate
+strings, new host imports, full UTF-8 scans, reclamation or fusion.
+
 ## Compiler boundaries and Rust migration
 
-`BuiltinFunction` adds `StringByteLen`, `StringConcat` and `StringSliceBytes`;
+`BuiltinFunction` adds `StringByteLen`, `StringConcat`, `StringSliceBytes` and
+`StringReplaceAll`;
 downstream exhaustive matches must handle them. Existing `TypedExprKind::Call`
-represents all three operations.
+represents all four operations.
 Semantic signatures supply exact string contexts and compose existing Never/flow
 rules. No new source type, typed fields, configuration or dependencies are added.
 
@@ -161,3 +186,42 @@ changes. Standards: zero violations and zero actionable smells. Spec: zero
 findings against #74, ADR 0010 and roadmap §9. The spec reviewer independently
 reran the combined frontend/lowering/runtime command with `--include-ignored`:
 27 passed, none failed/ignored. No integrated M5 release claim is made.
+
+## Issue #75 focused validation — 2026-10-30
+
+- Test-first frontend checks failed before builtin registration/reservation, then
+  passed. New checked-lowering and runtime cases initially failed with
+  `UnknownFunctionReference` before backend integration, then passed.
+- `cargo test --offline -p was-compiler --test string_operations_frontend --test string_operations_lowering --test string_operations_runtime -- --include-ignored`:
+  44 passed (10 frontend, 16 lowering, 18 runtime), none failed/ignored.
+  Replacement covers literal UTF-8/NUL/overlap/deletion behavior, content reuse,
+  ordered effects and validation, malformed unused operands, forged input, Never,
+  nested callables, retained values, growth/reentry, live prefixes and bounded
+  repetitive searches at every preset. Expansion tests exceed memory32 and its
+  descriptor-inclusive bound using small input storage, checking no heap advance
+  or memory growth on failure and successful later use.
+- `cargo test --offline --workspace`: 1,328 passed, 0 failed, 318 ignored across
+  89 targets. The first attempt reached its 240-second outer deadline with no
+  reported failures; a same-limit repeat after compilation completed successfully.
+  This is default-suite evidence, not full ignored/browser coverage.
+- `cargo clippy --offline --all-targets -- -D warnings`: passed.
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`:
+  passed.
+- `cargo test --offline -p was-compiler --lib codegen::memory`: 20 passed,
+  8 ignored. `cargo test --offline -p was-compiler --test abi --test emitter`:
+  4 passed, 2 ignored; independent absent-M5 baseline fixtures remain unchanged.
+  An initial combined gate command reached its outer deadline after reporting
+  these checks; the complete sequential gate command was rerun and exited successfully.
+- Edited-file rustfmt and `git --no-pager diff --check`: passed.
+
+Two-axis review used starting commit
+`59ea45aa6bb0537fa93baa2d872e62d2f5475657` and the implementation working diff,
+excluding preexisting design/scratch work. Standards: zero hard violations, one
+low-priority duplicated-allocation-emission suggestion deferred to avoid expanding
+this slice into a cross-operation refactor. Spec: zero findings against #75,
+local ADR 0010 and roadmap §9. The standards reviewer independently reproduced
+all 44 focused tests; the spec reviewer performed static review only.
+Current-source integrated adapter/browser release gates, measurements (including
+adversarial replacement timing), join and full M5 acceptance remain parent-owned
+work. Preexisting uncommitted ADR/roadmap/glossary and scratch work stay separate
+from this implementation.

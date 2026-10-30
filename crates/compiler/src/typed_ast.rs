@@ -70,6 +70,7 @@ pub enum BuiltinFunction {
     StringByteLen,
     StringConcat,
     StringSliceBytes,
+    StringReplaceAll,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

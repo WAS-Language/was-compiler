@@ -411,6 +411,12 @@ impl SemanticAnalyzer {
                 vec![Type::String, Type::Number, Type::Number],
                 Type::String,
             ),
+            (
+                "string_replace_all",
+                BuiltinFunction::StringReplaceAll,
+                vec![Type::String, Type::String, Type::String],
+                Type::String,
+            ),
         ] {
             self.functions.insert(
                 name.into(),
