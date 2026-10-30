@@ -450,6 +450,14 @@ release acceptance is **pending explicit performance-signal disposition**; neith
 a compiler regression nor a speed claim is established. Passing gates do not add
 capacity shrinking, general reclamation or a general memory-bound guarantee.
 
+The first immutable-string slice has [#76 core/CLI/rebuilt-browser compatibility
+coverage](string-operations.md#issue-76-first-slice-adapter-validation--2026-10-30).
+It adds no automatic marshaling, string ownership API or full UTF-8 scan. Hosts
+still supply valid immutable UTF-8 and refresh views after growth; caught traps
+preserve completed effects and retained handles. Fragment accumulation plus
+`string_join`, construction measurements and final M5 acceptance remain pending.
+Repeated immutable concatenation is not evidence of efficient construction.
+
 ### Floating remainder is not a naive arithmetic rewrite
 
 Source `%` now implements truncating remainder directly. The optional guest

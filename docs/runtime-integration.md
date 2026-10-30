@@ -14,6 +14,32 @@ The native adapter is package `was-compiler-cli` in `crates/cli/`, depending on
 `cargo install --offline --path crates/cli`; the virtual root is not installable.
 See [workspace validation and Bacon](validation.md) for development checks.
 
+## Immutable string operations (#76 adapter coverage)
+
+The CLI uses the same four positional-only builtins as the core:
+`string_byte_len(string) -> number`, `string_concat(string, string) -> string`,
+`string_slice_bytes(string, number, number) -> string`, and
+`string_replace_all(string, string, string) -> string`. Length/slice positions
+count UTF-8 bytes, including NUL. Slicing requires strict half-open scalar-boundary
+bounds (also for empty slices); replacement is literal, nonoverlapping and never
+rescans inserted text. Empty needles trap. See [semantics and slice-level
+evidence](string-operations.md#issue-76-first-slice-adapter-validation--2026-10-30).
+
+Use raw instance-local handles or explicit `createAbi.encode`/`decode` copies as
+before; these operations add no imports, ownership or marshaling API. They leave
+inputs, aliases, interned literals and array-held strings immutable. Refresh views
+after possible growth, including reentry. Structural checks do not scan UTF-8;
+valid immutable text remains a host obligation. Caught traps do not roll back
+completed effects or invalidate retained handles.
+
+Core/CLI bytes and WAT agree within each preset, as do source diagnostics (with
+the adapter's source label). Compilation/registration failures leave an existing
+output destination unchanged. Names are reserved for global functions and
+host-language registrations, not external module/field names; lexical shadows use
+normal resolution. Fixed positional arity/types, named arguments, pure
+defaults/contracts and direct builtin pipeline restrictions are unchanged.
+`string_join`, fragment-construction evidence and final M5 acceptance remain pending.
+
 ## Quick start
 
 Compile the checked-in array example, exporting only `main`:

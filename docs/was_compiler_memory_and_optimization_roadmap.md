@@ -1071,6 +1071,19 @@ remains pending explicit disposition of the material timing signal.
 
 **Goal:** Make strings practically editable at the language level without undermining immutable value semantics.
 
+### Implemented first slice — #73–#76 (2026-10-30)
+
+`string_byte_len`, `string_concat`, `string_slice_bytes` and `string_replace_all`
+are implemented. [#76's contract-to-test record](string-operations.md#issue-76-first-slice-adapter-validation--2026-10-30)
+covers core/CLI/freshly rebuilt browser bytes, WAT and diagnostics per preset,
+plus bounded effects, validation-before-reuse, immutable aliases, retained handles,
+caught traps, reentry and actual growth. This is first-slice compatibility evidence,
+not final M5 acceptance. Existing `string[]`/resizable arrays can hold fragments;
+`string_join`, efficient-construction instrumentation/measurements and the final
+milestone decision remain pending. There is no new ownership/marshaling API,
+full UTF-8 scan, reclamation or fusion. The design record below retains its
+proposal/confirmation scope; it is not evidence that the second slice is delivered.
+
 ### Recommended semantics
 
 Keep `string` immutable. Operations such as concatenation and replacement return an immutable result without changing existing strings; unchanged or already available results may reuse storage rather than requiring fresh allocation. Reassignment updates a binding, not the bytes owned by the prior string value.

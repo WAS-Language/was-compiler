@@ -213,6 +213,30 @@ wrapper and its Wasm memory are **not** the generated program's runtime or
 memory. Do not use the compiler's memory to read program strings/arrays, and do
 not pass compiler glue imports to the emitted module.
 
+## Immutable string operations (#76 adapter coverage)
+
+`compile` and `compileWat` support `string_byte_len`, `string_concat`,
+`string_slice_bytes` and `string_replace_all` through the shared core pipeline.
+[#76's current-source parity tests](string-operations.md#issue-76-first-slice-adapter-validation--2026-10-30)
+compare native/browser bytes, WAT and diagnostics at O0–O3 after rebuilding `pkg/`;
+O1–O3 remain byte-identical without requiring O0 identity. They execute UTF-8/NUL,
+strict slice failures, replacement, immutable aliases/array-held strings, retained
+handles, caught traps, reentry and actual guest memory growth.
+
+All four calls are fixed-arity, exact-type and positional-only, excluded from pure
+defaults/contracts and direct builtin pipeline stages. Their names are reserved
+for global functions and host-language registrations; lexical shadows resolve
+normally, with no noncallable fallback. External module/field names remain
+arbitrary nonempty strings. See [the operation contract](string-operations.md)
+for byte-boundary rules, validation-before-reuse and empty-needle traps.
+
+No new imports, JavaScript marshaling or ownership methods are added. Guest
+strings still cross as raw instance-local handles; explicit Node ABI conversions
+remain copies. Refresh emitted-program memory views after possible growth or
+reentry. Valid immutable UTF-8 is a trusted-host obligation, and traps retain
+completed effects and published handles. Fragment construction, `string_join`,
+measurements and final M5 acceptance remain pending.
+
 ## Typed arrays (#37)
 
 Core and browser host declarations support `number[]`, `bool[]` and `string[]`.
@@ -229,7 +253,8 @@ results remain independently inferred, and pipeline inputs receive no backward
 context from stages. Calls with concrete results are checked, not specialized.
 Typed indexing/replacement, length, same-type content equality and read-only
 scalar iteration compose with shared captures; compounds remain numeric-only.
-There are no nested arrays, `range[]`, `void[]`, or new string operations.
+There are no nested arrays, `range[]` or `void[]`; #37 itself added no string
+operations. Later immutable builtins are described above.
 
 Generated programs still expose raw `i32` descriptor handles, not native arrays.
 Descriptors are untagged. Boolean payloads use width 1 and strict consumed bytes

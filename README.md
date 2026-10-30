@@ -766,8 +766,10 @@ use checked sizing and direct final-payload copying. Search uses bounded auxilia
 state, without a linear-time guarantee. These operations are excluded from pure
 defaults/contracts and direct builtin pipeline stages. String `+`, methods, and
 join are not added.
-See [implemented scope and validation](docs/string-operations.md); M5 completion
-and integrated release acceptance remain separate.
+[Issue #76 adapter validation](docs/string-operations.md#issue-76-first-slice-adapter-validation--2026-10-30)
+covers core/CLI/freshly rebuilt browser bytes, WAT, diagnostics and bounded execution
+at each preset. This completes the immutable-operation compatibility slice, not
+fragment construction, `string_join`, measurements or final M5 acceptance.
 Numeric arrays support literals (including `[]`), reference assignment, parameters,
 returns, element reads/writes, content-based `==`/`!=`, and `len(array)` returning
 a number. Equality requires matching lengths and exact elementwise `f64` equality:

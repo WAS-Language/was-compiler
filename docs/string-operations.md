@@ -19,8 +19,9 @@ produces the ordinary call error. Host module/field names remain unrestricted.
 All four builtins are excluded from pure defaults/contracts and direct builtin
 pipeline stages. Existing lexical callable stages and parenthesized placeholder
 stages can call them in their bodies. String `+`, string `len`, methods,
-join and fusion remain absent. M5 completion, integrated adapter/
-release validation and measurements remain separate parent-owned work.
+join and fusion remain absent. [#76 adapter validation](#issue-76-first-slice-adapter-validation--2026-10-30)
+covers this first immutable-operation slice. Fragment construction, measurements
+and final M5 release acceptance remain separate parent-owned work.
 
 The accepted design is recorded in local ADR 0010 and memory-roadmap §9; design
 confirmation is not release evidence. This document records implemented #73–#75.
@@ -225,3 +226,80 @@ Current-source integrated adapter/browser release gates, measurements (including
 adversarial replacement timing), join and full M5 acceptance remain parent-owned
 work. Preexisting uncommitted ADR/roadmap/glossary and scratch work stay separate
 from this implementation.
+
+## Issue #76 first-slice adapter validation — 2026-10-30
+
+### Scope and contract-to-test map
+
+This slice adds compatibility tests, not another implementation. Confirmed seams
+are the core `Compiler`, CLI file/output adapter and freshly rebuilt browser
+`Compiler.compile`/`compileWat`. The two adapter targets are
+`crates/cli/tests/string_operations_adapters.rs` and
+`crates/browser/tests/string_operations_adapters.rs`. The core prerequisite suites
+were reviewed and rerun; no compiler or runtime changes were needed.
+
+| Contract | Evidence |
+| --- | --- |
+| All four operations, immutable UTF-8/empty/NUL, aliases/interned literals and array-held strings | CLI `cli_string_copy_marshaling_utf8_empty_nul_aliases_and_edge_results_execute_at_each_preset`; browser `rebuilt_browser_string_values_strict_slicing_and_replacement_match_native`; core runtime literal/reuse/copy cases |
+| Strict slicing, including empty interior endpoints, numeric extremes and -0; literal replacement overlap/deletion/no-rescan/no-match/content reuse | Browser value test independently enumerates byte endpoints and checks worked replacement results; CLI values and prerequisite runtime cases cover both operations |
+| Within-preset bytes/WAT parity, enabled-preset identity, deterministic output, selected/no exports and explicit imports | CLI `cli_string_bytes_wat_imports_and_selected_or_no_exports_match_core_at_each_preset`; browser `browser_string_native_fixtures_validate_surface_diagnostics_and_preset_parity` and both rebuilt-browser tests; independent decoded imports/exports plus `wasmparser::Validator` |
+| Global/host-language reservation, arbitrary nonempty external names, callable shadows and noncallable no-fallback | CLI host/diagnostic/surface tests; browser registration errors, external NUL/Unicode/whitespace names, lexical callable execution and diagnostic matrix. CLI delimiter limitations are not imposed on core/browser |
+| Exact positional arity/types; named calls, pure defaults/contracts and direct builtin stages rejected; unchanged error ordering/spans | CLI diagnostic matrix and `cli_string_errors_preserve_raw_utf8_spans_and_structure_before_child_order` explicitly check variants and UTF-8 byte offsets with CRLF/tabs; browser compares native rendered diagnostics at every preset for both compile methods; prerequisite frontend/forged-input purity tests |
+| Once-only left-to-right effects, argument traps, validation before reuse and no rollback | CLI `cli_string_ordered_effects_traps_growth_and_retained_handles_execute_at_each_preset`; browser `rebuilt_browser_string_order_validation_retention_growth_and_reentry_match_native`; post-entry descriptor corruption isolates builtin validation from entry checks, including otherwise unused operands |
+| Retained handles after caught traps, reentry, actual allocation growth and refreshed views | Browser effects/lifetime test checks guest concat growth and detached old buffers during reentry, retains published strings and array-held strings; CLI lifetime case and core per-operation growth/reentry suites complement it |
+| Existing destinations unchanged on compilation/registration errors; explicit copy marshaling and unchanged API surface | CLI diagnostics and reserved-host-name tests preserve sentinel artifacts; CLI/browser value tests use existing `runtime/abi.cjs` copies; decoded exports/imports reject additional runtime management APIs/imports |
+| Checked frontend, forged typed input and independent decoded lowering | Prerequisite `string_operations_frontend` (10), `string_operations_lowering` (16), and runtime (18) cases cover signatures, Never/skipped children, purity, helper discovery/order, validation-before-reuse, widened sizing and direct final-payload construction |
+
+Native and CLI diagnostics retain their source labels; browser expectations use
+`<browser>`. Raw span and first-error assertions are independent of rendering.
+Node/browser cases remain ignored by default and use bounded subprocess helpers:
+CLI children have 30-second deadlines; browser children have 60-second deadlines.
+Bounded workloads are not guest fuel or process-tree cancellation. All execution
+cases run at every preset; O0 is not required to equal enabled-preset bytes.
+
+### Executed validation
+
+All commands ran offline from the repository root with external bounds of at
+most 600 seconds per Cargo/build invocation. Node.js 24.12.0 and cached tooling
+were available. Browser execution followed a successful current-source rebuild:
+
+- `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline`: passed; no tooling/dependency installation was requested.
+- `cargo test --offline -p was-compiler-browser --test string_operations_adapters -- --include-ignored`: **3 passed**, none failed/ignored, against that rebuilt package.
+- `cargo test --offline -p was-compiler-cli --test string_operations_adapters -- --include-ignored`: **6 passed**, none failed/ignored.
+- `cargo test --offline -p was-compiler --test string_operations_frontend --test string_operations_lowering --test string_operations_runtime -- --include-ignored`: **44 passed**, none failed/ignored.
+- `cargo test --offline`: passed; its ignored cases are not execution evidence.
+- `cargo test --offline --workspace -- --include-ignored`: **1,655 passed, 0 failed, 0 ignored across 91 targets** (including the empty doc-test target); local full-run log is `target/issue-76-workspace-tests.log`.
+- `cargo clippy --offline --all-targets -- -D warnings`: passed.
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`: passed.
+- `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings`: passed.
+- `node tests/browser.cjs pkg`: **25 groups passed** against the same rebuilt package.
+- File-only Rust formatting and `git diff --check`: passed.
+
+These are compatibility tests against the delivered #73–#75 behavior, not a
+production red-to-green change. Existing behavior passed after correcting test
+assumptions; no compiler defect or semantic policy change was introduced.
+
+### Acceptance boundary
+
+The first immutable-operation adapter slice is validated. Hosts still preserve
+valid immutable UTF-8 and refresh views after growth; checks are structural, not
+full UTF-8 scans. Marshaling remains explicit/copy-based and raw handles retain
+revision-1 instance lifetime. No join, fusion, new ownership API, M4 performance
+disposition or general reclamation is implied.
+
+`string_join`, fragment-construction instrumentation and ordinary-instance
+measurements (including adversarial replacement timing), and final integrated M5
+acceptance remain pending. Historical prerequisite and unrelated milestone records
+retain their original scope. Preexisting glossary, ADR, roadmap design and scratch
+work are preserved separately from this ticket's changes.
+
+### Two-axis review
+
+Review compared only this ticket's staged changes with starting commit
+`36bfcf5f58aab8f528128d0bc973b880a99d0371`; preexisting user design/scratch
+changes were excluded. Standards: zero hard violations; one low-priority suggestion
+to replace string-valued expected-error tags with a test-local enum was implemented
+and confirmed resolved by the reviewer. Spec: zero findings against #76 and the
+confirmed immutable-operation contracts. Reviewers performed static review, not
+independent reproduction of the full validation. The adjusted CLI suite and Clippy
+passed again; local documentation checks resolved all 333 relative paths.

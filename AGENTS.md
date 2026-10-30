@@ -368,7 +368,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   checked helpers, storage or trap ordering, read [the implemented contract](docs/string-operations.md).
   They remain outside pure defaults/contracts and direct builtin pipeline stages;
   lexical shadowing is allowed, global/host-language names are reserved. M5 is
-  incomplete; integrated adapter/release validation and measurements remain separate.
+  incomplete. Before changing adapter coverage or interpreting acceptance, read
+  [#76's first-slice contract-to-test evidence](docs/string-operations.md#issue-76-first-slice-adapter-validation--2026-10-30).
+  Core/CLI/freshly rebuilt browser parity and bounded effects/lifetime checks cover
+  the four immutable builtins. Fragment construction/join, measurements and final
+  M5 acceptance remain separate.
 - Strings are immutable raw UTF-8 values. Arrays share mutable storage; ordinary
   literals and host encoding remain fixed-storage. #65 implements `resizable(source)`
   fresh copies for all array types, with contextual empty typing and private authority,
