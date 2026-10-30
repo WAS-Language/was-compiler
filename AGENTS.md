@@ -364,6 +364,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   operands validate. No-match/content-identical replacement reuses the source;
   other results use checked widened sizing and direct final-payload copying with
   constant auxiliary state, without a linear-time search guarantee.
+  #77 adds `string_join(string[], string) -> string` over fixed/resizable fragments
+  without resize authority: capture parts before separator effects, then validate
+  separator, current outer storage and every entry in index order. Singleton joins
+  reuse the validated entry; other results use checked sizing and one final copied
+  payload with constant auxiliary locals and no callbacks or snapshot collection.
   Before changing their resolution,
   checked helpers, storage or trap ordering, read [the implemented contract](docs/string-operations.md).
   They remain outside pure defaults/contracts and direct builtin pipeline stages;
@@ -371,8 +376,10 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   incomplete. Before changing adapter coverage or interpreting acceptance, read
   [#76's first-slice contract-to-test evidence](docs/string-operations.md#issue-76-first-slice-adapter-validation--2026-10-30).
   Core/CLI/freshly rebuilt browser parity and bounded effects/lifetime checks cover
-  the four immutable builtins. Fragment construction/join, measurements and final
-  M5 acceptance remain separate.
+  the first four immutable builtins. For join coverage and acceptance limits, read
+  [#77's contract and evidence](docs/string-operations.md#fragment-join-77).
+  Construction measurements and final M5 acceptance remain pending; M4's pending
+  performance-signal disposition is unchanged.
 - Strings are immutable raw UTF-8 values. Arrays share mutable storage; ordinary
   literals and host encoding remain fixed-storage. #65 implements `resizable(source)`
   fresh copies for all array types, with contextual empty typing and private authority,

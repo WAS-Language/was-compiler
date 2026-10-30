@@ -11,13 +11,14 @@ const LEVELS: [OptimizationLevel; 4] = [
     OptimizationLevel::Standard,
     OptimizationLevel::Aggressive,
 ];
-const BUILTINS: [&str; 4] = [
+const BUILTINS: [&str; 5] = [
     "string_byte_len",
     "string_concat",
     "string_slice_bytes",
     "string_replace_all",
+    "string_join",
 ];
-const EXPORTS: [&str; 18] = [
+const EXPORTS: [&str; 26] = [
     "bytes",
     "concat",
     "slice",
@@ -36,6 +37,14 @@ const EXPORTS: [&str; 18] = [
     "fail",
     "outer",
     "stages",
+    "join",
+    "join_empty",
+    "join_build",
+    "join_captured",
+    "join_ordered",
+    "join_fail",
+    "join_shadow",
+    "join_stages",
 ];
 const SOURCE: &str = r#"
 fn bytes(s: string) { return string_byte_len(s); }
@@ -95,6 +104,40 @@ fn stages() {
     return "é" |> f |> (string_slice_bytes(_, 0, 2))
         |> (string_replace_all(_, "é", "λ")) |> (string_byte_len(_));
 }
+fn join(parts: string[], separator: string) -> string { return string_join(parts, separator); }
+fn join_empty() -> string { return string_join([], "unused"); }
+fn join_build(tail: string) -> string {
+    let parts: string[] = resizable([]);
+    parts.push("é"); parts.push(""); parts.push(tail);
+    return string_join(parts, "λ");
+}
+fn join_captured() -> string[] {
+    let parts = resizable(["old", ""]);
+    let alias = parts;
+    let separator = () => {
+        alias.reserve(100); alias[0] = "雪"; alias.push("🙂");
+        parts = ["wrong"];
+        return "|";
+    };
+    let result = string_join(parts, separator());
+    alias[0] = "changed";
+    return [result, alias[0], string_join(parts, "")];
+}
+fn join_ordered(parts: string[], separator: string) -> string {
+    return string_join({ effect(20); parts }, { effect(21); separator });
+}
+fn join_fail(parts: string[], separator: string) -> string {
+    let result = string_join(parts, separator); retain(result);
+    let empty: number[] = []; let bad = empty[0];
+    return result;
+}
+fn join_shadow() -> number {
+    let string_join = (n: number) => n + 5;
+    return 0 |> string_join;
+}
+fn join_stages(parts: string[]) -> string {
+    return parts |> (string_join(_, "λ"));
+}
 fn hidden() -> range { return 0..2; }
 "#;
 
@@ -124,7 +167,7 @@ fn compiler() -> Compiler {
         .unwrap();
     // An unused import remains required, and external names are not language identifiers.
     compiler
-        .register_host_function("unused", " \n", "string_slice_bytes", vec![], Type::Number)
+        .register_host_function("unused", "string_join", "string_join", vec![], Type::Number)
         .unwrap();
     compiler
 }
@@ -136,6 +179,7 @@ fn invalid_sources() -> Vec<String> {
         (BUILTINS[1], "\"x\", \"y\"", "string"),
         (BUILTINS[2], "\"x\", 0, 1", "string"),
         (BUILTINS[3], "\"x\", \"x\", \"!\"", "string"),
+        (BUILTINS[4], "[\"x\"], \"!\"", "string"),
     ] {
         cases.extend([
             format!("fn {name}() {{}} fn main() {{}}"),
@@ -153,6 +197,17 @@ fn invalid_sources() -> Vec<String> {
     cases.extend(
         [
             "fn main() { string_concat(\"x\"); }",
+            "fn main() { string_join([1], \"!\"); }",
+            "fn main() { string_join([true], \"!\"); }",
+            "fn main() { string_join(\"x\", \"!\"); }",
+            "fn main() { string_join([\"x\"], false); }",
+            "fn main() { return; string_join([\"x\"], false); }",
+            "fn main() { return false && string_join([1], \"!\") == \"\"; }",
+            "fn main() -> string { return string_join(loop {}, missing); }",
+            "// é🙂\r\nfn main() { string_join(first); }",
+            "// é🙂\r\nfn main() { string_join(left: first, right: second); }",
+            "// é🙂\r\nfn main() { string_join(first, second); }",
+            "fn main() { string_join([\"x\"], \"!\"; }",
             "fn main() { string_slice_bytes(\"x\", 0); }",
             "fn main() { string_replace_all(\"x\", \"x\"); }",
             "fn main() { string_concat(\"x\", false); }",
@@ -204,7 +259,7 @@ fn assert_surface(bytes: &[u8], selected: bool) {
         [
             ("string_concat".into(), "\0外 module".into()),
             ("string_byte_len".into(), "string_replace_all".into()),
-            (" \n".into(), "string_slice_bytes".into()),
+            ("string_join".into(), "string_join".into()),
         ]
     );
     let mut expected = vec![
@@ -316,28 +371,30 @@ fn run_browser(execution: &str) {
             const count = Number(field().toString());
             const diagnostics = Array.from({{length:count}},
                 () => ({{source:field().toString(), message:field().toString()}}));
-            const registrationErrors = Array.from({{length:4}}, () => field().toString());
+            const registrationErrors = Array.from({{length:5}}, () => field().toString());
             assert.equal(offset, input.length);
             const dir = process.argv[1];
             const {{default:init, Compiler}} = await import(pathToFileURL(path.join(dir,'was_compiler.js')).href);
             await init({{module_or_path:fs.readFileSync(path.join(dir,'was_compiler_bg.wasm'))}});
             const c = new Compiler();
-            const builtins = ['string_byte_len','string_concat','string_slice_bytes','string_replace_all'];
+            const builtins = ['string_byte_len','string_concat','string_slice_bytes','string_replace_all','string_join'];
             const names = ['bytes','concat','slice','replace','literal','aliases','slot','lexical',
                 'ordered_bytes','ordered_concat','ordered_slice','ordered_replace','left_trap','right_trap',
-                'publish','fail','outer','stages'];
+                'publish','fail','outer','stages',
+                'join','join_empty','join_build','join_captured','join_ordered','join_fail',
+                'join_shadow','join_stages'];
             const imports = [
                 {{module:'string_concat',name:'\0外 module',kind:'function'}},
                 {{module:'string_byte_len',name:'string_replace_all',kind:'function'}},
-                {{module:' \n',name:'string_slice_bytes',kind:'function'}}];
+                {{module:'string_join',name:'string_join',kind:'function'}}];
             const enabled = [];
             try {{
-                for (let i=0; i<4; i++) assert.throws(
+                for (let i=0; i<builtins.length; i++) assert.throws(
                     () => c.registerHostFunction(builtins[i],'env','bad',[],'string'),
                     e => e instanceof Error && e.message === registrationErrors[i]);
                 c.registerHostFunction('effect','string_concat','\0外 module',['number'],'void');
                 c.registerHostFunction('retain','string_byte_len','string_replace_all',['string'],'void');
-                c.registerHostFunction('unused',' \n','string_slice_bytes',[],'number');
+                c.registerHostFunction('unused','string_join','string_join',[],'number');
                 for (let level=0; level<4; level++) {{
                     c.setOptimizationLevel(level);
                     for (let index=0; index<2; index++) {{
@@ -359,7 +416,7 @@ fn run_browser(execution: &str) {
                         const host = {{
                             string_concat:{{'\0外 module': n => effect(n)}},
                             string_byte_len:{{string_replace_all: h => retain(h)}},
-                            ' \n':{{string_slice_bytes: () => 0}}
+                            string_join:{{string_join: () => {{throw new Error('unused import called');}}}}
                         }};
                         assert.throws(() => new WebAssembly.Instance(m, {{
                             string_concat:host.string_concat, string_byte_len:host.string_byte_len
@@ -396,6 +453,108 @@ fn run_browser(execution: &str) {
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+ and pkg freshly rebuilt from current source"]
+fn rebuilt_browser_string_join_fixed_resizable_utf8_copies_and_captures_match_native() {
+    run_browser(
+        r#"
+        const array = parts => abi.encode('string[]',parts);
+        for (const [parts,separator,expected] of [
+            [[],',',''], [[''],',',''], [['',''],',',','],
+            [['a','','b'],',','a,,b'], [['a','','b'],'','ab'],
+            [['é','\0','🙂'],'雪','é雪\0雪🙂'],
+            [['e\u0301','é'],'λ','e\u0301λé'], [['only'],'unused','only']
+        ]) {
+            const input=parts.slice(), h=array(input), sep=encode(separator);
+            input.push('host-only');
+            const result=e.join(h,sep);
+            assert.equal(text(result),expected);
+            assert.deepEqual(abi.decode('string[]',h),parts);
+            assert.equal(text(sep),separator);
+            const copy=abi.decode('string[]',h); copy.push('copy-only');
+            assert.deepEqual(abi.decode('string[]',h),parts);
+            if (parts.length===1) {
+                const view=new DataView(e.memory.buffer), payload=view.getUint32(h,true);
+                assert.equal(result,view.getUint32(payload,true),'singleton returns its entry');
+            }
+        }
+        assert.equal(text(e.join_empty()),'');
+        assert.equal(text(e.join_build(encode('\0🙂'))),'éλλ\0🙂');
+        assert.deepEqual(abi.decode('string[]',e.join_captured()),['雪||🙂','changed','wrong']);
+        assert.equal(e.join_shadow(),5);
+        assert.equal(text(e.join_stages(array(['é','','🙂']))),'éλλ🙂');
+        const h=array(['a','b']), separator=encode(','), saved=e.join(h,separator);
+        const replacement=encode('changed'), view=new DataView(e.memory.buffer);
+        view.setUint32(view.getUint32(h,true),replacement,true);
+        assert.equal(text(saved),'a,b','joined payload is independent of mutable slots');
+        assert.equal(text(e.join(h,separator)),'changed,b');
+    "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+ and pkg freshly rebuilt from current source"]
+fn rebuilt_browser_string_join_validation_order_reentry_growth_and_retention_match_native() {
+    run_browser(
+        r#"
+        const array=parts => abi.encode('string[]',parts), events=[], retained=[];
+        retain=h => retained.push(h);
+        for (const parts of [[],[''],['é'],['','']]) {
+            const h=array(parts), sep=encode('!');
+            const original=new DataView(e.memory.buffer).getUint32(sep,true);
+            effect=n => {
+                events.push(n);
+                if (n===21) new DataView(e.memory.buffer).setUint32(sep,0,true);
+            };
+            trap(() => e.join_ordered(h,sep));
+            assert.deepEqual(events.splice(0),[20,21]);
+            new DataView(e.memory.buffer).setUint32(sep,original,true);
+        }
+        for (const target of ['outer','first','last']) {
+            const h=array(['','']), sep=encode('');
+            const view=new DataView(e.memory.buffer), payload=view.getUint32(h,true);
+            const address=target==='outer' ? h : payload+(target==='last' ? 4 : 0);
+            const original=view.getUint32(address,true);
+            effect=n => {
+                events.push(n);
+                if (n===21) new DataView(e.memory.buffer).setUint32(address,0,true);
+            };
+            trap(() => e.join_ordered(h,sep));
+            assert.deepEqual(events.splice(0),[20,21]);
+            new DataView(e.memory.buffer).setUint32(address,original,true);
+        }
+        const h=array(['a','b']), sep=encode('|'), changed=encode('雪');
+        const retainedResult=e.join(h,sep);
+        let reentries=0;
+        effect=n => {
+            events.push(n);
+            if (n!==21) return;
+            reentries++;
+            trap(() => e.join_fail(h,sep));
+            const large=array(['界'.repeat(70000),'界'.repeat(70000)]), empty=encode('');
+            const before=e.memory.buffer;
+            const grown=e.join(large,empty);
+            assert.notEqual(e.memory.buffer,before,'guest join actually grows memory');
+            assert.equal(text(grown),'界'.repeat(140000));
+            retained.push(grown);
+            const view=new DataView(e.memory.buffer);
+            view.setUint32(view.getUint32(h,true),changed,true);
+        };
+        assert.equal(text(e.join_ordered(h,sep)),'雪|b');
+        assert.equal(reentries,1); assert.deepEqual(events.splice(0),[20,21]);
+        assert.equal(text(retainedResult),'a|b');
+        assert.equal(text(retained[0]),'a|b');
+        assert.equal(text(retained[1]),'界'.repeat(140000));
+        effect=n => events.push(n);
+        trap(() => e.join_ordered(0,sep)); assert.deepEqual(events,[]);
+        effect=n => { events.push(n); if (n===20) e.slice(encode('é'),1,1); };
+        trap(() => e.join_ordered(h,sep)); assert.deepEqual(events,[20]);
+        assert.equal(text(retainedResult),'a|b');
+        assert.equal(text(retained[0]),'a|b');
+    "#,
     );
 }
 

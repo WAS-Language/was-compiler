@@ -56,7 +56,13 @@ valid immutable UTF-8 remains a host obligation, not a mandatory full scan.
 checks or source reuse. No-match/content-identical replacements return the source;
 other results bump-allocate one descriptor plus directly copied final payload after
 widened sizing. Published strings remain immutable and retained; no M4 storage or
-reclamation is added. See [the implemented slices](string-operations.md).
+reclamation is added. #77 adds fragment join over fixed/resizable string arrays:
+capture parts before separator effects, then validate separator, complete current
+outer storage and every consumed string in index order. Singleton joins reuse the
+entry; other results use one ordinary descriptor-plus-payload allocation after
+widened sizing and copy directly, with constant auxiliary locals and no callbacks.
+Resize authority is not required; strings and array slots are unchanged and retained.
+See [the implemented slices](string-operations.md).
 The remaining agreed future constraints live in
 [the memory roadmap's M0 decisions](was_compiler_memory_and_optimization_roadmap.md#4-milestone-m0--semantics-and-regression-baseline),
 not in the revision 1 baseline. A future management protocol must establish

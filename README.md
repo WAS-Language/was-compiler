@@ -748,9 +748,9 @@ existing function/statement-block vector aliases are unchanged.
 Strings support literals, parameters/locals/returns, content-based `==`/`!=`,
 and the positional-only builtins `string_byte_len(source: string) -> number`,
 `string_concat(left: string, right: string) -> string` (#73),
-`string_slice_bytes(source: string, start: number, end: number) -> string` (#74), and
+`string_slice_bytes(source: string, start: number, end: number) -> string` (#74),
 `string_replace_all(source: string, needle: string, replacement: string) -> string`
-(#75). Byte length counts
+(#75), and `string_join(parts: string[], separator: string) -> string` (#77). Byte length counts
 UTF-8 bytes, including embedded NUL, not Unicode scalars or graphemes. Concat
 preserves immutable inputs and aliases. Arguments execute once, left-to-right,
 then both strings are structurally validated before empty-operand reuse or a
@@ -763,13 +763,19 @@ slices. Replacement performs exact case-sensitive nonoverlapping byte matching,
 without rescanning inserted text; empty needles trap after all three strings
 validate. No-match/content-identical replacements reuse the source; other results
 use checked sizing and direct final-payload copying. Search uses bounded auxiliary
-state, without a linear-time guarantee. These operations are excluded from pure
-defaults/contracts and direct builtin pipeline stages. String `+`, methods, and
-join are not added.
+state, without a linear-time guarantee. Join captures parts then evaluates separator;
+separator effects on the captured fixed/resizable array are visible, while rebinding
+does not redirect it. It validates separator and outer storage, then every entry
+in index order before checked sizing and direct final-payload copying. Separators
+appear only between entries (including empty ones); singleton joins reuse the entry.
+Join requires no resize authority and changes no fragments or aliases.
+These operations are excluded from pure defaults/contracts and direct builtin
+pipeline stages. String `+` and methods are not added.
 [Issue #76 adapter validation](docs/string-operations.md#issue-76-first-slice-adapter-validation--2026-10-30)
 covers core/CLI/freshly rebuilt browser bytes, WAT, diagnostics and bounded execution
 at each preset. This completes the immutable-operation compatibility slice, not
-fragment construction, `string_join`, measurements or final M5 acceptance.
+final M5 acceptance. [#77](docs/string-operations.md#fragment-join-77) implements
+fragment-based join; construction measurements and integrated M5 acceptance remain pending.
 Numeric arrays support literals (including `[]`), reference assignment, parameters,
 returns, element reads/writes, content-based `==`/`!=`, and `len(array)` returning
 a number. Equality requires matching lengths and exact elementwise `f64` equality:

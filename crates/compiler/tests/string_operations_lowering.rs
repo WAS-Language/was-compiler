@@ -66,6 +66,78 @@ fn calls(ops: &[Operator<'_>]) -> Vec<u32> {
 }
 
 #[test]
+fn join_plans_string_array_support_and_validates_before_one_final_allocation() {
+    let bytes = Compiler::new().compile_source(
+        "fn main(parts: string[], separator: string) -> string { return string_join(parts, separator); }"
+    ).unwrap();
+    let bodies = operations(&bytes);
+    assert_eq!(
+        bodies.len(),
+        13,
+        "one user, legacy and string-array helpers, join"
+    );
+    let join = bodies.last().unwrap();
+    assert!(matches!(
+        &join[..6],
+        [
+            Operator::LocalGet { local_index: 1 },
+            Operator::Call { function_index: 2 },
+            Operator::Drop,
+            Operator::LocalGet { local_index: 0 },
+            Operator::Call { function_index: 8 },
+            Operator::Drop,
+        ]
+    ));
+    assert_eq!(
+        calls(join),
+        [2, 8, 2, 1],
+        "separator, outer storage, entry-loop validation, allocation; no callbacks"
+    );
+    let allocation = join
+        .iter()
+        .position(|op| matches!(op, Operator::Call { function_index: 1 }))
+        .unwrap();
+    assert!(
+        join[..allocation]
+            .iter()
+            .any(|op| matches!(op, Operator::Loop { .. }))
+    );
+    assert!(
+        join[..allocation]
+            .iter()
+            .any(|op| matches!(op, Operator::Return))
+    );
+    assert!(
+        join[..allocation]
+            .iter()
+            .any(|op| matches!(op, Operator::I64Mul))
+    );
+    assert!(
+        join[..allocation]
+            .iter()
+            .any(|op| matches!(op, Operator::I64GtU))
+    );
+    assert_eq!(
+        join.iter()
+            .filter(|op| matches!(op, Operator::I32Store { .. }))
+            .count(),
+        2,
+        "only result descriptor fields"
+    );
+    assert_eq!(
+        join.iter()
+            .filter(|op| matches!(op, Operator::I32Store8 { .. }))
+            .count(),
+        2,
+        "direct fragment and separator copy loops"
+    );
+    assert!(!join.iter().any(|op| matches!(
+        op,
+        Operator::CallIndirect { .. } | Operator::MemoryCopy { .. }
+    )));
+}
+
+#[test]
 fn concat_validates_both_before_reuse_and_allocates_one_widened_result() {
     let bytes = codegen::compile(&program(call(
         BuiltinFunction::StringConcat,
@@ -756,6 +828,541 @@ fn replace_discovery_visits_nested_capturing_callables_and_unreachable_calls() {
     assert_eq!(calls(&bodies[9]), [8]);
 }
 
+fn join_args() -> Vec<TypedExpr> {
+    vec![
+        TypedExpr {
+            kind: TypedExprKind::Array(
+                vec![string("a"), string("")],
+                was_compiler::ArrayElementType::String,
+            ),
+            ty: Type::Array(was_compiler::ArrayElementType::String).into(),
+        },
+        string(","),
+    ]
+}
+
+#[test]
+fn join_checked_input_rejects_forged_arity_types_results_and_unreachable_children() {
+    for count in [0, 1, 3] {
+        let mut value = call(
+            BuiltinFunction::StringJoin,
+            vec![string("x"); count],
+            Type::String,
+        );
+        value.ty = ExprResult::Never;
+        assert!(matches!(
+            codegen::compile_with_exports(&program(value), &ExportOptions::None),
+            Err(CodegenError::ArgumentCountMismatch { expected: 2, found, .. }) if found == count
+        ));
+    }
+    for category in [
+        Type::Number.into(),
+        Type::Bool.into(),
+        Type::Range.into(),
+        Type::Array(was_compiler::ArrayElementType::String).into(),
+        ExprResult::Void,
+        ExprResult::Value(Type::Void),
+        ExprResult::Never,
+    ] {
+        let mut value = call(BuiltinFunction::StringJoin, join_args(), Type::String);
+        value.ty = category;
+        let mut program = program(value);
+        program.functions[0].return_type = Type::String;
+        assert!(
+            matches!(
+                codegen::compile_with_exports(&program, &ExportOptions::None),
+                Err(CodegenError::TypeMismatch { .. } | CodegenError::ExprResultMismatch { .. })
+            ),
+            "result {category:?}"
+        );
+    }
+    for position in 0..2 {
+        let expected = join_args()[position].ty;
+        let mut bad_operands = vec![
+            number("1"),
+            TypedExpr {
+                kind: TypedExprKind::Bool(true),
+                ty: expected,
+            },
+        ];
+        for category in [
+            Type::Number.into(),
+            Type::Bool.into(),
+            Type::Range.into(),
+            Type::Array(was_compiler::ArrayElementType::Number).into(),
+            Type::Array(was_compiler::ArrayElementType::Bool).into(),
+            ExprResult::Void,
+            ExprResult::Value(Type::Void),
+            ExprResult::Never,
+        ] {
+            let mut bad = join_args()[position].clone();
+            bad.ty = category;
+            bad_operands.push(bad);
+        }
+        // The opposite operand's valid type is still not this operand's type.
+        bad_operands.push(join_args()[1 - position].clone());
+        for bad in bad_operands {
+            for unreachable in [false, true] {
+                let mut args = join_args();
+                args[position] = bad.clone();
+                let mut value = call(BuiltinFunction::StringJoin, args, Type::String);
+                if bad.ty == ExprResult::Never {
+                    value.ty = ExprResult::Never;
+                }
+                let mut program = program(value);
+                program.functions[0].return_type = Type::String;
+                if unreachable {
+                    program.functions[0].body.insert(
+                        0,
+                        was_compiler::typed_ast::TypedStatement {
+                            kind: TypedStatementKind::Return(Some(string("early"))),
+                            span: was_compiler::tokens::Span::new(1, 2),
+                        },
+                    );
+                }
+                assert!(
+                    codegen::compile_with_exports(&program, &ExportOptions::None).is_err(),
+                    "operand {position}, {bad:?}, unreachable {unreachable}"
+                );
+            }
+            let mut value = call(
+                BuiltinFunction::StringJoin,
+                {
+                    let mut args = join_args();
+                    args[position] = bad.clone();
+                    args
+                },
+                Type::String,
+            );
+            if bad.ty == ExprResult::Never {
+                value.ty = ExprResult::Never;
+            }
+            let comparison = TypedExpr {
+                kind: TypedExprKind::Binary {
+                    left: Box::new(value),
+                    op: BinaryOp::Equal,
+                    right: Box::new(string("unused")),
+                },
+                ty: Type::Bool.into(),
+            };
+            let skipped = TypedExpr {
+                kind: TypedExprKind::Binary {
+                    left: Box::new(TypedExpr {
+                        kind: TypedExprKind::Bool(false),
+                        ty: Type::Bool.into(),
+                    }),
+                    op: BinaryOp::And,
+                    right: Box::new(comparison),
+                },
+                ty: Type::Bool.into(),
+            };
+            assert!(
+                codegen::compile_with_exports(&program(skipped), &ExportOptions::None).is_err(),
+                "runtime-skipped operand {position} still checked: {bad:?}"
+            );
+            if position == 1 {
+                let mut value = call(
+                    BuiltinFunction::StringJoin,
+                    vec![divergent(), bad.clone()],
+                    Type::String,
+                );
+                value.ty = ExprResult::Never;
+                assert!(
+                    codegen::compile_with_exports(&program(value), &ExportOptions::None).is_err(),
+                    "separator still checked after divergent parts: {bad:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn join_structural_discovery_handles_never_without_any_array_annotation() {
+    for positions in [vec![0], vec![1], vec![0, 1]] {
+        let mut args = join_args();
+        for position in positions {
+            args[position] = divergent();
+            let TypedExprKind::Loop { id, .. } = &mut args[position].kind else {
+                panic!()
+            };
+            *id = was_compiler::typed_ast::LoopId(position);
+        }
+        let mut value = call(BuiltinFunction::StringJoin, args, Type::String);
+        value.ty = ExprResult::Never;
+        let bytes = codegen::compile_with_exports(&program(value), &ExportOptions::None).unwrap();
+        let bodies = operations(&bytes);
+        assert_eq!(
+            bodies.len(),
+            13,
+            "join must structurally acquire string-array helpers"
+        );
+        assert!(calls(&bodies[0]).contains(&12));
+        assert_eq!(calls(&bodies[12]), [2, 8, 2, 1]);
+    }
+}
+
+#[test]
+fn join_discovery_visits_nested_captures_and_all_never_unreachable_helper_calls() {
+    let bytes = Compiler::new()
+        .compile_source(
+            r#"
+        fn main(parts: string[], separator: string) -> string {
+            let outer = () => {
+                let inner = () => string_join(parts, separator);
+                inner()
+            };
+            return outer();
+        }
+    "#,
+        )
+        .unwrap();
+    let bodies = operations(&bytes);
+    assert_eq!(
+        bodies.len(),
+        15,
+        "user, eleven memory helpers, join, two callables"
+    );
+    assert_eq!(calls(&bodies[12]), [2, 8, 2, 1]);
+    assert_eq!(
+        calls(&bodies[14])
+            .iter()
+            .filter(|index| **index == 12)
+            .count(),
+        1
+    );
+    assert!(!calls(&bodies[0]).contains(&12));
+
+    let mut program = Compiler::new()
+        .analyze("fn main() -> string { let f = () => { return \"x\"; }; return f(); }")
+        .unwrap();
+    let TypedStatementKind::Closure(closure) = &mut program.functions[0].body[0].kind else {
+        panic!()
+    };
+    let TypedClosureBody::Block(block) = &mut closure.body else {
+        panic!()
+    };
+    let mut args = vec![divergent(), divergent()];
+    let TypedExprKind::Loop { id, .. } = &mut args[1].kind else {
+        panic!()
+    };
+    *id = was_compiler::typed_ast::LoopId(1);
+    let mut value = call(BuiltinFunction::StringJoin, args, Type::String);
+    value.ty = ExprResult::Never;
+    block
+        .statements
+        .push(was_compiler::typed_ast::TypedStatement {
+            kind: TypedStatementKind::Expression(value),
+            span: closure.body_span,
+        });
+    let bytes = codegen::compile_with_exports(&program, &ExportOptions::None).unwrap();
+    let bodies = operations(&bytes);
+    assert_eq!(bodies.len(), 14);
+    assert_eq!(calls(&bodies[12]), [2, 8, 2, 1]);
+    assert_eq!(
+        calls(&bodies[13]),
+        [12],
+        "unreachable all-Never helper call is planned and checked"
+    );
+}
+
+#[test]
+fn join_is_forbidden_even_in_runtime_skipped_forged_pure_contracts() {
+    let mut program = Compiler::new()
+        .analyze("fn main() requires false && true {}")
+        .unwrap();
+    let TypedExprKind::Binary { right, .. } = &mut program.functions[0].contracts[0].value.kind
+    else {
+        panic!()
+    };
+    **right = TypedExpr {
+        kind: TypedExprKind::Binary {
+            left: Box::new(call(BuiltinFunction::StringJoin, join_args(), Type::String)),
+            op: BinaryOp::Equal,
+            right: Box::new(string("a,")),
+        },
+        ty: Type::Bool.into(),
+    };
+    assert!(matches!(
+        codegen::compile_with_exports(&program, &ExportOptions::None),
+        Err(CodegenError::InvalidContractExpression { .. })
+    ));
+}
+
+#[test]
+fn join_arguments_are_once_in_order_and_helpers_append_deterministically_at_all_presets() {
+    let source = r#"
+        fn parts() -> string[] { return ["a", "b"]; }
+        fn separator() -> string { return ","; }
+        fn main() -> number {
+            return 7 + string_byte_len(string_replace_all(
+                string_slice_bytes(string_concat(string_join(parts(), separator()), "!"), 0, 3), "a", "x"));
+        }
+    "#;
+    let mut enabled = None;
+    for level in [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        let mut compiler = Compiler::new();
+        compiler.set_optimization_level(level);
+        let bytes = compiler.compile_source(source).unwrap();
+        assert_eq!(bytes, compiler.compile_source(source).unwrap());
+        let bodies = operations(&bytes);
+        assert_eq!(
+            bodies.len(),
+            19,
+            "three users, legacy/string-array groups, length/concat/slice/replace/join"
+        );
+        assert_eq!(calls(&bodies[2]), [0, 1, 18, 15, 16, 17, 14]);
+        assert_eq!(calls(&bodies[18]), [4, 10, 4, 3]);
+        assert!(matches!(
+            bodies[2][0],
+            Operator::F64Const { .. } | Operator::I32Const { .. }
+        ));
+        assert!(bodies[2].iter().any(|op| matches!(op, Operator::F64Add)));
+        if level != OptimizationLevel::None {
+            if let Some(expected) = &enabled {
+                assert_eq!(&bytes, expected);
+            } else {
+                enabled = Some(bytes);
+            }
+        }
+    }
+}
+
+#[test]
+fn absent_m5_preserves_independent_golden_and_legacy_string_array_helper_order() {
+    let mut compiler = Compiler::new();
+    compiler
+        .register_host_function("marker", "env", "marker", vec![Type::Number], Type::Number)
+        .unwrap();
+    compiler
+        .register_host_function("signal", "env", "signal", vec![Type::Bool], Type::Bool)
+        .unwrap();
+    let bytes = compiler
+        .compile_source(include_str!("../../../tests/fixtures/emitter/control.was"))
+        .unwrap();
+    assert_eq!(
+        bytes,
+        include_bytes!("../../../tests/fixtures/emitter/control.wasm")
+    );
+    operations(&bytes);
+
+    let compiler = Compiler::new();
+    let program = compiler
+        .analyze("fn main(parts: string[]) -> string { return parts[0]; }")
+        .unwrap();
+    let bytes = compiler.compile(&program).unwrap();
+    assert_eq!(bytes, codegen::compile(&program).unwrap());
+    assert_eq!(bytes, compiler.compile(&program).unwrap());
+    let bodies = operations(&bytes);
+    assert_eq!(bodies.len(), 12, "no M5 helpers without M5 calls");
+    assert_eq!(
+        calls(&bodies[0]),
+        [8, 9, 2],
+        "entry validator, string-array address, consumed string validator"
+    );
+}
+
+#[test]
+fn join_decoded_passes_validate_in_index_order_then_copy_directly_with_bounded_locals() {
+    let mut expected_helper = None;
+    for count in [0, 1, 2, 64] {
+        let mut args = join_args();
+        let TypedExprKind::Array(entries, _) = &mut args[0].kind else {
+            panic!()
+        };
+        *entries = vec![string("é"); count];
+        let bytes = codegen::compile(&program(call(
+            BuiltinFunction::StringJoin,
+            args,
+            Type::String,
+        )))
+        .unwrap();
+        let bodies = operations(&bytes);
+        let join = &bodies[12];
+        let helper = Parser::new(0)
+            .parse_all(&bytes)
+            .filter_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(body),
+                _ => None,
+            })
+            .nth(12)
+            .unwrap();
+        let locals = helper
+            .get_locals_reader()
+            .unwrap()
+            .into_iter()
+            .map(Result::unwrap)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            locals,
+            [
+                (12, wasmparser::ValType::I32),
+                (1, wasmparser::ValType::I64)
+            ],
+            "constant auxiliary storage, not a per-fragment handle table"
+        );
+        let encoded_helper = helper.as_bytes().to_vec();
+        if let Some(expected) = &expected_helper {
+            assert_eq!(&encoded_helper, expected);
+        } else {
+            expected_helper = Some(encoded_helper);
+        }
+
+        let allocation = join
+            .iter()
+            .position(|op| matches!(op, Operator::Call { function_index: 1 }))
+            .unwrap();
+        assert_eq!(calls(&join[..allocation]), [2, 8, 2]);
+        assert!(
+            calls(&join[allocation + 1..]).is_empty(),
+            "no callbacks, concat helpers or intermediate allocations during copying"
+        );
+        assert!(join.windows(10).any(|ops| matches!(ops, [
+            Operator::LocalGet { local_index: 10 }, Operator::LocalGet { local_index: 11 },
+            Operator::I32Const { value: 4 }, Operator::I32Mul, Operator::I32Add,
+            Operator::I32Load { memarg }, Operator::Call { function_index: 2 },
+            Operator::LocalTee { local_index: 12 }, Operator::I32Load { .. }, Operator::I64ExtendI32U,
+        ] if memarg.offset == 0 && memarg.align == 2)), "load/validate each successive string handle before summing its unsigned length");
+        assert!(
+            join[..allocation].windows(7).any(|ops| matches!(
+                ops,
+                [
+                    Operator::LocalGet { local_index: 2 },
+                    Operator::I32Const { value: 1 },
+                    Operator::I32Eq,
+                    Operator::If { .. },
+                    Operator::LocalGet { local_index: 12 },
+                    Operator::Return,
+                    Operator::End,
+                ]
+            )),
+            "one-entry reuse follows the full validation pass"
+        );
+        assert!(
+            join[..allocation].windows(8).any(|ops| matches!(
+                ops,
+                [
+                    Operator::LocalGet { local_index: 14 },
+                    Operator::I64Const { value: 8 },
+                    Operator::I64Add,
+                    Operator::I64Const {
+                        value: 4_294_901_760
+                    },
+                    Operator::I64GtU,
+                    Operator::If { .. },
+                    Operator::Unreachable,
+                    Operator::End,
+                ]
+            )),
+            "widened descriptor-plus-payload overflow check precedes allocation"
+        );
+        assert_eq!(
+            join.iter()
+                .filter(|op| matches!(op, Operator::Loop { .. }))
+                .count(),
+            4,
+            "one sizing pass, one output pass, two byte-copy loops"
+        );
+        assert_eq!(
+            join.iter()
+                .filter(|op| matches!(op, Operator::BrIf { relative_depth: 1 }))
+                .count(),
+            4
+        );
+        assert!(
+            join[..allocation].windows(11).any(|ops| matches!(
+                ops,
+                [
+                    Operator::LocalGet { local_index: 2 },
+                    Operator::If { .. },
+                    Operator::LocalGet { local_index: 2 },
+                    Operator::I32Const { value: 1 },
+                    Operator::I32Sub,
+                    Operator::I64ExtendI32U,
+                    Operator::LocalGet { local_index: 9 },
+                    Operator::I64ExtendI32U,
+                    Operator::I64Mul,
+                    Operator::LocalSet { local_index: 14 },
+                    Operator::End,
+                ]
+            )),
+            "separator contribution is unsigned (count - 1) * byte length, guarded for zero entries"
+        );
+        assert!(
+            join[..allocation].windows(9).any(|ops| matches!(
+                ops,
+                [
+                    Operator::LocalGet { local_index: 14 },
+                    Operator::I64Add,
+                    Operator::LocalSet { local_index: 14 },
+                    Operator::LocalGet { local_index: 11 },
+                    Operator::I32Const { value: 1 },
+                    Operator::I32Add,
+                    Operator::LocalSet { local_index: 11 },
+                    Operator::Br { relative_depth: 0 },
+                    Operator::End,
+                ]
+            )),
+            "sizing consumes entries in ascending index order without short-circuit reuse"
+        );
+        assert!(join[allocation..].windows(12).any(|ops| matches!(ops, [
+            Operator::LocalGet { local_index: 10 }, Operator::LocalGet { local_index: 11 },
+            Operator::I32Const { value: 4 }, Operator::I32Mul, Operator::I32Add,
+            Operator::I32Load { memarg: entry }, Operator::LocalTee { local_index: 12 },
+            Operator::I32Load { memarg: data }, Operator::LocalSet { local_index: 6 },
+            Operator::LocalGet { local_index: 12 }, Operator::I32Load { memarg: length }, Operator::LocalSet { local_index: 7 },
+        ] if entry.offset == 0 && entry.align == 2 && data.offset == 0 && length.offset == 4)),
+            "copy pass reloads each validated entry's payload and byte length, without an intermediate collection");
+        let stores = join
+            .iter()
+            .filter_map(|op| match op {
+                Operator::I32Store { memarg } => Some((memarg.offset, memarg.align)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            stores,
+            [(0, 2), (4, 2)],
+            "only the new result descriptor is published"
+        );
+        assert_eq!(join.windows(8).filter(|ops| matches!(ops, [
+            Operator::LocalGet { local_index: 5 }, Operator::LocalGet { local_index: 8 }, Operator::I32Add,
+            Operator::LocalGet { local_index: 6 }, Operator::LocalGet { local_index: 8 }, Operator::I32Add,
+            Operator::I32Load8U { memarg: load }, Operator::I32Store8 { memarg: store },
+        ] if load.offset == 0 && load.align == 0 && store.offset == 0 && store.align == 0)).count(), 2,
+            "fragment and separator bytes copy directly into the final destination");
+        assert!(
+            join[allocation..].windows(13).any(|ops| matches!(
+                ops,
+                [
+                    Operator::LocalGet { local_index: 11 },
+                    Operator::I32Const { value: 1 },
+                    Operator::I32Add,
+                    Operator::LocalTee { local_index: 11 },
+                    Operator::LocalGet { local_index: 2 },
+                    Operator::I32LtU,
+                    Operator::If { .. },
+                    Operator::LocalGet { local_index: 13 },
+                    Operator::LocalSet { local_index: 6 },
+                    Operator::LocalGet { local_index: 9 },
+                    Operator::LocalSet { local_index: 7 },
+                    Operator::I32Const { value: 0 },
+                    Operator::LocalSet { local_index: 8 },
+                ]
+            )),
+            "separator only after advancing past a fragment and only before another entry"
+        );
+        assert!(!join.iter().any(|op| matches!(
+            op,
+            Operator::CallIndirect { .. } | Operator::MemoryCopy { .. }
+        )));
+    }
+}
+
 fn slice_args() -> Vec<TypedExpr> {
     vec![string("é"), number("0"), number("2")]
 }
@@ -1137,6 +1744,7 @@ fn discovery_visits_capture_helpers_and_unreachable_expressions() {
 #[test]
 fn m5_calls_remain_forbidden_in_forged_contracts_and_defaults() {
     for value in [
+        call(BuiltinFunction::StringJoin, join_args(), Type::String),
         call(
             BuiltinFunction::StringReplaceAll,
             replace_args(),

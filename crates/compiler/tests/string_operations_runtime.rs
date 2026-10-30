@@ -1000,3 +1000,422 @@ fn replace_all_checked_expansion_traps_before_allocation_without_large_memory() 
         "#,
     );
 }
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_captures_parts_once_and_observes_separator_mutation_resize_and_rebinding() {
+    run(
+        r#"
+        fn joined() -> string[] {
+            let parts = resizable(["old", "tail"]);
+            let alias = parts;
+            let result = string_join({ effect(1); parts }, {
+                effect(2);
+                parts[0] = "é";
+                parts.reserve(64);
+                parts.push("🙂");
+                parts = ["redirected"];
+                effect(3);
+                ","
+            });
+            return [result, alias[0], alias[1], alias[2], parts[0]];
+        }
+        "#,
+        r#"
+        const events = [];
+        effect = n => events.push(n);
+        assert.deepEqual(abi.decode('string[]', e.joined()),
+            ['é,tail,🙂', 'é', 'tail', '🙂', 'redirected']);
+        assert.deepEqual(events, [1, 2, 3]);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_handles_fixed_resizable_empty_utf8_and_nul_parts_with_validated_reuse_and_fresh_copies() {
+    run(
+        &r#"
+        fn join(parts: string[], separator: string) -> string { return string_join(parts, separator); }
+        fn movable(parts: string[]) -> string[] { return resizable(parts); }
+        fn contextual() -> string { return string_join([], "unused"); }
+        fn literal() -> string { return string_join(["é", "\0", "🙂"], "λ"); }
+        fn set_first(parts: string[], value: string) { parts[0] = value; }
+        "#
+        .replace("\\0", "\0"),
+        r#"
+        const cases = [
+            [[], '', ''], [[], 'unused', ''], [[''], ',', ''], [['é\0🙂'], 'unused', 'é\0🙂'],
+            [['', ''], '', ''], [['', ''], ',', ','], [['a', '', 'b'], ',', 'a,,b'],
+            [['', 'a', ''], 'λ', 'λaλ'], [['é', '🙂', 'e\u0301'], '\0λ', 'é\0λ🙂\0λe\u0301'],
+            [['a\0', 'λ🙂'], '', 'a\0λ🙂'], [['é', '', '', '🙂'], '界', 'é界界界🙂'],
+            [['x'.repeat(70001), 'λ'.repeat(8193)], '🙂', 'x'.repeat(70001) + '🙂' + 'λ'.repeat(8193)],
+            [Array(4097).fill(''), 'λ', 'λ'.repeat(4096)],
+            [Array(4097).fill('a'), '', 'a'.repeat(4097)]
+        ];
+        for (const [texts, separatorText, expected] of cases) {
+            const fixed = abi.encode('string[]', texts), separator = abi.encode('string', separatorText);
+            for (const parts of [fixed, e.movable(fixed)]) {
+                const view = new DataView(e.memory.buffer), data = view.getUint32(parts, true);
+                const handles = texts.map((_, i) => view.getUint32(data + 4 * i, true));
+                const result = e.join(parts, separator), again = e.join(parts, separator);
+                assert.equal(abi.decode('string', result), expected);
+                assert.equal(abi.decode('string', again), expected);
+                if (texts.length === 1) assert.equal(result, handles[0], 'singleton returns its entry');
+                if (texts.length > 1 && expected.length > 0) {
+                    assert.notEqual(result, again, 'positive multi-entry results are fresh');
+                    for (const input of [...handles, separator, parts]) assert.notEqual(result, input);
+                    const current = new DataView(e.memory.buffer);
+                    const outputData = current.getUint32(result, true), bytes = current.getUint32(result + 4, true);
+                    assert.deepEqual(Buffer.from(e.memory.buffer, outputData, bytes), Buffer.from(expected));
+                    for (const h of [...handles, separator]) {
+                        const inputData = current.getUint32(h, true), length = current.getUint32(h + 4, true);
+                        assert.ok(outputData + bytes <= inputData || inputData + length <= outputData,
+                            'copied result does not overlap any nonempty input payload');
+                    }
+                }
+                assert.deepEqual(abi.decode('string[]', parts), texts);
+                assert.equal(abi.decode('string', separator), separatorText);
+                if (texts.length > 0) {
+                    e.set_first(parts, abi.encode('string', 'replaced'));
+                    assert.equal(abi.decode('string', result), expected, 'slot replacement cannot mutate a result');
+                    for (let i = 0; i < handles.length; i++) assert.equal(abi.decode('string', handles[i]), texts[i]);
+                }
+            }
+        }
+        assert.equal(abi.decode('string', e.contextual()), '');
+        assert.equal(abi.decode('string', e.literal()), 'éλ\0λ🙂');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_inspects_post_separator_fixed_writes_shrink_and_empty_to_nonempty_growth() {
+    run(
+        r#"
+        fn fixed(parts: string[]) -> string {
+            let alias = parts;
+            return string_join({ effect(1); parts }, {
+                effect(2); alias[0] = "λ"; parts = ["redirected"]; ":"
+            });
+        }
+        fn shrink(parts: string[]) -> string {
+            return string_join({ effect(3); parts }, {
+                effect(4); let removed = parts.remove(0); let last = parts.pop();
+                retain(removed); retain(last); ","
+            });
+        }
+        fn clear(parts: string[]) -> string {
+            return string_join(parts, { let first = parts.pop(); let second = parts.pop(); "unused" });
+        }
+        fn append(parts: string[]) -> string {
+            return string_join(parts, { effect(5); parts.reserve(1024); parts.push("é"); parts.push("🙂"); "λ" });
+        }
+        fn movable(parts: string[]) -> string[] { return resizable(parts); }
+        "#,
+        r#"
+        const events = [], retained = [];
+        effect = n => events.push(n);
+        retain = h => retained.push([h, abi.decode('string', h)]);
+        const fixed = abi.encode('string[]', ['old', 'tail']);
+        assert.equal(abi.decode('string', e.fixed(fixed)), 'λ:tail');
+        assert.deepEqual(abi.decode('string[]', fixed), ['λ', 'tail']);
+        const parts = e.movable(abi.encode('string[]', ['first', 'middle', 'last']));
+        const data = new DataView(e.memory.buffer).getUint32(parts, true);
+        const middle = new DataView(e.memory.buffer).getUint32(data + 4, true);
+        assert.equal(e.shrink(parts), middle, 'post-separator singleton reuses the surviving entry');
+        assert.deepEqual(abi.decode('string[]', parts), ['middle']);
+        const clearing = e.movable(abi.encode('string[]', ['a', 'b']));
+        assert.equal(abi.decode('string', e.clear(clearing)), '');
+        assert.deepEqual(abi.decode('string[]', clearing), []);
+        const empty = e.movable(abi.encode('string[]', []));
+        assert.equal(abi.decode('string', e.append(empty)), 'éλ🙂');
+        assert.deepEqual(abi.decode('string[]', empty), ['é', '🙂']);
+        assert.deepEqual(events, [1, 2, 3, 4, 5]);
+        assert.deepEqual(retained.map(([, text]) => text), ['first', 'last']);
+        for (const [h, text] of retained) assert.equal(abi.decode('string', h), text);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_argument_traps_stop_later_effects_and_completed_mutations_and_results_survive() {
+    run(
+        r#"
+        fn fail() -> string { let empty: string[] = []; return empty[0]; }
+        fn parts_trap() -> string {
+            return string_join({ effect(1); let unused = fail(); ["a"] }, { effect(2); "," });
+        }
+        fn separator_trap(parts: string[]) -> string {
+            return string_join({ effect(3); parts }, {
+                effect(4); parts[0] = "changed";
+                retain(string_join(parts, "λ")); fail()
+            });
+        }
+        fn ordered(parts: string[]) -> string {
+            return string_join({ effect(5); parts }, { effect(6); produce(7) });
+        }
+        "#,
+        r#"
+        const events = [], retained = [];
+        effect = n => events.push(n);
+        retain = h => retained.push([h, abi.decode('string', h)]);
+        assert.throws(() => e.parts_trap(), WebAssembly.RuntimeError);
+        assert.deepEqual(events, [1]);
+        const parts = abi.encode('string[]', ['old', 'tail']);
+        events.length = 0;
+        assert.throws(() => e.separator_trap(parts), WebAssembly.RuntimeError);
+        assert.deepEqual(events, [3, 4]);
+        assert.deepEqual(abi.decode('string[]', parts), ['changed', 'tail']);
+        assert.deepEqual(retained.map(([, text]) => text), ['changedλtail']);
+        for (const text of ['', '🙂']) {
+            events.length = 0;
+            produce = n => { events.push(n); return abi.encode('string', text); };
+            assert.equal(abi.decode('string', e.ordered(parts)), 'changed' + text + 'tail');
+            assert.deepEqual(events, [5, 6, 7]);
+        }
+        events.length = 0;
+        produce = n => { events.push(n); return 0; };
+        assert.throws(() => e.ordered(parts), WebAssembly.RuntimeError);
+        assert.deepEqual(events, [5, 6, 7]);
+        for (const [h, text] of retained) assert.equal(abi.decode('string', h), text);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_validates_unused_separator_outer_storage_and_every_entry_before_result_allocation() {
+    run(
+        r#"
+        fn checked(parts: string[], separator: string) -> string {
+            return string_join({ effect(1); parts }, { effect(2); separator });
+        }
+        "#,
+        r#"
+        const events = [];
+        for (const texts of [[], [''], ['one'], ['', ''], ['a', '', 'b']]) {
+            const parts = abi.encode('string[]', texts), separator = abi.encode('string', ',');
+            // Post-entry corruption exercises builtin validation, not parameter checks.
+            for (const target of [parts, separator]) {
+                for (const corruptAt of [1, 2]) {
+                    for (const [field, bad] of [[0, 0], [0, 0xfffffff8], [4, 0xffffffff]]) {
+                        const address = target + field;
+                        const original = new DataView(e.memory.buffer).getUint32(address, true);
+                        events.length = 0;
+                        effect = n => {
+                            events.push(n);
+                            if (n === corruptAt) new DataView(e.memory.buffer).setUint32(address, bad, true);
+                        };
+                        const before = e.__alloc(8) >>> 0, buffer = e.memory.buffer;
+                        assert.throws(() => e.checked(parts, separator), WebAssembly.RuntimeError);
+                        assert.deepEqual(events, [1, 2], 'both arguments precede join-specific checks');
+                        assert.equal(e.memory.buffer, buffer);
+                        assert.equal(e.__alloc(8) >>> 0, before + 8, 'invalid inputs precede result allocation');
+                        new DataView(e.memory.buffer).setUint32(address, original, true);
+                    }
+                }
+            }
+            const data = new DataView(e.memory.buffer).getUint32(parts, true);
+            for (let i = 0; i < texts.length; i++) {
+                const address = data + i * 4;
+                const entry = new DataView(e.memory.buffer).getUint32(address, true);
+                for (const bad of [0, 1, 0xfffffff8]) {
+                    events.length = 0;
+                    effect = n => { events.push(n); if (n === 2) new DataView(e.memory.buffer).setUint32(address, bad, true); };
+                    const before = e.__alloc(8) >>> 0;
+                    assert.throws(() => e.checked(parts, separator), WebAssembly.RuntimeError);
+                    assert.deepEqual(events, [1, 2]);
+                    assert.equal(e.__alloc(8) >>> 0, before + 8, 'even the last invalid entry precedes allocation');
+                    new DataView(e.memory.buffer).setUint32(address, entry, true);
+                }
+                const original = new DataView(e.memory.buffer).getUint32(entry, true);
+                effect = n => { if (n === 2) new DataView(e.memory.buffer).setUint32(entry, 0, true); };
+                assert.throws(() => e.checked(parts, separator), WebAssembly.RuntimeError);
+                new DataView(e.memory.buffer).setUint32(entry, original, true);
+            }
+            effect = n => events.push(n);
+            events.length = 0;
+            assert.throws(() => e.checked(0, separator), WebAssembly.RuntimeError);
+            assert.throws(() => e.checked(parts, 0), WebAssembly.RuntimeError);
+            assert.deepEqual(events, [], 'entry validation remains before argument effects');
+            assert.equal(abi.decode('string', e.checked(parts, separator)), texts.join(','));
+            assert.deepEqual(abi.decode('string[]', parts), texts);
+            assert.equal(abi.decode('string', separator), ',');
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_accepts_raw_nonowning_shared_storage_and_memory_end_empty_payloads_without_utf8_scans() {
+    run(
+        r#"
+        fn join(parts: string[], separator: string) -> string { return string_join(parts, separator); }
+        "#,
+        r#"
+        const raw = (data, length) => {
+            const h = e.__alloc(8) >>> 0, view = new DataView(e.memory.buffer);
+            view.setUint32(h, data, true); view.setUint32(h + 4, length, true); return h;
+        };
+        const payload = e.__alloc(8) >>> 0;
+        new Uint8Array(e.memory.buffer, payload, 4).set([0xc3, 0xa9, 0, 0x61]);
+        const first = raw(payload, 2), second = raw(payload + 2, 2);
+        const slots = e.__alloc(16) >>> 0;
+        let view = new DataView(e.memory.buffer);
+        view.setUint32(slots + 4, first, true); view.setUint32(slots + 8, second, true);
+        const parts = raw(slots + 4, 2), separator = abi.encode('string', 'λ');
+        const result = e.join(parts, separator);
+        assert.equal(abi.decode('string', result), 'éλ\0a');
+        assert.deepEqual(abi.decode('string[]', parts), ['é', '\0a']);
+        assert.deepEqual([...new Uint8Array(e.memory.buffer, payload, 4)], [0xc3, 0xa9, 0, 0x61]);
+        const empty = raw(e.memory.buffer.byteLength, 0);
+        const emptyArray = raw(e.memory.buffer.byteLength, 0);
+        assert.equal(abi.decode('string', e.join(emptyArray, empty)), '');
+        view = new DataView(e.memory.buffer); view.setUint32(slots + 4, empty, true);
+        assert.equal(e.join(raw(slots + 4, 1), separator), empty);
+        // Deliberately violate trusted-host UTF-8 validity: structural validation must not add a scan.
+        new Uint8Array(e.memory.buffer, payload, 2).set([0xff, 0x80]);
+        view = new DataView(e.memory.buffer); view.setUint32(slots + 4, first, true);
+        const copied = e.join(parts, empty), current = new DataView(e.memory.buffer);
+        assert.equal(current.getUint32(copied + 4, true), 4);
+        assert.deepEqual([...new Uint8Array(e.memory.buffer, current.getUint32(copied, true), 4)],
+            [0xff, 0x80, 0, 0x61]);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_preserves_nested_capture_forwarding_live_stack_prefixes_and_recursive_state() {
+    run(
+        r#"
+        fn sum(a: number, b: number, c: number) -> number { return a + b + c; }
+        fn nested(parts: string[]) -> number {
+            let alias = parts;
+            let separator = ":";
+            let outer = () => {
+                let inner = () => string_join(parts, {
+                    effect(1); alias[0] = "λ"; separator = "🙂";
+                    string_join([separator, separator], "")
+                });
+                inner()
+            };
+            return 100 + sum(7, string_byte_len(outer()),
+                3 + string_byte_len(string_join(["a", "b"], string_join(["", ""], "λ"))));
+        }
+        fn arrays(parts: string[]) -> string[] {
+            return ["prefix", string_join(parts, ":"), string_join([string_join(parts, ""), "!"], "λ")];
+        }
+        fn recursive(depth: number, parts: string[]) -> string {
+            if depth == 0 { return string_join(parts, ":"); }
+            return string_join([string_join(parts, "λ"), recursive(depth - 1, parts)], "🙂");
+        }
+        "#,
+        r#"
+        const events = [], parts = abi.encode('string[]', ['a', 'b']);
+        effect = n => events.push(n);
+        assert.equal(e.nested(parts), 125);
+        assert.deepEqual(events, [1]);
+        assert.deepEqual(abi.decode('string[]', parts), ['λ', 'b']);
+        assert.deepEqual(abi.decode('string[]', e.arrays(parts)), ['prefix', 'λ:b', 'λbλ!']);
+        assert.equal(abi.decode('string', e.recursive(3, parts)), 'λλb🙂λλb🙂λλb🙂λ:b');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_results_and_captured_movable_parts_survive_growth_reentry_and_caught_traps() {
+    run(
+        r#"
+        fn movable(parts: string[]) -> string[] { return resizable(parts); }
+        fn mutate(parts: string[]) { parts.reserve(1024); parts[0] = "λ"; parts.push("🙂"); }
+        fn publish(parts: string[]) -> string {
+            let result = string_join(parts, "é"); retain(result); return result;
+        }
+        fn fail(parts: string[]) {
+            retain(string_join(parts, "λ"));
+            let empty: string[] = []; let invalid = empty[0];
+        }
+        fn outer(parts: string[]) -> string {
+            return string_concat("outer:", string_join({ effect(1); parts }, { effect(2); ":" }));
+        }
+        "#,
+        r#"
+        const retained = [], events = [], source = abi.encode('string[]', ['a', 'b']);
+        const parts = e.movable(source), published = [];
+        retain = h => retained.push([h, abi.decode('string', h)]);
+        published.push(e.publish(parts));
+        const oldData = new DataView(e.memory.buffer).getUint32(parts, true);
+        effect = n => {
+            events.push(n);
+            if (n !== 2) return;
+            e.mutate(parts);
+            assert.notEqual(new DataView(e.memory.buffer).getUint32(parts, true), oldData,
+                'separator reentry actually relocates the captured payload');
+            const large = abi.encode('string[]', ['x'.repeat(90000), '🙂'.repeat(90000)]);
+            const marker = e.__alloc(8) >>> 0, remaining = e.memory.buffer.byteLength - (marker + 8);
+            if (remaining > 0) e.__alloc(remaining);
+            const before = e.memory.buffer, grown = e.publish(large);
+            assert.notEqual(e.memory.buffer, before, 'join allocation itself grows memory');
+            assert.equal(abi.decode('string', grown), 'x'.repeat(90000) + 'é' + '🙂'.repeat(90000));
+            assert.throws(() => e.fail(parts), WebAssembly.RuntimeError);
+            published.push(e.publish(parts));
+            for (const [h, text] of retained) assert.equal(abi.decode('string', h), text);
+        };
+        const outer = e.outer(parts);
+        assert.deepEqual(events, [1, 2]);
+        assert.equal(abi.decode('string', outer), 'outer:λ:b:🙂');
+        assert.deepEqual(abi.decode('string[]', parts), ['λ', 'b', '🙂']);
+        assert.deepEqual(abi.decode('string[]', source), ['a', 'b']);
+        assert.equal(abi.decode('string', published[0]), 'aéb');
+        assert.equal(abi.decode('string', published[1]), 'λébé🙂');
+        effect = () => {};
+        assert.throws(() => e.fail(parts), WebAssembly.RuntimeError);
+        e.publish(abi.encode('string[]', ['界'.repeat(150000), 'tail']));
+        for (const [h, text] of retained) assert.equal(abi.decode('string', h), text);
+        assert.equal(abi.decode('string', outer), 'outer:λ:b:🙂');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn join_checked_fragment_and_separator_expansion_traps_before_allocation_without_large_memory() {
+    run(
+        r#"
+        fn join(parts: string[], separator: string) -> string { return string_join(parts, separator); }
+        "#,
+        r#"
+        const makeRepeated = (entry, count) => {
+            const data = e.__alloc(count * 4) >>> 0, h = e.__alloc(8) >>> 0;
+            new Uint32Array(e.memory.buffer, data, count).fill(entry);
+            const view = new DataView(e.memory.buffer);
+            view.setUint32(h, data, true); view.setUint32(h + 4, count, true); return h;
+        };
+        const empty = abi.encode('string', ''), fragment = abi.encode('string', 'a'.repeat(65536));
+        const small = abi.encode('string[]', ['a', 'b']), separator = abi.encode('string', 'λ');
+        const retained = e.join(small, separator);
+        for (const [entry, count, sep, expectedSize] of [
+            [fragment, 65536, empty, 0x100000000n],
+            [empty, 65537, fragment, 0x100000000n],
+            // Payload fits u32, but descriptor-inclusive memory32 sizing cannot.
+            [abi.encode('string', 'b'.repeat(65537)), 65535, empty, 0xffffffffn]
+        ]) {
+            const view = new DataView(e.memory.buffer);
+            assert.equal(BigInt(count) * BigInt(view.getUint32(entry + 4, true)) +
+                BigInt(count - 1) * BigInt(view.getUint32(sep + 4, true)), expectedSize);
+            const parts = makeRepeated(entry, count), before = e.__alloc(8) >>> 0, buffer = e.memory.buffer;
+            assert.throws(() => e.join(parts, sep), WebAssembly.RuntimeError);
+            assert.equal(e.memory.buffer, buffer, 'overflow must not attempt memory growth');
+            assert.equal(e.__alloc(8) >>> 0, before + 8, 'overflow must not advance the heap cursor');
+            assert.equal(abi.decode('string', retained), 'aλb');
+            assert.equal(abi.decode('string', e.join(small, separator)), 'aλb', 'later joins still succeed');
+        }
+        "#,
+    );
+}

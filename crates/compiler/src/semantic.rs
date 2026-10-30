@@ -417,6 +417,15 @@ impl SemanticAnalyzer {
                 vec![Type::String, Type::String, Type::String],
                 Type::String,
             ),
+            (
+                "string_join",
+                BuiltinFunction::StringJoin,
+                vec![
+                    Type::Array(crate::ast::ArrayElementType::String),
+                    Type::String,
+                ],
+                Type::String,
+            ),
         ] {
             self.functions.insert(
                 name.into(),

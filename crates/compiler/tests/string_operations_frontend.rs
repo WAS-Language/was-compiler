@@ -13,6 +13,186 @@ fn error(source: &str) -> SemanticError {
 }
 
 #[test]
+fn join_contextually_types_empty_parts_as_strings() {
+    let program = Compiler::new()
+        .analyze("fn main() { return string_join([], \"雪\"); }")
+        .unwrap();
+    assert_eq!(program.functions[0].return_type, Type::String);
+    let TypedStatementKind::Return(Some(value)) = &program.functions[0].body[0].kind else {
+        panic!("expected explicit return");
+    };
+    let TypedExprKind::Call { args, .. } = &value.kind else {
+        panic!("expected ordinary typed call");
+    };
+    assert_eq!(
+        args[0].ty,
+        ExprResult::Value(Type::Array(was_compiler::ArrayElementType::String))
+    );
+}
+
+#[test]
+fn join_signature_supplies_exact_contexts_and_placeholder_constraints() {
+    for source in [
+        "fn main() { return string_join([\"雪\", \"!\"], \"\"); }",
+        "fn main() { return string_join(resizable([]), \"\"); }",
+        "fn main() { return string_join(if true { [] } else { [\"x\"] }, \"\"); }",
+        "fn main() { return string_join(match true { true => [], false => [\"x\"] }, \"\"); }",
+        "fn main() { return string_join(loop { break []; }, \"\"); }",
+        "fn main() { let f = string_join(_, \",\"); return f([]); }",
+        "fn main() { let f = string_join([], _); return f(\",\"); }",
+        "fn main() { let f = string_join(_, _); return f([\"x\"], \",\"); }",
+        "fn main() { return [\"x\"] |> (string_join(_, \",\")); }",
+        "fn main(parts: string[]) { let f = (s: string) => string_join(parts, s); return f(\",\"); }",
+        "fn main() { return join([]); } fn join(parts: string[]) { return string_join(parts, \",\"); }",
+    ] {
+        let program = Compiler::new().analyze(source).unwrap();
+        assert_eq!(program.functions[0].return_type, Type::String, "{source}");
+    }
+    for source in [
+        "fn main() { let parts = []; return string_join(parts, \",\"); }",
+        "fn parts() { return []; } fn main() { return string_join(parts(), \",\"); }",
+        "fn main() { let f = string_join(_, \",\"); return f([1]); }",
+        "fn main() { let f = string_join([], _); return f(1); }",
+        "fn main() { return [1] |> (string_join(_, \",\")); }",
+    ] {
+        assert!(
+            matches!(error(source), SemanticError::TypeMismatch { .. }),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        error("fn main() { let f = string_join(_, false); }"),
+        SemanticError::ConflictingPlaceholderConstraints { .. }
+    ));
+}
+
+#[test]
+fn join_retains_builtin_identity_and_ordered_arguments() {
+    let program = Compiler::new()
+        .analyze("fn main(parts: string[]) { return string_join(parts, \"separator\"); }")
+        .unwrap();
+    let TypedStatementKind::Return(Some(value)) = &program.functions[0].body[0].kind else {
+        panic!("expected explicit return");
+    };
+    assert_eq!(value.ty, ExprResult::Value(Type::String));
+    let TypedExprKind::Call { func, name, args } = &value.kind else {
+        panic!("expected ordinary typed call");
+    };
+    assert_eq!(*func, FunctionRef::Builtin(BuiltinFunction::StringJoin));
+    assert_eq!(name, "string_join");
+    assert_eq!(args.len(), 2);
+    assert_eq!(
+        args[0].ty,
+        ExprResult::Value(Type::Array(was_compiler::ArrayElementType::String))
+    );
+    assert!(matches!(args[0].kind, TypedExprKind::Identifier { .. }));
+    assert!(matches!(&args[1].kind, TypedExprKind::String(text) if text == "separator"));
+}
+
+#[test]
+fn join_requires_two_exact_positional_arguments_before_checking_children() {
+    for (args, found) in [("", 0), ("missing", 1), ("missing, other, third", 3)] {
+        assert!(matches!(
+            error(&format!("fn main() {{ string_join({args}); }}")),
+            SemanticError::ArgumentCountMismatch { expected: 2, found: count, .. } if count == found
+        ));
+    }
+    for args in [
+        "parts: missing, separator: other",
+        "missing, separator: other",
+    ] {
+        assert!(matches!(
+            error(&format!("fn main() {{ string_join({args}); }}")),
+            SemanticError::NamedArgumentsNotSupported { .. }
+        ));
+    }
+    for value in ["1", "true", "\"x\"", "[1]", "[true]", "0..1", "empty()"] {
+        assert!(matches!(
+            error(&format!(
+                "fn empty() {{}} fn main() {{ string_join({value}, \",\"); }}"
+            )),
+            SemanticError::TypeMismatch { .. }
+        ));
+    }
+    for value in ["1", "true", "[]", "0..1", "empty()"] {
+        assert!(matches!(
+            error(&format!(
+                "fn empty() {{}} fn main() {{ string_join([], {value}); }}"
+            )),
+            SemanticError::TypeMismatch {
+                expected: Type::String,
+                ..
+            }
+        ));
+    }
+    assert!(matches!(
+        error("fn main() { string_join(first, second); }"),
+        SemanticError::UndefinedVariable { name, .. } if name == "first"
+    ));
+}
+
+#[test]
+fn join_propagates_never_but_checks_all_children_and_skipped_calls() {
+    for (args, position) in [("loop {}, \",\"", 0), ("[], loop {}", 1)] {
+        let program = Compiler::new()
+            .analyze(&format!(
+                "fn main() -> string {{ return string_join({args}); }}"
+            ))
+            .unwrap();
+        let TypedStatementKind::Return(Some(value)) = &program.functions[0].body[0].kind else {
+            panic!("expected explicit return");
+        };
+        assert_eq!(value.ty, ExprResult::Never);
+        let TypedExprKind::Call { args, .. } = &value.kind else {
+            panic!("expected call even when divergent");
+        };
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[position].ty, ExprResult::Never);
+    }
+    for source in [
+        "fn main() -> string { return string_join(loop {}, false); }",
+        "fn main() -> string { return string_join([1], loop {}); }",
+        "fn main() { return; string_join([], false); }",
+        "fn main() { return false && string_join([], false) == \"\"; }",
+    ] {
+        assert!(
+            matches!(error(source), SemanticError::TypeMismatch { .. }),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        error("fn main() -> string { return string_join(loop {}, missing); }"),
+        SemanticError::UndefinedVariable { name, .. } if name == "missing"
+    ));
+}
+
+#[test]
+fn join_rejects_direct_builtin_stages_defaults_and_contracts() {
+    for source in [
+        "fn main(parts: string[]) { return parts |> string_join; }",
+        "fn main(parts: string[]) { return parts |> string_join(\",\"); }",
+        "fn main() { let f = string_join(_, \",\") |> string_join(\",\"); }",
+    ] {
+        assert!(
+            matches!(error(source), SemanticError::InvalidPipeline { .. }),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        error("fn main(parts: string[], s: string = string_join(parts, \",\")) {}"),
+        SemanticError::InvalidDefaultExpression { .. }
+    ));
+    for guard in ["true ||", "false &&"] {
+        assert!(matches!(
+            error(&format!(
+                "fn main(parts: string[]) requires {guard} string_join(parts, \",\") == \"\" {{}}"
+            )),
+            SemanticError::InvalidContractExpression { .. }
+        ));
+    }
+}
+
+#[test]
 fn replace_all_signature_supplies_exact_region_local_contexts() {
     for source in [
         "fn main() { return string_replace_all(\"雪雪\", \"雪\", \"!\"); }",
@@ -266,6 +446,7 @@ fn builtin_names_are_reserved_globally_but_lexically_shadowable() {
         "string_concat",
         "string_slice_bytes",
         "string_replace_all",
+        "string_join",
     ] {
         assert!(
             Compiler::new()

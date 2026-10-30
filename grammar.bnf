@@ -311,10 +311,11 @@
 # Ordinary identifier calls also cover the implemented positional-only builtins:
 # string_byte_len(string) -> number; string_concat(string, string) -> string;
 # string_slice_bytes(string, number, number) -> string;
-# string_replace_all(string, string, string) -> string.
+# string_replace_all(string, string, string) -> string;
+# string_join(string[], string) -> string.
 # Their names are globally/host-language reserved but lexically shadowable, not
 # lexer keywords. Exact arity/types, named-argument, default/contract and direct
-# builtin pipeline rejection are semantic checks. string_join remains proposed.
+# builtin pipeline rejection are semantic checks.
 
 # reserve, push, pop and remove are contextual, not reserved. Only identifier
 # receivers are admitted; no parenthesized/call/index-result receivers or chaining.

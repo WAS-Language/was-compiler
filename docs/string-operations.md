@@ -1,4 +1,4 @@
-# Immutable string operations — issues #73–#75
+# Immutable string operations — issues #73–#75 and #77
 
 ## Implemented scope
 
@@ -7,24 +7,26 @@ string_byte_len(source: string) -> number
 string_concat(left: string, right: string) -> string
 string_slice_bytes(source: string, start: number, end: number) -> string
 string_replace_all(source: string, needle: string, replacement: string) -> string
+string_join(parts: string[], separator: string) -> string
 ```
 
 These fixed-arity, exact-type, positional-only named builtins implement the M5
 concat/byte-length foundation (#73), strict byte slicing (#74), and literal
-replacement (#75). They use ordinary identifier/call syntax, not new keywords or AST
+replacement (#75), and fragment join (#77). They use ordinary identifier/call syntax, not new keywords or AST
 expression shapes. Global user functions and host-language registration cannot
 use these names; lexical values/callables may shadow them. A noncallable shadow
 produces the ordinary call error. Host module/field names remain unrestricted.
 
-All four builtins are excluded from pure defaults/contracts and direct builtin
+All five builtins are excluded from pure defaults/contracts and direct builtin
 pipeline stages. Existing lexical callable stages and parenthesized placeholder
 stages can call them in their bodies. String `+`, string `len`, methods,
-join and fusion remain absent. [#76 adapter validation](#issue-76-first-slice-adapter-validation--2026-10-30)
-covers this first immutable-operation slice. Fragment construction, measurements
-and final M5 release acceptance remain separate parent-owned work.
+and fusion remain absent. [#76 adapter validation](#issue-76-first-slice-adapter-validation--2026-10-30)
+covers the first four operations. #77 adds fragment construction through existing
+fixed/resizable arrays and join. Construction measurements and final M5 release
+acceptance remain separate parent-owned work.
 
 The accepted design is recorded in local ADR 0010 and memory-roadmap §9; design
-confirmation is not release evidence. This document records implemented #73–#75.
+confirmation is not release evidence. This document records implemented #73–#75 and #77.
 
 ## Evaluation and storage contract
 
@@ -88,12 +90,93 @@ may be quadratic on repetitive inputs; this slice makes no linear-time search or
 performance-acceptance claim. There are no per-match collections/intermediate
 strings, new host imports, full UTF-8 scans, reclamation or fusion.
 
+## Fragment join (#77)
+
+`string_join(parts: string[], separator: string) -> string` takes exactly two
+positional arguments with exact types and ordinary Never compatibility. Its fixed
+signature supplies string-array context to `[]` and normal region-local placeholder
+constraints; callers add no unification. Lexical shadowing, reservations and pure/
+pipeline exclusions match the other string builtins.
+
+Capture parts once, then evaluate separator once before inspecting the captured
+array. Separator-time writes, reserve/push/pop/remove, nested calls and host reentry
+are visible in that array's current payload/length. Rebinding the original variable
+does not redirect join. Both fixed and resizable arrays work without resize authority.
+After arguments, validate separator, complete outer storage, then each entry in
+index order, including empty/otherwise-unused entries. Even zero/singleton joins
+validate separator. Trusted-host UTF-8 validity/immutability remains an obligation;
+structural checks add no UTF-8 scans.
+
+Join inserts separators only between entries: `[]` and `[""]` yield empty text;
+`["", ""]` with comma yields `","`; `["a", "", "b"]` yields `"a,,b"`.
+Empty separators, raw multibyte UTF-8 and embedded NUL work byte-for-byte. After
+validation a singleton returns its entry. All other current results allocate one
+ordinary descriptor plus payload, including zero-byte results (shared-empty reuse
+is permitted by the contract, but not used here). Positive multi-entry results are
+fresh copies, not fragment/separator aliases.
+
+A sizing/validation pass uses unsigned widened lengths and checks the descriptor-
+inclusive result against existing memory/allocator bounds before allocation. Outer
+validation bounds count by memory bytes / four; string lengths are memory-bounded,
+so the fragment sum plus separator product and header fit u64. A second pass copies
+directly to final payload with constant auxiliary Wasm locals. No callbacks occur
+during either pass or allocation/copying; memory growth preserves numeric offsets.
+No fragment snapshot collection, intermediate concatenated strings, array mutation,
+implicit imports, new type, ownership protocol, release of published strings or M4
+reclaimable string storage is introduced. Earlier effects survive subsequent traps.
+
+### Issue #77 validation — 2026-10-30
+
+Confirmed seams: frontend analysis, checked typed-input/decoded lowering, bounded
+Node execution, and CLI/current-source browser parity. Initial frontend/adapter
+tracers failed on undefined `string_join`; the backend tracer then failed on the
+missing checked builtin dispatch before implementation passed.
+
+| Boundary | Evidence |
+| --- | --- |
+| `string_operations_frontend` | 16 tests: exact arity/types, contextual empty arrays, placeholder constraints, Never/skipped checks, reservations, shadowing and pure/pipeline exclusions |
+| `string_operations_lowering` | 24 tests: forged nodes, contracts/defaults, Never-only discovery, nested helpers, independent decoded validation/copy/control/layout and constant-local checks, deterministic preset and absent-M5 compatibility |
+| `string_operations_runtime -- --include-ignored` | 27 tests: fixed/resizable UTF-8/NUL/empty joins, captured identity and separator effects, ordered validation, sizing overflow, independent expected content/identity, aliases, retained results, traps, captures, recursion, reentry and actual growth |
+| CLI `string_operations_adapters -- --include-ignored` | 9 tests: core/CLI bytes/WAT/diagnostics within each preset, host names, explicit/no exports and bounded execution |
+| Browser `string_operations_adapters -- --include-ignored` | 5 tests after fresh `wasm-pack` rebuild: native/current-source browser parity and bounded execution |
+
+Executed offline from the root, with 600-second bounds per build/test command:
+
+- `cargo check --offline --all-targets`
+- `cargo test --offline -p was-compiler --test string_operations_frontend`
+- `cargo test --offline -p was-compiler --test string_operations_lowering`
+- `cargo test --offline -p was-compiler --test string_operations_runtime -- --include-ignored`
+- `cargo test --offline -p was-compiler-cli --test string_operations_adapters -- --include-ignored`
+- `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline`
+- `cargo test --offline -p was-compiler-browser --test string_operations_adapters -- --include-ignored`
+- `cargo test --offline`
+- `cargo test --offline --workspace -- --include-ignored`
+- `cargo clippy --offline --all-targets -- -D warnings`
+- `cargo clippy --offline --workspace --lib --bins -- -D warnings`
+- `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown`
+- `node tests/browser.cjs pkg` — all 25 smoke groups passed.
+
+All listed commands passed. The first all-target Clippy attempt was blocked by
+seven errors in concurrently added, unrelated string-observation tests; after
+that separate work was corrected, the same command passed on retry. This task did
+not modify those files. Edited Rust files were formatted individually; whitespace
+checks passed.
+
+Two-axis review found zero documented-standard breaches and zero spec findings.
+One low-priority suggestion to share identical CLI/browser scenario data is deferred;
+adapter-specific tests remain local without a new testing framework.
+
+This establishes #77 correctness/adapter evidence, not construction-scaling
+measurements, integrated M5 acceptance, or disposition of M4's pending performance
+signals. No fusion, new ownership protocol, production counters or general string
+reclamation is authorized by these results.
+
 ## Compiler boundaries and Rust migration
 
 `BuiltinFunction` adds `StringByteLen`, `StringConcat`, `StringSliceBytes` and
-`StringReplaceAll`;
+`StringReplaceAll` and `StringJoin`;
 downstream exhaustive matches must handle them. Existing `TypedExprKind::Call`
-represents all four operations.
+represents all five operations.
 Semantic signatures supply exact string contexts and compose existing Never/flow
 rules. No new source type, typed fields, configuration or dependencies are added.
 

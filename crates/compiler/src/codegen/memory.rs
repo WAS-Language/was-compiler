@@ -42,6 +42,7 @@ pub(super) enum Helper {
     StringConcat,
     StringSliceBytes,
     StringReplaceAll,
+    StringJoin,
 }
 
 impl Helper {
@@ -94,7 +95,7 @@ impl Helper {
             }
             Self::BoolArrayAddress | Self::StringArrayAddress => (vec![I32, F64], I32),
             Self::BoolArrayLen | Self::StringArrayLen | Self::StringByteLen => (vec![I32], F64),
-            Self::StringConcat => (vec![I32, I32], I32),
+            Self::StringConcat | Self::StringJoin => (vec![I32, I32], I32),
             Self::StringSliceBytes => (vec![I32, F64, F64], I32),
             Self::StringReplaceAll => (vec![I32, I32, I32], I32),
         };
@@ -124,6 +125,7 @@ pub struct MemoryPlan {
     string_concat: bool,
     string_slice_bytes: bool,
     string_replace_all: bool,
+    string_join: bool,
 }
 
 impl MemoryPlan {
@@ -138,6 +140,7 @@ impl MemoryPlan {
             string_concat: false,
             string_slice_bytes: false,
             string_replace_all: false,
+            string_join: false,
         };
         let mut used = false;
 
@@ -200,6 +203,7 @@ impl MemoryPlan {
             .chain(self.string_concat.then_some(Helper::StringConcat))
             .chain(self.string_slice_bytes.then_some(Helper::StringSliceBytes))
             .chain(self.string_replace_all.then_some(Helper::StringReplaceAll))
+            .chain(self.string_join.then_some(Helper::StringJoin))
     }
 
     pub(super) fn helpers(&self) -> Vec<Helper> {
@@ -333,6 +337,12 @@ impl Visitor<'_> for MemoryVisitor<'_> {
                     *func == FunctionRef::Builtin(BuiltinFunction::StringSliceBytes);
                 self.plan.string_replace_all |=
                     *func == FunctionRef::Builtin(BuiltinFunction::StringReplaceAll);
+                if *func == FunctionRef::Builtin(BuiltinFunction::StringJoin) {
+                    self.plan.string_join = true;
+                    // The fixed signature needs string-array helpers even when
+                    // Never or forged annotations carry no array type.
+                    self.plan.string_arrays = true;
+                }
                 *self.used |= matches!(
                     func,
                     FunctionRef::Builtin(
@@ -342,6 +352,7 @@ impl Visitor<'_> for MemoryVisitor<'_> {
                             | BuiltinFunction::StringConcat
                             | BuiltinFunction::StringSliceBytes
                             | BuiltinFunction::StringReplaceAll
+                            | BuiltinFunction::StringJoin
                     )
                 );
             }
@@ -406,6 +417,13 @@ pub(super) fn emit_planned(helper: Helper, first: u32, plan: &MemoryPlan) -> Fun
         Helper::StringReplaceAll => emit_string_replace_all(
             index(Helper::ValidateString),
             index(Helper::StringEqual),
+            index(Helper::Alloc),
+        ),
+        Helper::StringJoin => emit_string_join(
+            index(super::array::validator(
+                crate::ast::ArrayElementType::String,
+            )),
+            index(Helper::ValidateString),
             index(Helper::Alloc),
         ),
         Helper::ValidateBoolArray => emit_validate(abi::BOOL_ELEMENT_SIZE),
@@ -1272,6 +1290,175 @@ fn emit_string_replace_all(validator: u32, equal: u32, alloc: u32) -> Function {
         }
     }
     instructions(&mut body, &[LocalGet(4), End]);
+    body
+}
+
+fn emit_string_join(array_validator: u32, validator: u32, alloc: u32) -> Function {
+    use Instruction::*;
+
+    let element = crate::ast::ArrayElementType::String;
+    // 0/1: captured parts/separator; 2: count; 3: spare; 4..8: shared
+    // result/copy scratch; 9: separator length; 10: parts payload; 11: index;
+    // 12: entry handle; 13: separator payload; 14: widened result length.
+    let mut body = Function::new([(12, ValType::I32), (1, ValType::I64)]);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(1),
+            Call(validator),
+            Drop,
+            LocalGet(0),
+            Call(array_validator),
+            Drop,
+            LocalGet(0),
+            I32Load(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            LocalSet(2),
+            LocalGet(0),
+            I32Load(header(abi::DESCRIPTOR_DATA_OFFSET)),
+            LocalSet(10),
+            LocalGet(1),
+            I32Load(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            LocalSet(9),
+            LocalGet(1),
+            I32Load(header(abi::DESCRIPTOR_DATA_OFFSET)),
+            LocalSet(13),
+            LocalGet(2),
+            If(BlockType::Empty),
+            LocalGet(2),
+            I32Const(1),
+            I32Sub,
+            I64ExtendI32U,
+            LocalGet(9),
+            I64ExtendI32U,
+            I64Mul,
+            LocalSet(14),
+            End,
+            Block(BlockType::Empty),
+            Loop(BlockType::Empty),
+            LocalGet(11),
+            LocalGet(2),
+            I32GeU,
+            BrIf(1),
+            LocalGet(10),
+            LocalGet(11),
+            I32Const(super::array::width(element) as i32),
+            I32Mul,
+            I32Add,
+            super::array::load(element, 0),
+            Call(validator),
+            LocalTee(12),
+            I32Load(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            I64ExtendI32U,
+            LocalGet(14),
+            I64Add,
+            LocalSet(14),
+            LocalGet(11),
+            I32Const(1),
+            I32Add,
+            LocalSet(11),
+            Br(0),
+            End,
+            End,
+            LocalGet(2),
+            I32Const(1),
+            I32Eq,
+            If(BlockType::Empty),
+            LocalGet(12),
+            Return,
+            End,
+            // Outer validation bounds count by MAX_BYTES / 4; each string
+            // length is at most MAX_BYTES. Both sums plus header fit u64.
+            LocalGet(14),
+            I64Const(i64::from(abi::DESCRIPTOR_SIZE)),
+            I64Add,
+            I64Const(MAX_BYTES as i64),
+            I64GtU,
+        ],
+    );
+    trap_if(&mut body);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(14),
+            I64Const(i64::from(abi::DESCRIPTOR_SIZE)),
+            I64Add,
+            I32WrapI64,
+            Call(alloc),
+            LocalTee(4),
+            LocalGet(4),
+            I32Const(abi::DESCRIPTOR_SIZE as i32),
+            I32Add,
+            LocalTee(5),
+            I32Store(header(abi::DESCRIPTOR_DATA_OFFSET)),
+            LocalGet(4),
+            LocalGet(14),
+            I32WrapI64,
+            I32Store(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            I32Const(0),
+            LocalSet(11),
+            Block(BlockType::Empty),
+            Loop(BlockType::Empty),
+            LocalGet(11),
+            LocalGet(2),
+            I32GeU,
+            BrIf(1),
+            LocalGet(10),
+            LocalGet(11),
+            I32Const(super::array::width(element) as i32),
+            I32Mul,
+            I32Add,
+            super::array::load(element, 0),
+            LocalTee(12),
+            I32Load(header(abi::DESCRIPTOR_DATA_OFFSET)),
+            LocalSet(6),
+            LocalGet(12),
+            I32Load(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            LocalSet(7),
+            I32Const(0),
+            LocalSet(8),
+        ],
+    );
+    // No callbacks or writes to the inputs occur between the validation and
+    // copying passes. Numeric offsets remain valid even if allocation grows memory.
+    emit_string_copy(&mut body);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(5),
+            LocalGet(7),
+            I32Add,
+            LocalSet(5),
+            LocalGet(11),
+            I32Const(1),
+            I32Add,
+            LocalTee(11),
+            LocalGet(2),
+            I32LtU,
+            If(BlockType::Empty),
+            LocalGet(13),
+            LocalSet(6),
+            LocalGet(9),
+            LocalSet(7),
+            I32Const(0),
+            LocalSet(8),
+        ],
+    );
+    emit_string_copy(&mut body);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(5),
+            LocalGet(7),
+            I32Add,
+            LocalSet(5),
+            End,
+            Br(0),
+            End,
+            End,
+            LocalGet(4),
+            End,
+        ],
+    );
     body
 }
 

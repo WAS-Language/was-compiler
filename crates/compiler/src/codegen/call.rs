@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ast::Type,
+    ast::{ArrayElementType, Type},
     flow::Flow,
     tokens::Span,
     typed_ast::{
@@ -25,7 +25,8 @@ pub(super) fn emit(
         builtin @ (BuiltinFunction::StringByteLen
         | BuiltinFunction::StringConcat
         | BuiltinFunction::StringSliceBytes
-        | BuiltinFunction::StringReplaceAll),
+        | BuiltinFunction::StringReplaceAll
+        | BuiltinFunction::StringJoin),
     ) = reference
     {
         let (arity, ty, helper) = match builtin {
@@ -33,6 +34,7 @@ pub(super) fn emit(
             BuiltinFunction::StringConcat => (2, Type::String, Helper::StringConcat),
             BuiltinFunction::StringSliceBytes => (3, Type::String, Helper::StringSliceBytes),
             BuiltinFunction::StringReplaceAll => (3, Type::String, Helper::StringReplaceAll),
+            BuiltinFunction::StringJoin => (2, Type::String, Helper::StringJoin),
             _ => unreachable!("matched string builtin"),
         };
         if args.len() != arity {
@@ -47,7 +49,9 @@ pub(super) fn emit(
         expect_result(function, predicted_result(ty, args), annotation, span)?;
         let mut flow = Flow::FALLTHROUGH;
         for (position, arg) in args.iter().enumerate() {
-            let expected = if builtin == BuiltinFunction::StringSliceBytes && position > 0 {
+            let expected = if builtin == BuiltinFunction::StringJoin && position == 0 {
+                Type::Array(ArrayElementType::String)
+            } else if builtin == BuiltinFunction::StringSliceBytes && position > 0 {
                 Type::Number
             } else {
                 Type::String
