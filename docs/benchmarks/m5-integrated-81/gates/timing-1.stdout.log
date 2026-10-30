@@ -1,0 +1,15 @@
+Running: git --no-pager rev-parse HEAD
+Running: git --no-optional-locks status --short --untracked-files=all
+Running: rustc --version
+Running: cargo --version
+Running: node --version
+Running: python --version
+Running: cargo test --offline -p was-compiler --test m5_measurements -- --include-ignored
+Running: cargo test --offline -p was-compiler --test m5_benchmarks -- --include-ignored
+Running: cargo bench --offline -p was-compiler --bench m5_strings --no-run --message-format=json
+Running: cargo build --offline --release -p was-compiler-cli --message-format=json
+Running: C:\Users\luanr\Documents\Jobs\rust\was-compiler\target\release\was-compiler.exe tests/support/m5_string_timing.was --emit wasm -o C:\Users\luanr\Documents\Jobs\rust\was-compiler\target\m5-integrated-81-timing-1\runtime.wasm
+Running: C:\Users\luanr\Documents\Jobs\rust\was-compiler\target\release\deps\m5_strings-7b5b90002ca8e411.exe --test
+Running: C:\Users\luanr\Documents\Jobs\rust\was-compiler\target\release\deps\m5_strings-7b5b90002ca8e411.exe --record-samples C:\Users\luanr\Documents\Jobs\rust\was-compiler\target\m5-integrated-81-timing-1\native-corpus
+Running: node tests/support/m5_string_timing.cjs timing C:\Users\luanr\Documents\Jobs\rust\was-compiler\target\m5-integrated-81-timing-1\runtime.wasm
+Recorded: C:\Users\luanr\Documents\Jobs\rust\was-compiler\target\m5-integrated-81-timing-1

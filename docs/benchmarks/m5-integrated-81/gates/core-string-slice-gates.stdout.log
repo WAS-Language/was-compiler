@@ -1,0 +1,82 @@
+
+running 16 tests
+test replace_all_rejects_direct_stages_and_pure_defaults_and_contracts ... ok
+test join_retains_builtin_identity_and_ordered_arguments ... ok
+test replace_all_retains_builtin_identity_and_ordered_arguments ... ok
+test join_rejects_direct_builtin_stages_defaults_and_contracts ... ok
+test join_propagates_never_but_checks_all_children_and_skipped_calls ... ok
+test replace_all_propagates_never_but_checks_all_children_and_skipped_calls ... ok
+test join_contextually_types_empty_parts_as_strings ... ok
+test replace_all_signature_supplies_exact_region_local_contexts ... ok
+test exact_signatures_compose_with_inference_captures_and_placeholders ... ok
+test calls_check_structure_before_expressions_and_require_exact_types ... ok
+test join_requires_two_exact_positional_arguments_before_checking_children ... ok
+test slice_signature_supplies_exact_region_local_contexts ... ok
+test builtin_names_are_reserved_globally_but_lexically_shadowable ... ok
+test replace_all_requires_three_exact_positional_strings_before_checking_children ... ok
+test join_signature_supplies_exact_contexts_and_placeholder_constraints ... ok
+test string_operations_do_not_expand_syntax_pipelines_or_purity ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 24 tests
+test m5_calls_remain_forbidden_in_forged_contracts_and_defaults ... ok
+test checked_calls_reject_arity_types_categories_and_forged_children_even_when_unexported ... ok
+test absent_m5_preserves_independent_golden_and_legacy_string_array_helper_order ... ok
+test discovery_visits_capture_helpers_and_unreachable_expressions ... ok
+test byte_length_uses_string_validation_unsigned_length_and_no_allocation ... ok
+test join_discovery_visits_nested_captures_and_all_never_unreachable_helper_calls ... ok
+test join_decoded_passes_validate_in_index_order_then_copy_directly_with_bounded_locals ... ok
+test join_structural_discovery_handles_never_without_any_array_annotation ... ok
+test join_arguments_are_once_in_order_and_helpers_append_deterministically_at_all_presets ... ok
+test join_plans_string_array_support_and_validates_before_one_final_allocation ... ok
+test nested_arguments_are_once_in_order_with_a_live_numeric_prefix_at_all_presets ... ok
+test never_arguments_discover_helpers_without_concrete_string_types_and_check_later_children ... ok
+test replace_checked_input_rejects_forged_arity_types_categories_and_all_children ... ok
+test replace_discovery_visits_nested_capturing_callables_and_unreachable_calls ... ok
+test join_is_forbidden_even_in_runtime_skipped_forged_pure_contracts ... ok
+test replace_helper_is_appended_after_slice_and_other_required_m5_helpers_only ... ok
+test concat_validates_both_before_reuse_and_allocates_one_widened_result ... ok
+test join_checked_input_rejects_forged_arity_types_results_and_unreachable_children ... ok
+test replace_validates_three_strings_before_checks_and_content_reuse_then_allocates_once ... ok
+test replace_nested_arguments_are_once_in_order_with_a_live_prefix_at_all_presets ... ok
+test slice_checked_input_rejects_forged_arity_types_categories_and_later_children ... ok
+test slice_helper_validates_before_numeric_checks_reuse_and_widened_copy_allocation ... ok
+test replace_structural_discovery_handles_each_never_operand_and_all_never_annotations ... ok
+test slice_structural_discovery_and_argument_order_compose_with_never_helpers_and_presets ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 27 tests
+test join_inspects_post_separator_fixed_writes_shrink_and_empty_to_nonempty_growth ... ok
+test join_accepts_raw_nonowning_shared_storage_and_memory_end_empty_payloads_without_utf8_scans ... ok
+test argument_effects_run_once_in_order_and_argument_traps_stop_later_evaluation ... ok
+test concat_reuses_validated_empty_operands_and_copies_nonempty_utf8_without_mutating_aliases ... ok
+test join_validates_unused_separator_outer_storage_and_every_entry_before_result_allocation ... ok
+test nested_operations_preserve_live_stack_prefixes_captures_and_recursive_invocation_state ... ok
+test join_checked_fragment_and_separator_expansion_traps_before_allocation_without_large_memory ... ok
+test join_preserves_nested_capture_forwarding_live_stack_prefixes_and_recursive_state ... ok
+test byte_length_counts_utf8_bytes_including_empty_nul_and_unsigned_payload_bytes ... ok
+test join_captures_parts_once_and_observes_separator_mutation_resize_and_rebinding ... ok
+test replace_all_matches_literal_nonoverlapping_utf8_and_copies_only_changed_nonempty_results ... ok
+test builtin_validation_after_argument_effects_checks_both_operands_before_empty_reuse ... ok
+test join_results_and_captured_movable_parts_survive_growth_reentry_and_caught_traps ... ok
+test join_argument_traps_stop_later_effects_and_completed_mutations_and_results_survive ... ok
+test replace_all_checked_expansion_traps_before_allocation_without_large_memory ... ok
+test replace_all_preserves_live_stack_captures_recursion_and_bounded_repetitive_searches ... ok
+test replace_all_results_survive_growth_reentry_and_traps_with_suspended_arguments ... ok
+test join_handles_fixed_resizable_empty_utf8_and_nul_parts_with_validated_reuse_and_fresh_copies ... ok
+test replace_all_runs_arguments_once_before_empty_needle_checks_and_retains_effects_after_traps ... ok
+test slice_bytes_accepts_memory_end_endpoints_and_does_not_scan_utf8_payloads ... ok
+test replace_all_revalidates_even_unused_operands_after_all_argument_effects ... ok
+test slice_bytes_reuses_full_ranges_and_copies_proper_ranges_without_changing_aliases ... ok
+test slice_bytes_evaluates_arguments_once_before_checks_but_preserves_argument_trap_boundaries ... ok
+test slice_bytes_revalidates_post_entry_descriptors_after_effects_even_before_full_or_empty_reuse ... ok
+test retained_concat_results_survive_growth_reentry_and_caught_traps_with_suspended_arguments ... ok
+test retained_slices_survive_growth_reentry_and_caught_traps_with_suspended_arguments ... ok
+test slice_bytes_checks_numeric_edges_and_every_utf8_endpoint_including_empty_interiors ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.27s
+

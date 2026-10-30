@@ -1,0 +1,9 @@
+
+running 2 tests
+test codegen::string_construction_tests::construction_corpus_is_valid_deterministic_and_observations_are_private ... ok
+test codegen::string_construction_tests::paired_fragment_construction_is_linear ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 593 filtered out; finished in 1.37s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src\lib.rs (target\debug\deps\was_compiler-eb8c15a554b28099.exe)

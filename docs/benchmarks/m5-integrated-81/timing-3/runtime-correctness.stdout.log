@@ -1,0 +1,7 @@
+
+running 2 tests
+test runtime_corpus_is_ordinary_deterministic_and_preset_compatible ... ok
+test runtime_cases_have_independent_oracles_and_no_observation_exports ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+

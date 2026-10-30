@@ -1,0 +1,134 @@
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import re
+import shutil
+import subprocess
+import time
+import zipfile
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / 'docs/benchmarks/m5-integrated-81'
+MANIFEST = ROOT / 'docs/m5-integrated-validation-2026-10-30.json'
+OUT.mkdir(parents=True, exist_ok=False)
+(OUT / 'gates').mkdir()
+(OUT / '.gitattributes').write_text('# Preserve exact archived evidence bytes and SHA-256 hashes.\n** -text whitespace=cr-at-eol\n*.log whitespace=cr-at-eol,-blank-at-eof\nREADME.md text=auto\n', encoding='utf-8')
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def output(argv):
+    return subprocess.run(argv, cwd=ROOT, capture_output=True, check=True, timeout=30).stdout.decode('utf-8').strip()
+
+def sources():
+    names = output(['git', '--no-pager', 'ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', 'Cargo.toml', 'Cargo.lock', 'crates', 'tests', 'runtime']).split('\0')
+    return {name: digest(ROOT / name) for name in sorted(set(names)) if name and (ROOT / name).is_file() and '__pycache__' not in name}
+
+before = sources()
+data = {'recordedUtc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        'revision': output(['git', '--no-pager', 'rev-parse', 'HEAD']),
+        'startingStatus': output(['git', '--no-optional-locks', 'status', '--short', '--untracked-files=all']),
+        'platform': platform.platform(), 'machine': platform.machine(),
+        'environment': {k:v for k,v in sorted(os.environ.items()) if k.startswith(('CARGO_', 'RUST', 'NODE_', 'DIVAN_')) or k in ['CC', 'CXX', 'CI', 'PROCESSOR_IDENTIFIER', 'NUMBER_OF_PROCESSORS']},
+        'sourceHashes': before, 'commands': [], 'complete': False,
+        'ordering': 'Focused checks, two deterministic recordings, three ordinary recordings, then required sequential final gates; no concurrent task builds/benchmarks'}
+
+def save():
+    MANIFEST.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+
+def stable(label):
+    after = sources()
+    if before != after:
+        raise RuntimeError('Executable inputs changed: ' + repr([k for k in before.keys() | after.keys() if before.get(k) != after.get(k)]))
+    data.setdefault('stableInputChecks', []).append(label)
+    save()
+
+def run(label, argv, phase='gates'):
+    print('Running:', label, ' '.join(argv), flush=True)
+    entry = {'label': label, 'phase': phase, 'argv': argv, 'timeoutSeconds': 600,
+             'startedUtc': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    data['commands'].append(entry)
+    save()
+    start = time.monotonic()
+    try:
+        result = subprocess.run(argv, cwd=ROOT, capture_output=True, timeout=600)
+        stdout, stderr = result.stdout, result.stderr
+        entry['exitCode'] = result.returncode
+    except subprocess.TimeoutExpired as error:
+        stdout, stderr = error.stdout or b'', error.stderr or b''
+        entry['timedOut'] = True
+    entry['durationSeconds'] = time.monotonic() - start
+    for kind, raw in [('stdout', stdout), ('stderr', stderr)]:
+        path = OUT / 'gates' / f'{label}.{kind}.log'
+        path.write_bytes(raw)
+        entry[kind] = {'path': path.relative_to(ROOT).as_posix(), 'bytes': len(raw), 'sha256': digest(path)}
+    text = stdout.decode('utf-8', errors='replace')
+    counts = []
+    target = None
+    # Cargo writes target headings to stderr and test summaries to stdout. Pair
+    # each nonempty Rust test block's first named test and reported running count.
+    for block in re.split(r'(?=running \d+ tests?\r?\n)', text):
+        match = re.search(r'test result: (\w+)\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out;', block)
+        if match:
+            first = re.search(r'^test (.*?) \.\.\.', block, re.M)
+            counts.append({'firstTest': first.group(1) if first else None, 'outcome': match[1],
+                           **dict(zip(['passed','failed','ignored','measured','filteredOut'], map(int, match.groups()[1:])) )})
+    if counts:
+        headings = re.findall(r'^\s*(?:Running (?:unittests |tests/)?|Doc-tests )(.*)$', stderr.decode('utf-8', errors='replace'), re.M)
+        entry['targetHeadings'] = headings
+        entry['testTargets'] = counts
+        entry['testTotals'] = {k:sum(c[k] for c in counts) for k in ['passed','failed','ignored','measured','filteredOut']}
+    save()
+    print(label, 'exit', entry.get('exitCode'), 'seconds', round(entry['durationSeconds'], 3), entry.get('testTotals', ''), flush=True)
+    if entry.get('exitCode') != 0:
+        print((stdout + stderr).decode('utf-8', errors='replace'), flush=True)
+        raise RuntimeError('Failed or timed-out command: ' + label)
+    stable(label)
+
+try:
+    data['versions'] = {tool: output([tool, '--version']) for tool in ['rustc','cargo','node','python','wasm-pack']}
+    data['nodeEnvironment'] = json.loads(output(['node','-e',"console.log(JSON.stringify({cpu:require('node:os').cpus()[0].model,cpus:require('node:os').cpus().length,node:process.version,v8:process.versions.v8,arch:process.arch,os:require('node:os').release()}))"]))
+    data['installedRustTargets'] = output(['rustup','target','list','--installed'])
+    (OUT / 'processes-before.log').write_text(output(['tasklist','/fo','csv','/nh']) + '\n', encoding='utf-8')
+    with zipfile.ZipFile(OUT / 'inputs.zip','x',compression=zipfile.ZIP_DEFLATED) as z:
+        for name in before:
+            z.write(ROOT / name, name)
+    save()
+    run('python-recorder-tests', ['python','-B','-m','unittest','discover','-s','tests/support','-p','test_record_m5_strings.py'], 'focused')
+    run('core-string-slice-gates', ['cargo','test','--offline','-p','was-compiler','--test','string_operations_frontend','--test','string_operations_lowering','--test','string_operations_runtime','--','--include-ignored'], 'focused')
+    run('cli-string-slice-gates', ['cargo','test','--offline','-p','was-compiler-cli','--test','string_operations_adapters','--','--include-ignored'], 'focused')
+    for n in [1,2]:
+        path = f'target/m5-integrated-81-construction-{n}'
+        run(f'construction-{n}', ['python','tests/support/record_m5_construction.py',path], 'deterministic-reproduction')
+        shutil.copytree(ROOT / path, OUT / f'construction-{n}')
+        # Recorder records module hashes only; preserve actual generated bytes too.
+        for module in ['ordinary.wasm','observed.wasm']:
+            shutil.copyfile(ROOT / 'target/m5-construction' / module, OUT / f'construction-{n}' / module)
+    for n in [1,2,3]:
+        path = f'target/m5-integrated-81-timing-{n}'
+        run(f'timing-{n}', ['python','tests/support/record_m5_strings.py',path], 'ordinary-measurement-reproduction')
+        shutil.copytree(ROOT / path, OUT / f'timing-{n}')
+    gates = [
+        ('default-tests', ['cargo','test','--offline']),
+        ('native-clippy', ['cargo','clippy','--offline','--all-targets','--','-D','warnings']),
+        ('portable-core', ['cargo','build','--offline','-p','was-compiler','--lib','--target','wasm32-unknown-unknown']),
+        ('architecture', ['cargo','test','--offline','-p','was-compiler','--test','workspace_contract']),
+        ('browser-build', ['wasm-pack','build','crates/browser','--target','web','--out-dir','../../pkg','--out-name','was_compiler','--mode','no-install','--no-opt','--offline']),
+        ('browser-smoke', ['node','tests/browser.cjs','pkg']),
+        ('full-workspace', ['cargo','test','--offline','--workspace','--','--include-ignored']),
+        ('browser-clippy', ['cargo','clippy','--offline','-p','was-compiler-browser','--target','wasm32-unknown-unknown','--lib','--','-D','warnings']),
+        ('diff-check', ['git','--no-pager','diff','--check'])]
+    for label, argv in gates:
+        run(label, argv)
+        if label == 'browser-build':
+            data['freshBrowserHashes'] = {p.relative_to(ROOT).as_posix(): digest(p) for p in sorted((ROOT / 'pkg').rglob('*')) if p.is_file()}
+            save()
+    stable('all-gates-and-measurements-complete')
+    data['endingStatus'] = output(['git','--no-optional-locks','status','--short','--untracked-files=all'])
+    data['complete'] = True
+finally:
+    data['artifacts'] = {p.relative_to(ROOT).as_posix(): {'bytes': p.stat().st_size, 'sha256': digest(p)} for p in sorted(OUT.rglob('*')) if p.is_file() and p.name != '.gitattributes'}
+    save()

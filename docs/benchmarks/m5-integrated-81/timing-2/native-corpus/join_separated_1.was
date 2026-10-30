@@ -1,0 +1,5 @@
+fn main() -> string {
+let parts: string[] = resizable([]);
+parts.push("é");
+return string_join(parts, "·");
+}

@@ -1,0 +1,4 @@
+Running: cargo test --offline -p was-compiler --lib codegen::string_observation_tests -- --include-ignored --test-threads=1
+Running: cargo test --offline -p was-compiler --lib codegen::resizable::construction_observations -- --include-ignored --test-threads=1
+Running: cargo test --offline -p was-compiler --lib codegen::string_construction_tests -- --include-ignored --test-threads=1
+Recorded: C:\Users\luanr\Documents\Jobs\rust\was-compiler\target\m5-integrated-81-construction-1

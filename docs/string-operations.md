@@ -22,8 +22,13 @@ pipeline stages. Existing lexical callable stages and parenthesized placeholder
 stages can call them in their bodies. String `+`, string `len`, methods,
 and fusion remain absent. [#76 adapter validation](#issue-76-first-slice-adapter-validation--2026-10-30)
 covers the first four operations. #77 adds fragment construction through existing
-fixed/resizable arrays and join. Construction measurements and final M5 release
-acceptance remain separate parent-owned work.
+fixed/resizable arrays and join. [#81 integrated validation](m5-release-readiness.md)
+now records both final-source slice gates, reproduced deterministic construction,
+ordinary runtime/native measurements and rebuilt-browser parity. The
+[contract-to-test map](m5-contract-test-map.md) distinguishes inventories from actual
+execution and gaps. Material unexplained timing variability leaves integrated M5
+release acceptance pending explicit disposition; M4's pending decision is unchanged.
+Historical validation sections below retain their original subset scope.
 
 The accepted design is recorded in local ADR 0010 and memory-roadmap §9; design
 confirmation is not release evidence. This document records implemented #73–#75 and #77.

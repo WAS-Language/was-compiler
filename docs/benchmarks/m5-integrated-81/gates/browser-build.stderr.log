@@ -1,0 +1,9 @@
+[INFO]: Checking for the Wasm target...
+[INFO]: Compiling to Wasm...
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+   Compiling was-compiler-browser v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\browser)
+    Finished `release` profile [optimized] target(s) in 16.36s
+[INFO]: Installing wasm-bindgen...
+[INFO]: Optional fields missing from Cargo.toml: 'description', 'repository', and 'license'. These are not necessary, but recommended
+[INFO]: :-) Done in 18.39s
+[INFO]: :-) Your wasm pkg is ready to publish at pkg.

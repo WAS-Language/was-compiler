@@ -1,0 +1,6 @@
+# Preserve exact archived evidence bytes and SHA-256 hashes.
+** -text whitespace=cr-at-eol
+*.log whitespace=cr-at-eol,-blank-at-eof
+README.md text=auto
+# The exact tasklist snapshot contains CRCRLF from Windows text output; retain it.
+processes-before.log -diff

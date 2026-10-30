@@ -1,0 +1,5 @@
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.21s
+     Running tests\string_operations_frontend.rs (target\debug\deps\string_operations_frontend-141105310bdbfe25.exe)
+     Running tests\string_operations_lowering.rs (target\debug\deps\string_operations_lowering-e7e51690f5c5f8b6.exe)
+     Running tests\string_operations_runtime.rs (target\debug\deps\string_operations_runtime-9fc17c58b5cf8f3c.exe)

@@ -378,8 +378,12 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Core/CLI/freshly rebuilt browser parity and bounded effects/lifetime checks cover
   the first four immutable builtins. For join coverage and acceptance limits, read
   [#77's contract and evidence](docs/string-operations.md#fragment-join-77).
-  Final M5 acceptance remains pending; M4's pending performance-signal disposition
-  is unchanged.
+  Before interpreting integrated M5 acceptance, read [#81's final-source gates and
+  release decision](docs/m5-release-readiness.md) and [contract-to-test map](docs/m5-contract-test-map.md).
+  All eight execution gates passed, including 1,701 full-workspace tests with none
+  failed/ignored and freshly rebuilt browser coverage. Deterministic construction
+  reproduces; material unexplained timing variability leaves integrated M5 acceptance
+  pending explicit performance-signal disposition. M4's pending decision is unchanged.
   Before changing private string allocation/copy observations, read
   [#78's concat tracer and accounting boundaries](docs/m5-string-observations.md).
   Before changing ordinary M5 runtime/native compiler timing or interpreting its

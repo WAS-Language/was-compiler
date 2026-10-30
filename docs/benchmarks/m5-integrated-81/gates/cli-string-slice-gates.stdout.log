@@ -1,0 +1,14 @@
+
+running 9 tests
+test cli_string_join_tracer_matches_core_with_an_explicit_export ... ok
+test cli_string_copy_marshaling_utf8_empty_nul_aliases_and_edge_results_execute_at_each_preset ... ok
+test cli_string_join_fixed_resizable_utf8_copies_and_captures_execute_at_each_preset ... ok
+test cli_string_ordered_effects_traps_growth_and_retained_handles_execute_at_each_preset ... ok
+test cli_string_join_validation_order_reentry_growth_and_retention_execute_at_each_preset ... ok
+test cli_string_bytes_wat_imports_and_selected_or_no_exports_match_core_at_each_preset ... ok
+test cli_string_reserved_host_names_fail_before_source_loading_without_changing_output ... ok
+test cli_string_errors_preserve_raw_utf8_spans_and_structure_before_child_order ... ok
+test cli_string_diagnostics_and_unchanged_artifacts_match_core_at_each_preset ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.54s
+

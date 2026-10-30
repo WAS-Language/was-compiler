@@ -775,7 +775,12 @@ pipeline stages. String `+` and methods are not added.
 covers core/CLI/freshly rebuilt browser bytes, WAT, diagnostics and bounded execution
 at each preset. This completes the immutable-operation compatibility slice, not
 final M5 acceptance. [#77](docs/string-operations.md#fragment-join-77) implements
-fragment-based join; construction measurements and integrated M5 acceptance remain pending.
+fragment-based join. [#81 integrated evidence](docs/m5-release-readiness.md) passes
+both slice correctness gates, deterministic linear storage/copying and fresh-browser
+validation (1,701 workspace tests, none failed/ignored). Ordinary runtime/native
+compilation measurements reproduce with material unexplained timing variability;
+integrated M5 acceptance remains pending explicit signal disposition. M4's pending
+performance decision is unchanged.
 Numeric arrays support literals (including `[]`), reference assignment, parameters,
 returns, element reads/writes, content-based `==`/`!=`, and `len(array)` returning
 a number. Equality requires matching lengths and exact elementwise `f64` equality:

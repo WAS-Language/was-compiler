@@ -1,0 +1,3 @@
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.28s
+     Running tests\workspace_contract.rs (target\debug\deps\workspace_contract-6a7362cc7da017da.exe)
