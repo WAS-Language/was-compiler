@@ -1,0 +1,22 @@
+numeric_preset=None; native source-size corpus; workload,source_bytes,module_bytes
+concat_empty_1,94,918
+concat_empty_16,1200,1191
+concat_empty_64,4740,1959
+concat_separated_1,94,918
+concat_separated_16,1230,1211
+concat_separated_64,4866,1991
+join_empty_1,110,3299
+join_empty_16,376,3551
+join_empty_64,1228,4271
+join_separated_1,112,3301
+join_separated_16,378,3569
+join_separated_64,1230,4289
+replace_no_match_1,125,1220
+replace_no_match_16,1160,1386
+replace_no_match_64,4472,1914
+replace_expand_1,124,1224
+replace_expand_16,1144,1390
+replace_expand_64,4408,1918
+replace_shrink_1,120,1220
+replace_shrink_16,1080,1386
+replace_shrink_64,4152,1914

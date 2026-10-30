@@ -1,0 +1,3 @@
+   Compiling was-compiler v0.1.0 (C:\Users\luanr\Documents\Jobs\rust\was-compiler\crates\compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.83s
+     Running tests\m5_benchmarks.rs (target\debug\deps\m5_benchmarks-fba87a68d18ac0b0.exe)

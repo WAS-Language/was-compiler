@@ -1,0 +1,46 @@
+m5_strings                 fastest       │ slowest       │ median        │ mean          │ samples │ iters
+├─ source_compile                        │               │               │               │         │
+│  ├─ concat_empty_1       98.39 µs      │ 240 µs        │ 103.9 µs      │ 109.7 µs      │ 100     │ 100
+│  ├─ concat_empty_16      185.7 µs      │ 789.9 µs      │ 359.7 µs      │ 373.6 µs      │ 100     │ 100
+│  ├─ concat_empty_64      861.9 µs      │ 3.62 ms       │ 1.079 ms      │ 1.318 ms      │ 100     │ 100
+│  ├─ concat_separated_1   45.29 µs      │ 324.5 µs      │ 50.94 µs      │ 61.62 µs      │ 100     │ 100
+│  ├─ concat_separated_16  197.2 µs      │ 989.4 µs      │ 266.7 µs      │ 313.2 µs      │ 100     │ 100
+│  ├─ concat_separated_64  898.8 µs      │ 3.161 ms      │ 1.074 ms      │ 1.321 ms      │ 100     │ 100
+│  ├─ join_empty_1         121.8 µs      │ 1.872 ms      │ 152.7 µs      │ 258.3 µs      │ 100     │ 100
+│  ├─ join_empty_16        176.5 µs      │ 2.008 ms      │ 205.2 µs      │ 363.7 µs      │ 100     │ 100
+│  ├─ join_empty_64        376.3 µs      │ 3.601 ms      │ 610.8 µs      │ 820 µs        │ 100     │ 100
+│  ├─ join_separated_1     125.9 µs      │ 573 µs        │ 150.7 µs      │ 206.9 µs      │ 100     │ 100
+│  ├─ join_separated_16    182 µs        │ 1.664 ms      │ 365.7 µs      │ 406.7 µs      │ 100     │ 100
+│  ├─ join_separated_64    363.6 µs      │ 3.29 ms       │ 817 µs        │ 889.7 µs      │ 100     │ 100
+│  ├─ replace_expand_1     52.59 µs      │ 127 µs        │ 55.84 µs      │ 65.48 µs      │ 100     │ 100
+│  ├─ replace_expand_16    141.2 µs      │ 629.7 µs      │ 172 µs        │ 192.8 µs      │ 100     │ 100
+│  ├─ replace_expand_64    430.4 µs      │ 1.588 ms      │ 627.8 µs      │ 692.9 µs      │ 100     │ 100
+│  ├─ replace_no_match_1   55.29 µs      │ 238.6 µs      │ 91.19 µs      │ 89.09 µs      │ 100     │ 100
+│  ├─ replace_no_match_16  141 µs        │ 445.9 µs      │ 155.7 µs      │ 193.6 µs      │ 100     │ 100
+│  ├─ replace_no_match_64  416.3 µs      │ 1.849 ms      │ 587.9 µs      │ 724.2 µs      │ 100     │ 100
+│  ├─ replace_shrink_1     54.99 µs      │ 326.8 µs      │ 87.14 µs      │ 105.4 µs      │ 100     │ 100
+│  ├─ replace_shrink_16    142.6 µs      │ 2.943 ms      │ 240.8 µs      │ 287.7 µs      │ 100     │ 100
+│  ╰─ replace_shrink_64    396.5 µs      │ 3.727 ms      │ 649 µs        │ 743.5 µs      │ 100     │ 100
+╰─ typed_compile                         │               │               │               │         │
+   ├─ concat_empty_1       30.19 µs      │ 142.9 µs      │ 32.19 µs      │ 34.38 µs      │ 100     │ 100
+   ├─ concat_empty_16      63.19 µs      │ 269 µs        │ 103 µs        │ 104.2 µs      │ 100     │ 100
+   ├─ concat_empty_64      160.8 µs      │ 470.2 µs      │ 174.5 µs      │ 201.4 µs      │ 100     │ 100
+   ├─ concat_separated_1   37.49 µs      │ 205.7 µs      │ 69.59 µs      │ 70.43 µs      │ 100     │ 100
+   ├─ concat_separated_16  68.89 µs      │ 446.4 µs      │ 149 µs        │ 137 µs        │ 100     │ 100
+   ├─ concat_separated_64  159.2 µs      │ 327.5 µs      │ 164 µs        │ 180.8 µs      │ 100     │ 100
+   ├─ join_empty_1         87.99 µs      │ 405 µs        │ 96.69 µs      │ 122.8 µs      │ 100     │ 100
+   ├─ join_empty_16        107.2 µs      │ 341.2 µs      │ 118 µs        │ 128 µs        │ 100     │ 100
+   ├─ join_empty_64        146.2 µs      │ 427.1 µs      │ 164.4 µs      │ 197.8 µs      │ 100     │ 100
+   ├─ join_separated_1     93.29 µs      │ 335.8 µs      │ 99.99 µs      │ 108.5 µs      │ 100     │ 100
+   ├─ join_separated_16    112 µs        │ 155.9 µs      │ 114.2 µs      │ 116 µs        │ 100     │ 100
+   ├─ join_separated_64    152.1 µs      │ 474.8 µs      │ 156.5 µs      │ 201.8 µs      │ 100     │ 100
+   ├─ replace_expand_1     33.79 µs      │ 199.4 µs      │ 35.99 µs      │ 43.93 µs      │ 100     │ 100
+   ├─ replace_expand_16    54.79 µs      │ 169.4 µs      │ 61.34 µs      │ 62.99 µs      │ 100     │ 100
+   ├─ replace_expand_64    112.2 µs      │ 384.4 µs      │ 117.6 µs      │ 136.5 µs      │ 100     │ 100
+   ├─ replace_no_match_1   33.99 µs      │ 106.4 µs      │ 38.99 µs      │ 40.94 µs      │ 100     │ 100
+   ├─ replace_no_match_16  52.29 µs      │ 246.1 µs      │ 55.09 µs      │ 70.95 µs      │ 100     │ 100
+   ├─ replace_no_match_64  107 µs        │ 366.7 µs      │ 116.7 µs      │ 130 µs        │ 100     │ 100
+   ├─ replace_shrink_1     35.79 µs      │ 58.39 µs      │ 37.14 µs      │ 37.87 µs      │ 100     │ 100
+   ├─ replace_shrink_16    54.89 µs      │ 84.09 µs      │ 55.99 µs      │ 57.14 µs      │ 100     │ 100
+   ╰─ replace_shrink_64    110.8 µs      │ 287 µs        │ 113.4 µs      │ 116.8 µs      │ 100     │ 100
+

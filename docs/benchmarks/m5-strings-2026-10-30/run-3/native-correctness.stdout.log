@@ -1,0 +1,10 @@
+
+running 5 tests
+test raw_sample_schedule_and_records_are_complete_and_alternate_order ... ok
+test source_size_families_are_deterministic_valid_and_grow ... ok
+test exported_corpus_matches_ordinary_compilation_and_never_overwrites ... ok
+test ordinary_modules_execute_against_independent_string_results_at_all_presets ... ok
+test analysis_is_preset_invariant_and_enabled_presets_have_identical_bytes ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+

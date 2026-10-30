@@ -378,10 +378,12 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Core/CLI/freshly rebuilt browser parity and bounded effects/lifetime checks cover
   the first four immutable builtins. For join coverage and acceptance limits, read
   [#77's contract and evidence](docs/string-operations.md#fragment-join-77).
-  Construction measurements and final M5 acceptance remain pending; M4's pending
-  performance-signal disposition is unchanged.
+  Final M5 acceptance remains pending; M4's pending performance-signal disposition
+  is unchanged.
   Before changing private string allocation/copy observations, read
   [#78's concat tracer and accounting boundaries](docs/m5-string-observations.md).
+  Before changing ordinary M5 runtime/native compiler timing or interpreting its
+  evidence, read [#80's sampling/provenance contract](docs/benchmarks/m5-strings-2026-10-30/README.md).
 - Strings are immutable raw UTF-8 values. Arrays share mutable storage; ordinary
   literals and host encoding remain fixed-storage. #65 implements `resizable(source)`
   fresh copies for all array types, with contextual empty typing and private authority,

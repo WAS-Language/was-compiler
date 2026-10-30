@@ -1,0 +1,29 @@
+// Constant source size: runtime count comes from the preexisting parts array.
+fn repeated(parts: string[], separator: string) -> string {
+    let result = "";
+    let index = 0;
+    for part in parts {
+        if index > 0 {
+            result = string_concat(result, separator);
+        }
+        result = string_concat(result, part);
+        index += 1;
+    }
+    return result;
+}
+
+fn accumulate(parts: string[], separator: string) -> string {
+    let fragments: string[] = resizable([]);
+    for part in parts {
+        fragments.push(part);
+    }
+    return string_join(fragments, separator);
+}
+
+fn join_existing(parts: string[], separator: string) -> string {
+    return string_join(parts, separator);
+}
+
+fn replace(source: string, needle: string, replacement: string) -> string {
+    return string_replace_all(source, needle, replacement);
+}

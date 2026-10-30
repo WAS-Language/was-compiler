@@ -1,0 +1,86 @@
+[
+  {
+    "name": "default-tests",
+    "argv": [
+      "cargo",
+      "test",
+      "--offline"
+    ],
+    "timeoutSeconds": 600,
+    "exitCode": 0,
+    "durationSeconds": 167.87341789999482
+  },
+  {
+    "name": "clippy",
+    "argv": [
+      "cargo",
+      "clippy",
+      "--offline",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeoutSeconds": 600,
+    "exitCode": 0,
+    "durationSeconds": 1.0768730999989202
+  },
+  {
+    "name": "existing-benchmark-smoke",
+    "argv": [
+      "cargo",
+      "bench",
+      "--offline",
+      "-p",
+      "was-compiler",
+      "--bench",
+      "compiler",
+      "--",
+      "--test"
+    ],
+    "timeoutSeconds": 600,
+    "exitCode": 0,
+    "durationSeconds": 6.306806500004313
+  },
+  {
+    "name": "m5-divan",
+    "argv": [
+      "cargo",
+      "bench",
+      "--offline",
+      "-p",
+      "was-compiler",
+      "--bench",
+      "m5_strings",
+      "--",
+      "--sample-count",
+      "100",
+      "--sample-size",
+      "1",
+      "--timer",
+      "os",
+      "--color",
+      "never"
+    ],
+    "timeoutSeconds": 600,
+    "exitCode": 0,
+    "durationSeconds": 1.8225800000000163
+  },
+  {
+    "name": "python-recorder-tests",
+    "argv": [
+      "python",
+      "-B",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests/support",
+      "-p",
+      "test_record_m5_strings.py"
+    ],
+    "timeoutSeconds": 30,
+    "exitCode": 0,
+    "durationSeconds": 0.39412889999948675
+  }
+]

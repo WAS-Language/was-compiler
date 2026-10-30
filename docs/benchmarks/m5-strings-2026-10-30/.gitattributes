@@ -1,0 +1,5 @@
+# Evidence preserves exact measured bytes and recorded SHA-256 across checkouts.
+run-*/** -text whitespace=cr-at-eol
+validation/** -text whitespace=cr-at-eol
+# Raw command logs intentionally retain terminal final blank lines.
+*.log whitespace=cr-at-eol,-blank-at-eof

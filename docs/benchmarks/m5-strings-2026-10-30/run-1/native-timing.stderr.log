@@ -1,0 +1,1 @@
+numeric_preset=None; repetitions=3; samples=5; iterations=10; warmups=2; timer=Instant; odd_repetitions=forward; even_repetitions=reverse

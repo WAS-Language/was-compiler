@@ -1,0 +1,52 @@
+compiler
+├─ lex
+│  ├─ calls_1
+│  ├─ calls_16
+│  ├─ calls_64
+│  ├─ captures_1
+│  ├─ captures_16
+│  ├─ captures_64
+│  ├─ scalar_1
+│  ├─ scalar_16
+│  ╰─ scalar_64
+├─ parse
+│  ├─ calls_1
+│  ├─ calls_16
+│  ├─ calls_64
+│  ├─ captures_1
+│  ├─ captures_16
+│  ├─ captures_64
+│  ├─ scalar_1
+│  ├─ scalar_16
+│  ╰─ scalar_64
+├─ semantic
+│  ├─ calls_1
+│  ├─ calls_16
+│  ├─ calls_64
+│  ├─ captures_1
+│  ├─ captures_16
+│  ├─ captures_64
+│  ├─ scalar_1
+│  ├─ scalar_16
+│  ╰─ scalar_64
+├─ source_compile
+│  ├─ calls_1
+│  ├─ calls_16
+│  ├─ calls_64
+│  ├─ captures_1
+│  ├─ captures_16
+│  ├─ captures_64
+│  ├─ scalar_1
+│  ├─ scalar_16
+│  ╰─ scalar_64
+╰─ typed_compile
+   ├─ calls_1
+   ├─ calls_16
+   ├─ calls_64
+   ├─ captures_1
+   ├─ captures_16
+   ├─ captures_64
+   ├─ scalar_1
+   ├─ scalar_16
+   ╰─ scalar_64
+

@@ -12,6 +12,15 @@ The second command smoke-runs all 45 cases once; it is not a timing baseline.
 `bacon bench` and `bacon bench-smoke` select the same commands without automatic
 source-change reruns. Dependencies/tooling must already be available offline.
 
+## M5 ordinary string measurements (#80)
+
+The dedicated `m5_strings` target and fresh-instance Node harness keep native
+source/typed compilation separate from guest concat/accumulation/join and
+adversarial replacement. Before changing their workloads, sample boundaries or
+recorder, read the [M5 sampling and provenance contract](benchmarks/m5-strings-2026-10-30/README.md).
+Its raw samples complement, not replace, #79's deterministic construction evidence;
+the historical scalar/calls/captures suite remains distinct.
+
 ## Timing contract
 
 | Measurement | Prepared outside timing | Included in timing |

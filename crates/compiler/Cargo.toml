@@ -15,6 +15,10 @@ harness = false
 name = "integer_specialization"
 harness = false
 
+[[bench]]
+name = "m5_strings"
+harness = false
+
 [dev-dependencies]
 divan = "0.1.21"
 wasmparser.workspace = true

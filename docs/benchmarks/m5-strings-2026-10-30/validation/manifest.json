@@ -1,0 +1,58 @@
+{
+  "revision": "3e91f5c6b074f1f02e6c905a6d402c07b22c8697",
+  "sourceHashesMatchLastTimingRun": true,
+  "archivesChecked": 3,
+  "archiveInputFilesPerRun": 233,
+  "nativeRawSamples": 1890,
+  "runtimeRawSamples": 5535,
+  "validationArtifacts": {
+    "clippy.stderr.log": {
+      "bytes": 72,
+      "sha256": "4a6e66bbe890656a5ca831a4dfbb7296d4ce7d22ce63363371d945097aa6611a"
+    },
+    "clippy.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "commands.json": {
+      "bytes": 1556,
+      "sha256": "d735f8a41d1e49258c114cb2acb452d615984cfd84fd2de641201115477f110d"
+    },
+    "default-tests.stderr.log": {
+      "bytes": 7884,
+      "sha256": "c156ea5b015164d70ddc471b23bc19b34c023b1b130153e0bd1073cf8cbc1d72"
+    },
+    "default-tests.stdout.log": {
+      "bytes": 167029,
+      "sha256": "7f8d9c18a38e7a2132b6de70d82067d7961660dec9459a99abb9eb27eae9300f"
+    },
+    "existing-benchmark-smoke.stderr.log": {
+      "bytes": 451,
+      "sha256": "6672a36690a37a2a188edc4f92b6574517e4e044c7250c0f55e121c0dfba4608"
+    },
+    "existing-benchmark-smoke.stdout.log": {
+      "bytes": 1065,
+      "sha256": "747b75ee93c006c6c71ce642083468f1d15e84740e244d0eb318b7d8b987b6ec"
+    },
+    "m5-divan.stderr.log": {
+      "bytes": 818,
+      "sha256": "0a8c435eb087ac9f44803c5f56ce3b35b4460488168af0a4acc2643253a38fca"
+    },
+    "m5-divan.stdout.log": {
+      "bytes": 5541,
+      "sha256": "ab4d899d2052212fbb82313c6ee7b3dea9d8f4c97159c5960382cf76f5a73044"
+    },
+    "python-recorder-tests.stderr.log": {
+      "bytes": 108,
+      "sha256": "9611b16c95d4a3d1c4d1b091f362b9fede3e6b0c730f9344cc2b701c2e6a089c"
+    },
+    "python-recorder-tests.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "run.py": {
+      "bytes": 1428,
+      "sha256": "cfd2a1aa867165207116701279747870bc3b10babdef702a5375740befd3a270"
+    }
+  }
+}

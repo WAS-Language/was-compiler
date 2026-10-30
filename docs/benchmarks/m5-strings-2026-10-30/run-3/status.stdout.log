@@ -1,0 +1,49 @@
+M  AGENTS.md
+ M GLOSSARY.md
+M  crates/compiler/Cargo.toml
+A  crates/compiler/benches/m5_strings.rs
+A  crates/compiler/benches/support/m5_corpus.rs
+ M crates/compiler/src/codegen/mod.rs
+ M crates/compiler/src/codegen/resizable.rs
+ M crates/compiler/src/codegen/string_observation_tests.rs
+A  crates/compiler/tests/m5_benchmarks.rs
+A  crates/compiler/tests/m5_measurements.rs
+M  docs/benchmarks.md
+A  docs/benchmarks/m5-strings-2026-10-30/.gitattributes
+A  docs/benchmarks/m5-strings-2026-10-30/README.md
+ M docs/m5-string-observations.md
+ M docs/was_compiler_memory_and_optimization_roadmap.md
+A  tests/support/m5_string_timing.cjs
+A  tests/support/m5_string_timing.was
+A  tests/support/record_m5_strings.py
+A  tests/support/test_record_m5_strings.py
+?? .scratch/m5-string-operations/issues/01-concat-byte-length.md
+?? .scratch/m5-string-operations/issues/02-byte-slicing.md
+?? .scratch/m5-string-operations/issues/03-replace-all.md
+?? .scratch/m5-string-operations/issues/04-immutable-adapter-gate.md
+?? .scratch/m5-string-operations/issues/05-fragment-join.md
+?? .scratch/m5-string-operations/issues/06-private-observations.md
+?? .scratch/m5-string-operations/issues/07-linear-construction.md
+?? .scratch/m5-string-operations/issues/08-ordinary-measurements.md
+?? .scratch/m5-string-operations/issues/09-integrated-acceptance.md
+?? .scratch/m5-string-operations/issues/verify-publication.py
+?? crates/compiler/src/codegen/resizable_construction_observations.rs
+?? crates/compiler/src/codegen/string_construction_tests.rs
+?? docs/adr/0010-immutable-string-operations-and-fragment-construction.md
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/.gitattributes
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/README.md
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run1/accounting.json
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run1/accounting.log
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run1/arrays.log
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run1/environment.json
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run1/strings.log
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run1/workload.was
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run2/accounting.json
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run2/accounting.log
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run2/arrays.log
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run2/environment.json
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run2/strings.log
+?? docs/benchmarks/m5-fragment-construction-2026-10-30/run2/workload.was
+?? tests/support/m5_construction.cjs
+?? tests/support/m5_construction_corpus.was
+?? tests/support/record_m5_construction.py
