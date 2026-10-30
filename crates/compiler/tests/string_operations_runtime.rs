@@ -368,3 +368,309 @@ fn nested_operations_preserve_live_stack_prefixes_captures_and_recursive_invocat
         "#,
     );
 }
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn slice_bytes_checks_numeric_edges_and_every_utf8_endpoint_including_empty_interiors() {
+    run(
+        r#"
+        fn slice(s: string, start: number, end: number) -> string {
+            return string_slice_bytes(s, start, end);
+        }
+        "#,
+        r#"
+        for (const text of ['', 'ASCII', '\0', 'a\0b', 'éλ🙂', 'Aé\0🙂界Z', 'e\u0301']) {
+            const source = abi.encode('string', text), bytes = Buffer.from(text, 'utf8');
+            const boundaries = new Set([0]);
+            let offset = 0;
+            for (const scalar of text) {
+                offset += Buffer.byteLength(scalar, 'utf8');
+                boundaries.add(offset);
+            }
+            for (let start = 0; start <= bytes.length; start++) {
+                for (let end = 0; end <= bytes.length; end++) {
+                    if (start > end || !boundaries.has(start) || !boundaries.has(end)) {
+                        assert.throws(() => e.slice(source, start, end), WebAssembly.RuntimeError,
+                            JSON.stringify([text, start, end]));
+                    } else {
+                        const result = e.slice(source, start, end);
+                        assert.equal(abi.decode('string', result), bytes.subarray(start, end).toString('utf8'));
+                        if (start === 0 && end === bytes.length) assert.equal(result, source);
+                    }
+                }
+            }
+            assert.equal(e.slice(source, -0, bytes.length), source);
+            assert.equal(abi.decode('string', e.slice(source, -0, -0)), '');
+            assert.equal(abi.decode('string', source), text);
+        }
+        const source = abi.encode('string', 'abcd');
+        const edges = [NaN, Infinity, -Infinity, -Number.MAX_VALUE, Number.MAX_VALUE,
+            -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, -1, -0.5, 0.5, 3.5,
+            -Number.MIN_VALUE, Number.MIN_VALUE, 5, 2 ** 31, 2 ** 32,
+            2 ** 32 + 1, 2 ** 53, -0, 0, 1, 2, 3, 4];
+        for (const start of edges) {
+            for (const end of edges) {
+                const valid = Number.isFinite(start) && Number.isInteger(start) && start >= 0 &&
+                    Number.isFinite(end) && Number.isInteger(end) && end >= start && end <= 4;
+                if (valid) assert.equal(abi.decode('string', e.slice(source, start, end)), 'abcd'.slice(start, end));
+                else assert.throws(() => e.slice(source, start, end), WebAssembly.RuntimeError,
+                    `start=${start}, end=${end}`);
+            }
+        }
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn slice_bytes_accepts_memory_end_endpoints_and_does_not_scan_utf8_payloads() {
+    run(
+        r#"
+        fn slice(s: string, start: number, end: number) -> string {
+            return string_slice_bytes(s, start, end);
+        }
+        "#,
+        r#"
+        const h = abi.encode('string', 'descriptor');
+        // Keep the descriptor in allocated storage, but put its payload at the exact
+        // memory end. Empty end slices and full reuse must not load data[length].
+        const limit = e.memory.buffer.byteLength;
+        const bytes = Buffer.from('Aé🙂', 'utf8'), pointer = limit - bytes.length;
+        new Uint8Array(e.memory.buffer, pointer, bytes.length).set(bytes);
+        let view = new DataView(e.memory.buffer);
+        view.setUint32(h, pointer, true);
+        view.setUint32(h + 4, bytes.length, true);
+        assert.equal(e.slice(h, 0, bytes.length), h);
+        assert.equal(abi.decode('string', e.slice(h, bytes.length, bytes.length)), '');
+        assert.equal(abi.decode('string', e.slice(h, 1, bytes.length)), 'é🙂');
+        assert.equal(abi.decode('string', e.slice(h, 3, bytes.length)), '🙂');
+        assert.throws(() => e.slice(h, 4, bytes.length), WebAssembly.RuntimeError);
+        assert.throws(() => e.slice(h, bytes.length, bytes.length + 1), WebAssembly.RuntimeError);
+        // A zero-length descriptor can point one past the final byte as well.
+        view = new DataView(e.memory.buffer);
+        view.setUint32(h, e.memory.buffer.byteLength, true);
+        view.setUint32(h + 4, 0, true);
+        assert.equal(e.slice(h, -0, 0), h);
+
+        // Deliberately violate the trusted-host UTF-8 obligation. Only structural
+        // validity and endpoint continuation bytes are checked, not interior UTF-8.
+        const raw = abi.encode('string', 'abcdef');
+        view = new DataView(e.memory.buffer);
+        const data = view.getUint32(raw, true);
+        new Uint8Array(e.memory.buffer, data, 6).set([0x61, 0x62, 0xff, 0x63, 0x64, 0x65]);
+        assert.equal(e.slice(raw, 0, 6), raw);
+        const copied = e.slice(raw, 1, 5);
+        view = new DataView(e.memory.buffer);
+        assert.equal(view.getUint32(copied + 4, true), 4);
+        assert.deepEqual([...new Uint8Array(e.memory.buffer, view.getUint32(copied, true), 4)],
+            [0x62, 0xff, 0x63, 0x64]);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn slice_bytes_reuses_full_ranges_and_copies_proper_ranges_without_changing_aliases() {
+    run(
+        r#"
+        fn slice(s: string, start: number, end: number) -> string {
+            return string_slice_bytes(s, start, end);
+        }
+        fn aliases() -> string[] {
+            let source = "Aé🙂Z";
+            let alias = source;
+            let saved = [source, alias];
+            let part = string_slice_bytes(source, 1, 7);
+            source = string_slice_bytes(source, 3, 7);
+            return [saved[0], saved[1], alias, source, part, "Aé🙂Z"];
+        }
+        fn replace_slot(a: string[]) { a[0] = string_slice_bytes(a[0], 1, 7); }
+        fn nested(s: string) -> number {
+            let part = () => string_slice_bytes(s, 1, 7);
+            return 100 + string_byte_len(string_concat("x", string_slice_bytes(part(), 2, 6)));
+        }
+        "#,
+        r#"
+        const source = abi.encode('string', 'Aé🙂Z');
+        assert.equal(e.slice(source, 0, 8), source);
+        const initial = new DataView(e.memory.buffer), sourceData = initial.getUint32(source, true);
+        const copied = e.slice(source, 1, 7);
+        const view = new DataView(e.memory.buffer), copiedData = view.getUint32(copied, true);
+        assert.notEqual(copied, source);
+        assert.equal(view.getUint32(copied + 4, true), 6);
+        assert.ok(copiedData + 6 <= sourceData || sourceData + 8 <= copiedData,
+            'proper slice owns a disjoint copied payload, not an interior view');
+        assert.deepEqual(Buffer.from(e.memory.buffer, copiedData, 6), Buffer.from('é🙂'));
+        assert.equal(abi.decode('string', source), 'Aé🙂Z');
+        const values = e.aliases();
+        assert.deepEqual(abi.decode('string[]', values), ['Aé🙂Z', 'Aé🙂Z', 'Aé🙂Z', '🙂', 'é🙂', 'Aé🙂Z']);
+        const slots = new DataView(e.memory.buffer), data = slots.getUint32(values, true);
+        const literal = slots.getUint32(data, true);
+        for (const index of [1, 2, 5]) assert.equal(slots.getUint32(data + index * 4, true), literal);
+        e.replace_slot(values);
+        assert.deepEqual(abi.decode('string[]', values), ['é🙂', 'Aé🙂Z', 'Aé🙂Z', '🙂', 'é🙂', 'Aé🙂Z']);
+        assert.equal(abi.decode('string', literal), 'Aé🙂Z');
+        assert.equal(e.nested(source), 105);
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn slice_bytes_evaluates_arguments_once_before_checks_but_preserves_argument_trap_boundaries() {
+    run(
+        r#"
+        fn ordered(start: number, end: number) -> string {
+            return string_slice_bytes({ effect(1); produce(10) },
+                { effect(2); start }, { effect(3); end });
+        }
+        fn fail_number() -> number { let a: number[] = []; return a[0]; }
+        fn source_trap() -> string {
+            return string_slice_bytes({ effect(4); let n = fail_number(); "unused" },
+                { effect(5); 0 }, { effect(6); 0 });
+        }
+        fn start_trap(s: string) -> string {
+            return string_slice_bytes({ effect(7); s }, { effect(8); fail_number() }, { effect(9); 0 });
+        }
+        fn end_trap(s: string) -> string {
+            return string_slice_bytes({ effect(11); let part = string_slice_bytes(s, 1, 7); retain(part); s },
+                { effect(12); 1 }, { effect(13); fail_number() });
+        }
+        "#,
+        r#"
+        const source = abi.encode('string', 'Aé🙂Z'), events = [], retained = [];
+        effect = n => events.push(n);
+        produce = n => { events.push(n); return source; };
+        retain = h => retained.push(h);
+        for (const [start, end, expected] of [[1, 7, 'é🙂'], [0, 8, 'Aé🙂Z'], [3, 3, '']]) {
+            events.length = 0;
+            assert.equal(abi.decode('string', e.ordered(start, end)), expected);
+            assert.deepEqual(events, [1, 10, 2, 3]);
+        }
+        for (const [start, end] of [[NaN, 8], [0, Infinity], [-1, 8], [7, 1], [0, 9], [2, 2], [1, 4]]) {
+            events.length = 0;
+            assert.throws(() => e.ordered(start, end), WebAssembly.RuntimeError);
+            assert.deepEqual(events, [1, 10, 2, 3], 'numeric and scalar-boundary checks follow all arguments');
+        }
+        for (const [call, expected] of [
+            [() => e.source_trap(), [4]], [() => e.start_trap(source), [7, 8]],
+            [() => e.end_trap(source), [11, 12, 13]]
+        ]) {
+            events.length = 0;
+            assert.throws(call, WebAssembly.RuntimeError);
+            assert.deepEqual(events, expected);
+        }
+        assert.equal(retained.length, 1);
+        assert.equal(abi.decode('string', retained[0]), 'é🙂');
+        events.length = 0;
+        produce = n => { events.push(n); return 0; };
+        assert.throws(() => e.ordered(0, 0), WebAssembly.RuntimeError);
+        assert.deepEqual(events, [1, 10], 'host-return validation still precedes later arguments');
+        assert.equal(abi.decode('string', retained[0]), 'é🙂');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn slice_bytes_revalidates_post_entry_descriptors_after_effects_even_before_full_or_empty_reuse() {
+    run(
+        r#"
+        fn slice(s: string, start: number, end: number) -> string {
+            return string_slice_bytes({ effect(1); s }, { effect(2); start }, { effect(3); end });
+        }
+        "#,
+        r#"
+        const events = [];
+        for (const text of ['', 'Aé🙂Z']) {
+            const h = abi.encode('string', text), length = Buffer.byteLength(text);
+            const ranges = length === 0 ? [[0, 0]] : [[0, length], [0, 0], [length, length], [1, 7]];
+            for (const [start, end] of ranges) {
+                for (const corruptAt of [1, 2, 3]) {
+                    for (const [field, bad] of [[0, 0], [0, 0xfffffff8], [4, 0x80000000], [4, 0xffffffff]]) {
+                        const original = new DataView(e.memory.buffer).getUint32(h + field, true);
+                        events.length = 0;
+                        effect = n => {
+                            events.push(n);
+                            if (n === corruptAt) new DataView(e.memory.buffer).setUint32(h + field, bad, true);
+                        };
+                        assert.throws(() => e.slice(h, start, end), WebAssembly.RuntimeError);
+                        assert.deepEqual(events, [1, 2, 3], 'no builtin validation between argument effects');
+                        new DataView(e.memory.buffer).setUint32(h + field, original, true);
+                        effect = () => {};
+                        const result = e.slice(h, start, end);
+                        assert.equal(abi.decode('string', result), Buffer.from(text).subarray(start, end).toString());
+                        if (start === 0 && end === length) assert.equal(result, h);
+                    }
+                }
+            }
+        }
+        events.length = 0;
+        effect = n => events.push(n);
+        assert.throws(() => e.slice(0, 0, 0), WebAssembly.RuntimeError);
+        const invalid = abi.encode('string', 'entry');
+        new DataView(e.memory.buffer).setUint32(invalid, 0, true);
+        assert.throws(() => e.slice(invalid, 0, 5), WebAssembly.RuntimeError);
+        assert.deepEqual(events, [], 'parameter-entry validation still precedes body effects');
+        "#,
+    );
+}
+
+#[test]
+#[ignore = "requires Node.js 24+"]
+fn retained_slices_survive_growth_reentry_and_caught_traps_with_suspended_arguments() {
+    run(
+        r#"
+        fn slice(s: string, start: number, end: number) -> string {
+            return string_slice_bytes(s, start, end);
+        }
+        fn publish(s: string) -> string {
+            let part = string_slice_bytes(s, 1, string_byte_len(s) - 1);
+            retain(part); return part;
+        }
+        fn fail(s: string) {
+            let part = string_slice_bytes(s, 1, 7); retain(part);
+            let invalid = string_slice_bytes(s, 2, 2);
+        }
+        fn outer(s: string) -> string {
+            return string_concat("outer:", string_slice_bytes(
+                string_concat("!", s), { effect(1); 2 }, { effect(2); 8 }));
+        }
+        "#,
+        r#"
+        const retained = [], events = [], source = abi.encode('string', 'Aé🙂Z');
+        retain = h => retained.push([h, abi.decode('string', h)]);
+        const published = e.publish(source);
+        const oldBuffer = e.memory.buffer;
+        effect = n => {
+            events.push(n);
+            if (n !== 1) return;
+            const text = 'A' + '界'.repeat(90000) + 'Z';
+            const large = abi.encode('string', text);
+            // Consume current headroom so the proper slice itself must grow memory.
+            const marker = e.__alloc(8) >>> 0;
+            const remaining = e.memory.buffer.byteLength - (marker + 8);
+            if (remaining > 0) e.__alloc(remaining);
+            const beforeSlice = e.memory.buffer;
+            const grown = e.publish(large);
+            assert.notEqual(e.memory.buffer, beforeSlice, 'proper slice allocation itself grows memory');
+            assert.notEqual(e.memory.buffer, oldBuffer, 'reentry fixture causes actual memory growth');
+            assert.equal(abi.decode('string', grown), '界'.repeat(90000));
+            assert.throws(() => e.fail(source), WebAssembly.RuntimeError);
+            const inner = e.publish(abi.encode('string', 'BλC'));
+            assert.equal(abi.decode('string', inner), 'λ');
+            for (const [h, expected] of retained) assert.equal(abi.decode('string', h), expected);
+        };
+        const outer = e.outer(source);
+        assert.deepEqual(events, [1, 2]);
+        assert.equal(abi.decode('string', outer), 'outer:é🙂');
+        assert.equal(abi.decode('string', source), 'Aé🙂Z');
+        assert.equal(abi.decode('string', published), 'é🙂');
+        assert.deepEqual(retained.map(([, text]) => text), ['é🙂', '界'.repeat(90000), 'é🙂', 'λ']);
+        assert.throws(() => e.fail(source), WebAssembly.RuntimeError);
+        e.publish(abi.encode('string', 'X' + 'x'.repeat(400000) + 'Y'));
+        for (const [h, expected] of retained) assert.equal(abi.decode('string', h), expected);
+        assert.equal(abi.decode('string', outer), 'outer:é🙂');
+        "#,
+    );
+}

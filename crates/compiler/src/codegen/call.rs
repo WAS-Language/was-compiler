@@ -22,12 +22,15 @@ pub(super) fn emit(
     let function = body.name();
 
     if let FunctionRef::Builtin(
-        builtin @ (BuiltinFunction::StringByteLen | BuiltinFunction::StringConcat),
+        builtin @ (BuiltinFunction::StringByteLen
+        | BuiltinFunction::StringConcat
+        | BuiltinFunction::StringSliceBytes),
     ) = reference
     {
         let (arity, ty, helper) = match builtin {
             BuiltinFunction::StringByteLen => (1, Type::Number, Helper::StringByteLen),
             BuiltinFunction::StringConcat => (2, Type::String, Helper::StringConcat),
+            BuiltinFunction::StringSliceBytes => (3, Type::String, Helper::StringSliceBytes),
             _ => unreachable!("matched string builtin"),
         };
         if args.len() != arity {
@@ -41,8 +44,13 @@ pub(super) fn emit(
         }
         expect_result(function, predicted_result(ty, args), annotation, span)?;
         let mut flow = Flow::FALLTHROUGH;
-        for arg in args {
-            expect_operand(function, Type::String, arg.ty, span)?;
+        for (position, arg) in args.iter().enumerate() {
+            let expected = if builtin == BuiltinFunction::StringSliceBytes && position > 0 {
+                Type::Number
+            } else {
+                Type::String
+            };
+            expect_operand(function, expected, arg.ty, span)?;
             flow = flow.then(body.emit_expr(arg, span)?);
         }
         // The helper checks operands only after every argument has executed.

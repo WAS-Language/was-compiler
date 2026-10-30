@@ -405,6 +405,12 @@ impl SemanticAnalyzer {
                 vec![Type::String, Type::String],
                 Type::String,
             ),
+            (
+                "string_slice_bytes",
+                BuiltinFunction::StringSliceBytes,
+                vec![Type::String, Type::Number, Type::Number],
+                Type::String,
+            ),
         ] {
             self.functions.insert(
                 name.into(),

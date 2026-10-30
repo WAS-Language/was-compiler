@@ -107,6 +107,7 @@ impl HostFunctions {
                 | "resizable"
                 | "string_byte_len"
                 | "string_concat"
+                | "string_slice_bytes"
         ) {
             return Err(HostRegistrationError::ReservedName { name });
         }

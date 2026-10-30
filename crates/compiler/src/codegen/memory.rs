@@ -40,6 +40,7 @@ pub(super) enum Helper {
     StringArrayEqual,
     StringByteLen,
     StringConcat,
+    StringSliceBytes,
 }
 
 impl Helper {
@@ -93,6 +94,7 @@ impl Helper {
             Self::BoolArrayAddress | Self::StringArrayAddress => (vec![I32, F64], I32),
             Self::BoolArrayLen | Self::StringArrayLen | Self::StringByteLen => (vec![I32], F64),
             Self::StringConcat => (vec![I32, I32], I32),
+            Self::StringSliceBytes => (vec![I32, F64, F64], I32),
         };
 
         Signature {
@@ -118,6 +120,7 @@ pub struct MemoryPlan {
     string_arrays: bool,
     string_byte_len: bool,
     string_concat: bool,
+    string_slice_bytes: bool,
 }
 
 impl MemoryPlan {
@@ -130,6 +133,7 @@ impl MemoryPlan {
             string_arrays: false,
             string_byte_len: false,
             string_concat: false,
+            string_slice_bytes: false,
         };
         let mut used = false;
 
@@ -190,6 +194,7 @@ impl MemoryPlan {
             )
             .chain(self.string_byte_len.then_some(Helper::StringByteLen))
             .chain(self.string_concat.then_some(Helper::StringConcat))
+            .chain(self.string_slice_bytes.then_some(Helper::StringSliceBytes))
     }
 
     pub(super) fn helpers(&self) -> Vec<Helper> {
@@ -319,6 +324,8 @@ impl Visitor<'_> for MemoryVisitor<'_> {
                     *func == FunctionRef::Builtin(BuiltinFunction::StringByteLen);
                 self.plan.string_concat |=
                     *func == FunctionRef::Builtin(BuiltinFunction::StringConcat);
+                self.plan.string_slice_bytes |=
+                    *func == FunctionRef::Builtin(BuiltinFunction::StringSliceBytes);
                 *self.used |= matches!(
                     func,
                     FunctionRef::Builtin(
@@ -326,6 +333,7 @@ impl Visitor<'_> for MemoryVisitor<'_> {
                             | BuiltinFunction::Resizable
                             | BuiltinFunction::StringByteLen
                             | BuiltinFunction::StringConcat
+                            | BuiltinFunction::StringSliceBytes
                     )
                 );
             }
@@ -383,6 +391,9 @@ pub(super) fn emit_planned(helper: Helper, first: u32, plan: &MemoryPlan) -> Fun
         Helper::StringByteLen => emit_typed_len(index(Helper::ValidateString)),
         Helper::StringConcat => {
             emit_string_concat(index(Helper::ValidateString), index(Helper::Alloc))
+        }
+        Helper::StringSliceBytes => {
+            emit_string_slice_bytes(index(Helper::ValidateString), index(Helper::Alloc))
         }
         Helper::ValidateBoolArray => emit_validate(abi::BOOL_ELEMENT_SIZE),
         Helper::ValidateBool => {
@@ -881,6 +892,153 @@ fn emit_string_concat(validator: u32, alloc: u32) -> Function {
             instructions(&mut body, &[LocalGet(5), LocalGet(2), I32Add, LocalSet(5)]);
         }
     }
+    instructions(&mut body, &[LocalGet(4), End]);
+    body
+}
+
+fn emit_string_slice_bytes(validator: u32, alloc: u32) -> Function {
+    use Instruction::*;
+
+    // Keep result/destination/source/copy-length/index in slots 4..8, matching
+    // the existing byte-copy emitter. Slot 3 is the validated source byte length;
+    // 9/10 hold endpoints and 11 holds the widened allocation size.
+    let mut body = Function::new([(8, ValType::I32), (1, ValType::I64)]);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(0),
+            Call(validator),
+            Drop,
+            LocalGet(0),
+            I32Load(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            LocalSet(3),
+        ],
+    );
+
+    // Ordered comparisons reject NaN/infinities before unsigned conversion.
+    // Endpoint equality with length is legal, unlike ordinary array indexing.
+    for endpoint in [1, 2] {
+        instructions(
+            &mut body,
+            &[
+                LocalGet(endpoint),
+                F64Const(0.0.into()),
+                F64Ge,
+                LocalGet(endpoint),
+                LocalGet(3),
+                F64ConvertI32U,
+                F64Le,
+                I32And,
+                LocalGet(endpoint),
+                LocalGet(endpoint),
+                F64Trunc,
+                F64Eq,
+                I32And,
+                I32Eqz,
+            ],
+        );
+        trap_if(&mut body);
+    }
+    instructions(&mut body, &[LocalGet(1), LocalGet(2), F64Gt]);
+    trap_if(&mut body);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(1),
+            I32TruncF64U,
+            LocalSet(9),
+            LocalGet(2),
+            I32TruncF64U,
+            LocalSet(10),
+            LocalGet(0),
+            I32Load(header(abi::DESCRIPTOR_DATA_OFFSET)),
+            LocalSet(6),
+        ],
+    );
+
+    let byte = MemArg {
+        offset: 0,
+        align: 0,
+        memory_index: 0,
+    };
+    // Under the valid-UTF8 host contract an interior boundary is exactly a byte
+    // that is not a continuation byte. Zero/end need no payload load, including
+    // empty slices; test both endpoints before any reuse.
+    for endpoint in [9, 10] {
+        instructions(
+            &mut body,
+            &[
+                LocalGet(endpoint),
+                I32Eqz,
+                I32Eqz,
+                LocalGet(endpoint),
+                LocalGet(3),
+                I32LtU,
+                I32And,
+                If(BlockType::Empty),
+                LocalGet(6),
+                LocalGet(endpoint),
+                I32Add,
+                I32Load8U(byte),
+                I32Const(0xc0),
+                I32And,
+                I32Const(0x80),
+                I32Eq,
+            ],
+        );
+        trap_if(&mut body);
+        body.instruction(&End);
+    }
+    instructions(
+        &mut body,
+        &[
+            LocalGet(9),
+            I32Eqz,
+            LocalGet(10),
+            LocalGet(3),
+            I32Eq,
+            I32And,
+            If(BlockType::Empty),
+            LocalGet(0),
+            Return,
+            End,
+            LocalGet(10),
+            LocalGet(9),
+            I32Sub,
+            LocalTee(7),
+            I64ExtendI32U,
+            I64Const(i64::from(abi::DESCRIPTOR_SIZE)),
+            I64Add,
+            LocalTee(11),
+            I64Const(MAX_BYTES as i64),
+            I64GtU,
+        ],
+    );
+    trap_if(&mut body);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(11),
+            I32WrapI64,
+            Call(alloc),
+            LocalTee(4),
+            LocalGet(4),
+            I32Const(abi::DESCRIPTOR_SIZE as i32),
+            I32Add,
+            LocalTee(5),
+            I32Store(header(abi::DESCRIPTOR_DATA_OFFSET)),
+            LocalGet(4),
+            LocalGet(7),
+            I32Store(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            LocalGet(6),
+            LocalGet(9),
+            I32Add,
+            LocalSet(6),
+            I32Const(0),
+            LocalSet(8),
+        ],
+    );
+    emit_string_copy(&mut body);
     instructions(&mut body, &[LocalGet(4), End]);
     body
 }

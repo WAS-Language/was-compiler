@@ -746,16 +746,21 @@ Handle the new raw/typed `Block` and `If` expression variants. `ValueBlock` and
 existing function/statement-block vector aliases are unchanged.
 
 Strings support literals, parameters/locals/returns, content-based `==`/`!=`,
-and the positional-only builtins `string_byte_len(source: string) -> number` and
-`string_concat(left: string, right: string) -> string` (#73). Byte length counts
+and the positional-only builtins `string_byte_len(source: string) -> number`,
+`string_concat(left: string, right: string) -> string` (#73), and
+`string_slice_bytes(source: string, start: number, end: number) -> string` (#74). Byte length counts
 UTF-8 bytes, including embedded NUL, not Unicode scalars or graphemes. Concat
 preserves immutable inputs and aliases. Arguments execute once, left-to-right,
 then both strings are structurally validated before empty-operand reuse or a
 new copied result. These names are reserved globally and for host registration,
-but lexical bindings may shadow them. Neither operation is allowed in pure
-defaults/contracts or as a direct builtin pipeline stage. String `+`, methods,
-slicing, replacement, and join are not added. See [the #73 scope and validation](docs/string-operations.md);
-this is the first M5 tracer bullet, not completion or integrated release acceptance.
+but lexical bindings may shadow them. Slicing uses strict half-open UTF-8 byte
+bounds: finite integers with `0 <= start <= end <= byte_length` and both endpoints
+at Unicode-scalar boundaries, including empty slices; negative zero is accepted.
+It validates after all arguments, reuses full ranges, and copies proper nonempty
+slices. These operations are excluded from pure defaults/contracts and direct
+builtin pipeline stages. String `+`, methods, replacement, and join are not added.
+See [implemented scope and validation](docs/string-operations.md); M5 completion
+and integrated release acceptance remain separate.
 Numeric arrays support literals (including `[]`), reference assignment, parameters,
 returns, element reads/writes, content-based `==`/`!=`, and `len(array)` returning
 a number. Equality requires matching lengths and exact elementwise `f64` equality:

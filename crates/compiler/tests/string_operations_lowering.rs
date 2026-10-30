@@ -170,6 +170,219 @@ fn byte_length_uses_string_validation_unsigned_length_and_no_allocation() {
     ));
 }
 
+#[test]
+fn slice_helper_validates_before_numeric_checks_reuse_and_widened_copy_allocation() {
+    let bytes = Compiler::new().compile_source(
+        "fn main(s: string, a: number, b: number) -> string { return string_slice_bytes(s, a, b); }"
+    ).unwrap();
+    let bodies = operations(&bytes);
+    assert_eq!(bodies.len(), 9, "only one new helper");
+    let slice = bodies.last().unwrap();
+    assert!(matches!(
+        &slice[..3],
+        [
+            Operator::LocalGet { local_index: 0 },
+            Operator::Call { function_index: 2 },
+            Operator::Drop,
+        ]
+    ));
+    assert_eq!(
+        calls(slice),
+        [2, 1],
+        "validate source then one ordinary allocation"
+    );
+    let conversion = slice
+        .iter()
+        .position(|op| matches!(op, Operator::I32TruncF64U))
+        .unwrap();
+    assert_eq!(
+        slice[..conversion]
+            .iter()
+            .filter(|op| matches!(op, Operator::F64Trunc))
+            .count(),
+        2
+    );
+    assert_eq!(
+        slice
+            .iter()
+            .filter(|op| matches!(op, Operator::I32Load8U { .. }))
+            .count(),
+        3,
+        "two guarded endpoint probes plus one copy loop, no UTF8 scan"
+    );
+    assert_eq!(
+        slice
+            .iter()
+            .filter(|op| matches!(op, Operator::I32Store8 { .. }))
+            .count(),
+        1
+    );
+    let allocation = slice
+        .iter()
+        .position(|op| matches!(op, Operator::Call { function_index: 1 }))
+        .unwrap();
+    assert!(
+        slice[..allocation]
+            .iter()
+            .any(|op| matches!(op, Operator::Return))
+    );
+    assert!(
+        slice[..allocation]
+            .iter()
+            .any(|op| matches!(op, Operator::I64GtU))
+    );
+    assert!(slice[..allocation].iter().any(|op| matches!(
+        op,
+        Operator::I64Const {
+            value: 4_294_901_760
+        }
+    )));
+}
+
+fn slice_args() -> Vec<TypedExpr> {
+    vec![string("é"), number("0"), number("2")]
+}
+
+fn number(value: &str) -> TypedExpr {
+    TypedExpr {
+        kind: TypedExprKind::Number(value.into()),
+        ty: Type::Number.into(),
+    }
+}
+
+#[test]
+fn slice_checked_input_rejects_forged_arity_types_categories_and_later_children() {
+    let builtin = BuiltinFunction::StringSliceBytes;
+    for count in [0, 1, 2, 4] {
+        let mut args = slice_args();
+        args.resize(count, number("0"));
+        let mut value = call(builtin, args, Type::String);
+        value.ty = ExprResult::Never;
+        assert!(
+            matches!(codegen::compile_with_exports(&program(value), &ExportOptions::None),
+            Err(CodegenError::ArgumentCountMismatch { expected: 3, found, .. }) if found == count)
+        );
+    }
+    for category in [
+        Type::Number.into(),
+        Type::Bool.into(),
+        ExprResult::Void,
+        ExprResult::Value(Type::Void),
+        ExprResult::Never,
+    ] {
+        let mut value = call(builtin, slice_args(), Type::String);
+        value.ty = category;
+        assert!(
+            codegen::compile(&program(value)).is_err(),
+            "result {category:?}"
+        );
+    }
+    for position in 0..3 {
+        for bad in [
+            string("wrong"),
+            number("1"),
+            TypedExpr {
+                kind: TypedExprKind::Bool(true),
+                ty: Type::Bool.into(),
+            },
+        ] {
+            if bad.ty
+                == if position == 0 {
+                    Type::String
+                } else {
+                    Type::Number
+                }
+            {
+                continue;
+            }
+            let mut args = slice_args();
+            args[position] = bad;
+            assert!(
+                codegen::compile_with_exports(
+                    &program(call(builtin, args, Type::String)),
+                    &ExportOptions::None
+                )
+                .is_err()
+            );
+        }
+        for category in [
+            ExprResult::Void,
+            ExprResult::Value(Type::Void),
+            ExprResult::Never,
+        ] {
+            let mut args = slice_args();
+            args[position].ty = category;
+            let mut value = call(builtin, args, Type::String);
+            if category == ExprResult::Never {
+                value.ty = ExprResult::Never;
+            }
+            assert!(codegen::compile(&program(value)).is_err());
+        }
+        let mut args = slice_args();
+        args[position].kind = TypedExprKind::Bool(true);
+        assert!(
+            codegen::compile(&program(call(builtin, args, Type::String))).is_err(),
+            "check child kind independently"
+        );
+    }
+    for position in [1, 2] {
+        let mut args = slice_args();
+        args[0] = divergent();
+        args[position] = string("not numeric");
+        let mut value = call(builtin, args, Type::String);
+        value.ty = ExprResult::Never;
+        assert!(
+            codegen::compile(&program(value)).is_err(),
+            "check after Never"
+        );
+    }
+}
+
+#[test]
+fn slice_structural_discovery_and_argument_order_compose_with_never_helpers_and_presets() {
+    for position in 0..3 {
+        let mut args = slice_args();
+        args[position] = divergent();
+        let mut value = call(BuiltinFunction::StringSliceBytes, args, Type::String);
+        value.ty = ExprResult::Never;
+        assert_eq!(
+            operations(&codegen::compile(&program(value)).unwrap()).len(),
+            9
+        );
+    }
+    let source = r#"
+        fn source() -> string { return "é"; }
+        fn start() -> number { return 0; }
+        fn end() -> number { return 2; }
+        fn main() -> number {
+            let f = () => string_byte_len(string_slice_bytes(source(), start(), end()));
+            return 7 + f();
+            string_slice_bytes("x", 0, 1);
+        }
+    "#;
+    let mut enabled = None;
+    for level in [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        let mut compiler = Compiler::new();
+        compiler.set_optimization_level(level);
+        let bytes = compiler.compile_source(source).unwrap();
+        let bodies = operations(&bytes);
+        assert_eq!(calls(bodies.last().unwrap()), [0, 1, 2, 12, 11]);
+        assert_eq!(bytes, compiler.compile_source(source).unwrap());
+        if level != OptimizationLevel::None {
+            if let Some(expected) = &enabled {
+                assert_eq!(&bytes, expected);
+            } else {
+                enabled = Some(bytes);
+            }
+        }
+    }
+}
+
 fn divergent() -> TypedExpr {
     let program = Compiler::new()
         .analyze("fn main() -> string { return loop {}; }")
@@ -407,6 +620,11 @@ fn discovery_visits_capture_helpers_and_unreachable_expressions() {
 #[test]
 fn m5_calls_remain_forbidden_in_forged_contracts_and_defaults() {
     for value in [
+        call(
+            BuiltinFunction::StringSliceBytes,
+            slice_args(),
+            Type::String,
+        ),
         call(
             BuiltinFunction::StringByteLen,
             vec![string("x")],

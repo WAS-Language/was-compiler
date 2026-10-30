@@ -10,6 +10,20 @@ fn error(source: &str) -> SemanticError {
 }
 
 #[test]
+fn slice_signature_supplies_exact_region_local_contexts() {
+    for source in [
+        "fn main() { return string_slice_bytes(\"雪\", 0, 3); }",
+        "fn main(s: string) { let f = string_slice_bytes(_, 0, 1); return f(s); }",
+        "fn main(s: string) { let f = string_slice_bytes(s, _, _); return f(0, 1); }",
+        "fn main() { return \"x\" |> (string_slice_bytes(_, 0, 1)); }",
+        "fn main(s: string) { let f = (n: number) => string_slice_bytes(s, 0, n); return f(0); }",
+    ] {
+        let program = Compiler::new().analyze(source).unwrap();
+        assert_eq!(program.functions[0].return_type, Type::String, "{source}");
+    }
+}
+
+#[test]
 fn exact_signatures_compose_with_inference_captures_and_placeholders() {
     for (source, expected) in [
         (
@@ -48,6 +62,8 @@ fn calls_check_structure_before_expressions_and_require_exact_types() {
         ("string_byte_len", "missing, other", 1, 2),
         ("string_concat", "missing", 2, 1),
         ("string_concat", "", 2, 0),
+        ("string_slice_bytes", "missing, other", 3, 2),
+        ("string_slice_bytes", "missing, other, third, fourth", 3, 4),
     ] {
         assert!(
             matches!(error(&format!("fn main() {{ {name}({args}); }}")), SemanticError::ArgumentCountMismatch { expected: e, found: f, .. } if e == expected && f == found)
@@ -56,6 +72,7 @@ fn calls_check_structure_before_expressions_and_require_exact_types() {
     for call in [
         "string_byte_len(source: missing)",
         "string_concat(left: missing, right: other)",
+        "string_slice_bytes(source: missing, start: other, end: third)",
     ] {
         assert!(matches!(
             error(&format!("fn main() {{ {call}; }}")),
@@ -80,7 +97,7 @@ fn calls_check_structure_before_expressions_and_require_exact_types() {
 
 #[test]
 fn builtin_names_are_reserved_globally_but_lexically_shadowable() {
-    for name in ["string_byte_len", "string_concat"] {
+    for name in ["string_byte_len", "string_concat", "string_slice_bytes"] {
         assert!(
             Compiler::new()
                 .analyze(&format!("fn {name}() {{}}"))
@@ -109,6 +126,15 @@ fn builtin_names_are_reserved_globally_but_lexically_shadowable() {
 fn string_operations_do_not_expand_syntax_pipelines_or_purity() {
     for source in [
         "fn main() { return len(\"x\"); }",
+        "fn main() { return \"x\" |> string_slice_bytes(0, 1); }",
+        "fn main(s: string = string_slice_bytes(\"x\", 0, 1)) {}",
+        "fn main() requires true || string_slice_bytes(\"x\", 0, 1) == \"x\" {}",
+        "fn main() { return; string_slice_bytes(\"x\", false, 1); }",
+        "fn main() { return string_slice_bytes(loop {}, 0, false); }",
+        "fn main() { return false && string_slice_bytes(\"x\", 0, true) == \"x\"; }",
+        "fn main() { return string_slice_bytes(1, 0, 1); }",
+        "fn main() { return string_slice_bytes(\"x\", \"0\", 1); }",
+        "fn main() { return string_slice_bytes(\"x\", 0, \"1\"); }",
         "fn main() { return \"a\" + \"b\"; }",
         "fn main() { return \"x\" |> string_byte_len; }",
         "fn main() { return \"x\" |> string_concat(\"y\"); }",

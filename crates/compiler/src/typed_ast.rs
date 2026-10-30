@@ -69,6 +69,7 @@ pub enum BuiltinFunction {
     Resizable,
     StringByteLen,
     StringConcat,
+    StringSliceBytes,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

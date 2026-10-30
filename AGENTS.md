@@ -355,7 +355,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   Before changing ranges or for, read extension spec §§5–6 and the
   [private record contract](docs/memory-abi.md#private-range-record).
 - #73 implements positional-only `string_byte_len(string) -> number` and
-  `string_concat(string, string) -> string`. Before changing their resolution,
+  `string_concat(string, string) -> string`; #74 adds
+  `string_slice_bytes(string, number, number) -> string` with strict half-open
+  byte bounds at Unicode-scalar boundaries, accepting negative zero. Full ranges
+  reuse the validated source; proper slices copy through the ordinary allocator.
+  Before changing their resolution,
   checked helpers, storage or trap ordering, read [the implemented contract](docs/string-operations.md).
   They remain outside pure defaults/contracts and direct builtin pipeline stages;
   lexical shadowing is allowed, global/host-language names are reserved. M5 is

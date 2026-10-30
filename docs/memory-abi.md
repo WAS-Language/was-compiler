@@ -47,7 +47,12 @@ when one operand is empty, and otherwise bump-allocates one descriptor plus copi
 payload. Published results retain instance-long lifetime across growth and traps;
 string payloads never enter M4's reclaimable storage. Byte length validates without
 allocating a result string. Structural validation remains distinct from UTF-8
-validation. See [the implemented slice](string-operations.md).
+validation. #74 adds strict byte slicing: validate the source and numeric/scalar
+boundaries before reuse; full-range slices return the source and proper nonempty
+slices bump-allocate one descriptor plus copied payload. Empty proper slices also
+allocate a descriptor. Endpoint checks skip payload loads at zero and byte length;
+valid immutable UTF-8 remains a host obligation, not a mandatory full scan.
+See [the implemented slices](string-operations.md).
 The remaining agreed future constraints live in
 [the memory roadmap's M0 decisions](was_compiler_memory_and_optimization_roadmap.md#4-milestone-m0--semantics-and-regression-baseline),
 not in the revision 1 baseline. A future management protocol must establish
