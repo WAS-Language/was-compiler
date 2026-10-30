@@ -41,6 +41,13 @@ narrow reserve/relocation-safe writes, followed by #67 push and #68 pop/remove, 
 without changing the public descriptor. Revision 1's fixed-storage lifetime rights
 remain unchanged; opt-in payload borrows must be reacquired after possible relocation.
 Only displaced owned payloads are released; there is no general reclamation.
+#73 adds immutable `string_concat` and `string_byte_len` without changing this ABI.
+Concat validates both operands after argument evaluation, returns the other handle
+when one operand is empty, and otherwise bump-allocates one descriptor plus copied
+payload. Published results retain instance-long lifetime across growth and traps;
+string payloads never enter M4's reclaimable storage. Byte length validates without
+allocating a result string. Structural validation remains distinct from UTF-8
+validation. See [the implemented slice](string-operations.md).
 The remaining agreed future constraints live in
 [the memory roadmap's M0 decisions](was_compiler_memory_and_optimization_roadmap.md#4-milestone-m0--semantics-and-regression-baseline),
 not in the revision 1 baseline. A future management protocol must establish

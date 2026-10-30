@@ -35,6 +35,14 @@ performance-signal disposition. See [the contract-to-test map](m4-contract-test-
 and [memory roadmap §8](was_compiler_memory_and_optimization_roadmap.md#8-milestone-m4--resizable-typed-arrays).
 Fixed-storage rights remain unchanged; no general reclamation or new default is added.
 
+## Immutable string operations (memory-roadmap M5, first tracer bullet)
+
+#73 implements `string_byte_len` and `string_concat` through existing named-call
+analysis and independently checked lowering, with conditional memory helpers.
+[Scope and focused evidence](string-operations.md) distinguish this slice from
+pending replacement/slicing/join, measurements, and integrated release validation.
+The descriptor ABI, retained string lifetimes and absent-M5 module bytes remain unchanged.
+
 ## Proven integer specialization (#38 contract; experimental #39/#40/#41 subset)
 
 [The maintained contract](integer-specialization.md) separates #38's broader

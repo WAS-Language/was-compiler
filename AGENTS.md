@@ -354,6 +354,12 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   [extension plan §5](docs/was_language_extensions_plan.md#5-documentation-and-validation-workflow).
   Before changing ranges or for, read extension spec §§5–6 and the
   [private record contract](docs/memory-abi.md#private-range-record).
+- #73 implements positional-only `string_byte_len(string) -> number` and
+  `string_concat(string, string) -> string`. Before changing their resolution,
+  checked helpers, storage or trap ordering, read [the implemented contract](docs/string-operations.md).
+  They remain outside pure defaults/contracts and direct builtin pipeline stages;
+  lexical shadowing is allowed, global/host-language names are reserved. M5 is
+  incomplete; integrated adapter/release validation and measurements remain separate.
 - Strings are immutable raw UTF-8 values. Arrays share mutable storage; ordinary
   literals and host encoding remain fixed-storage. #65 implements `resizable(source)`
   fresh copies for all array types, with contextual empty typing and private authority,
@@ -386,7 +392,7 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   no reachable exit yields Never. Explicit divergence is allowed in nonvoid
   functions. No `foreach`, loop labels, value breaks in while/for, string
   escapes, exponent literals,
-  `.5`, `1.`, string concatenation/indexing/`len`, or general postfix
+  `.5`, `1.`, string `+`/indexing/`len`, or general postfix
   chaining. Source indexing starts from an identifier.
 - No nested arrays, `range[]`, `void[]`, other array element types, modules,
   first-class functions, generics, free, or garbage

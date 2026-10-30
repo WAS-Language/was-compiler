@@ -38,6 +38,8 @@ pub(super) enum Helper {
     StringArrayAddress,
     StringArrayLen,
     StringArrayEqual,
+    StringByteLen,
+    StringConcat,
 }
 
 impl Helper {
@@ -89,7 +91,8 @@ impl Helper {
                 (vec![I32], I32)
             }
             Self::BoolArrayAddress | Self::StringArrayAddress => (vec![I32, F64], I32),
-            Self::BoolArrayLen | Self::StringArrayLen => (vec![I32], F64),
+            Self::BoolArrayLen | Self::StringArrayLen | Self::StringByteLen => (vec![I32], F64),
+            Self::StringConcat => (vec![I32, I32], I32),
         };
 
         Signature {
@@ -113,6 +116,8 @@ pub struct MemoryPlan {
     strings: HashMap<String, u32>,
     boolean_arrays: bool,
     string_arrays: bool,
+    string_byte_len: bool,
+    string_concat: bool,
 }
 
 impl MemoryPlan {
@@ -123,6 +128,8 @@ impl MemoryPlan {
             strings: HashMap::new(),
             boolean_arrays: false,
             string_arrays: false,
+            string_byte_len: false,
+            string_concat: false,
         };
         let mut used = false;
 
@@ -181,6 +188,8 @@ impl MemoryPlan {
                     .into_iter()
                     .flatten(),
             )
+            .chain(self.string_byte_len.then_some(Helper::StringByteLen))
+            .chain(self.string_concat.then_some(Helper::StringConcat))
     }
 
     pub(super) fn helpers(&self) -> Vec<Helper> {
@@ -306,9 +315,18 @@ impl Visitor<'_> for MemoryVisitor<'_> {
             }
 
             TypedExprKind::Call { func, .. } => {
+                self.plan.string_byte_len |=
+                    *func == FunctionRef::Builtin(BuiltinFunction::StringByteLen);
+                self.plan.string_concat |=
+                    *func == FunctionRef::Builtin(BuiltinFunction::StringConcat);
                 *self.used |= matches!(
                     func,
-                    FunctionRef::Builtin(BuiltinFunction::Len | BuiltinFunction::Resizable)
+                    FunctionRef::Builtin(
+                        BuiltinFunction::Len
+                            | BuiltinFunction::Resizable
+                            | BuiltinFunction::StringByteLen
+                            | BuiltinFunction::StringConcat
+                    )
                 );
             }
 
@@ -362,6 +380,10 @@ pub(super) fn emit(helper: Helper, first_function: u32) -> Function {
 pub(super) fn emit_planned(helper: Helper, first: u32, plan: &MemoryPlan) -> Function {
     let index = |h| first + plan.helper_index(h);
     match helper {
+        Helper::StringByteLen => emit_typed_len(index(Helper::ValidateString)),
+        Helper::StringConcat => {
+            emit_string_concat(index(Helper::ValidateString), index(Helper::Alloc))
+        }
         Helper::ValidateBoolArray => emit_validate(abi::BOOL_ELEMENT_SIZE),
         Helper::ValidateBool => {
             use Instruction::*;
@@ -774,6 +796,129 @@ fn emit_typed_len(validator: u32) -> Function {
     );
 
     body
+}
+
+fn emit_string_concat(validator: u32, alloc: u32) -> Function {
+    use Instruction::*;
+
+    // Parameters 0/1 are handles; 2/3 lengths, 4 result, 5 destination,
+    // 6 source, 7 copy length, 8 byte index, and 9 widened result length.
+    let mut body = Function::new([(7, ValType::I32), (1, ValType::I64)]);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(0),
+            Call(validator),
+            Drop,
+            LocalGet(1),
+            Call(validator),
+            Drop,
+            LocalGet(0),
+            I32Load(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            LocalTee(2),
+            I32Eqz,
+            If(BlockType::Empty),
+            LocalGet(1),
+            Return,
+            End,
+            LocalGet(1),
+            I32Load(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+            LocalTee(3),
+            I32Eqz,
+            If(BlockType::Empty),
+            LocalGet(0),
+            Return,
+            End,
+            LocalGet(2),
+            I64ExtendI32U,
+            LocalGet(3),
+            I64ExtendI32U,
+            I64Add,
+            LocalTee(9),
+            I64Const(i64::from(abi::DESCRIPTOR_SIZE)),
+            I64Add,
+            I64Const(MAX_BYTES as i64),
+            I64GtU,
+        ],
+    );
+    trap_if(&mut body);
+    instructions(
+        &mut body,
+        &[
+            LocalGet(9),
+            I64Const(i64::from(abi::DESCRIPTOR_SIZE)),
+            I64Add,
+            I32WrapI64,
+            Call(alloc),
+            LocalTee(4),
+            LocalGet(4),
+            I32Const(abi::DESCRIPTOR_SIZE as i32),
+            I32Add,
+            LocalTee(5),
+            I32Store(header(abi::DESCRIPTOR_DATA_OFFSET)),
+            LocalGet(4),
+            LocalGet(9),
+            I32WrapI64,
+            I32Store(header(abi::DESCRIPTOR_LENGTH_OFFSET)),
+        ],
+    );
+
+    for (handle, length) in [(0, 2), (1, 3)] {
+        instructions(
+            &mut body,
+            &[
+                LocalGet(handle),
+                I32Load(header(abi::DESCRIPTOR_DATA_OFFSET)),
+                LocalSet(6),
+                LocalGet(length),
+                LocalSet(7),
+                I32Const(0),
+                LocalSet(8),
+            ],
+        );
+        emit_string_copy(&mut body);
+        if handle == 0 {
+            instructions(&mut body, &[LocalGet(5), LocalGet(2), I32Add, LocalSet(5)]);
+        }
+    }
+    instructions(&mut body, &[LocalGet(4), End]);
+    body
+}
+
+fn emit_string_copy(body: &mut Function) {
+    use Instruction::*;
+
+    let byte = MemArg {
+        offset: 0,
+        align: 0,
+        memory_index: 0,
+    };
+    instructions(
+        body,
+        &[
+            Block(BlockType::Empty),
+            Loop(BlockType::Empty),
+            LocalGet(8),
+            LocalGet(7),
+            I32GeU,
+            BrIf(1),
+            LocalGet(5),
+            LocalGet(8),
+            I32Add,
+            LocalGet(6),
+            LocalGet(8),
+            I32Add,
+            I32Load8U(byte),
+            I32Store8(byte),
+            LocalGet(8),
+            I32Const(1),
+            I32Add,
+            LocalSet(8),
+            Br(0),
+            End,
+            End,
+        ],
+    );
 }
 
 fn emit_string_equal(first_function: u32) -> Function {

@@ -67,6 +67,8 @@ pub struct LoopId(pub usize);
 pub enum BuiltinFunction {
     Len,
     Resizable,
+    StringByteLen,
+    StringConcat,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

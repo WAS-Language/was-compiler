@@ -21,6 +21,35 @@ pub(super) fn emit(
 ) -> Result<(Flow, Type), CodegenError> {
     let function = body.name();
 
+    if let FunctionRef::Builtin(
+        builtin @ (BuiltinFunction::StringByteLen | BuiltinFunction::StringConcat),
+    ) = reference
+    {
+        let (arity, ty, helper) = match builtin {
+            BuiltinFunction::StringByteLen => (1, Type::Number, Helper::StringByteLen),
+            BuiltinFunction::StringConcat => (2, Type::String, Helper::StringConcat),
+            _ => unreachable!("matched string builtin"),
+        };
+        if args.len() != arity {
+            return Err(CodegenError::ArgumentCountMismatch {
+                function: function.into(),
+                reference,
+                expected: arity,
+                found: args.len(),
+                span,
+            });
+        }
+        expect_result(function, predicted_result(ty, args), annotation, span)?;
+        let mut flow = Flow::FALLTHROUGH;
+        for arg in args {
+            expect_operand(function, Type::String, arg.ty, span)?;
+            flow = flow.then(body.emit_expr(arg, span)?);
+        }
+        // The helper checks operands only after every argument has executed.
+        body.call(body.helper(helper));
+        return Ok((flow, ty));
+    }
+
     if let FunctionRef::Builtin(BuiltinFunction::Resizable) = reference {
         if args.len() != 1 {
             return Err(CodegenError::ArgumentCountMismatch {

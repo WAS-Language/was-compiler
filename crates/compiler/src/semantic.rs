@@ -392,6 +392,33 @@ impl SemanticAnalyzer {
             },
         );
 
+        for (name, builtin, params, return_type) in [
+            (
+                "string_byte_len",
+                BuiltinFunction::StringByteLen,
+                vec![Type::String],
+                Type::Number,
+            ),
+            (
+                "string_concat",
+                BuiltinFunction::StringConcat,
+                vec![Type::String, Type::String],
+                Type::String,
+            ),
+        ] {
+            self.functions.insert(
+                name.into(),
+                FunctionSignature {
+                    reference: FunctionRef::Builtin(builtin),
+                    params,
+                    param_names: vec![],
+                    defaults: vec![],
+                    contracts: vec![],
+                    return_type,
+                },
+            );
+        }
+
         for function in self.host_functions.functions() {
             self.functions.insert(
                 function.name.clone(),
