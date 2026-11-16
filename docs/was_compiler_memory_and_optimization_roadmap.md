@@ -1288,6 +1288,102 @@ speedup. M5 completion does not imply M4 performance acceptance.
 | Immutable temporary string | Intermediate objects accumulate | Fuse concatenations or use a builder internally | Observable allocation/evaluation semantics remain unchanged. |
 | Temporary array buffer | Superseded storage consumes heap | Reuse buffer under controlled ownership | No stale pointer or host reference remains. |
 
+### M6 interview decisions (2026-11-16; confirmed)
+
+The user confirmed the complete shared understanding after rounds 1–3 on
+2026-11-16, closing the design interview. These decisions define the agreed design;
+implementation authorization and release acceptance remain separate.
+
+- **Required first scope:** Direct range-loop scalar replacement is the only
+  required optimization for M6 completion. Closure specialization, string fusion,
+  temporary-array reuse and compact layouts remain deferred candidates, not
+  required slices.
+- **Resource observability:** An individually authorized optimization may change
+  internal allocation counts, subsequent allocation addresses, memory growth and
+  allocation-exhaustion outcomes. It must preserve operand effects, validation
+  order, ordinary invalid-input traps, published-value lifetimes and alias behavior.
+  This is not blanket permission for the other candidate optimizations. In
+  particular, string fusion needs its own contract reconciliation before approval.
+- **Release dependencies:** M6 design may proceed now, but integrated M6 release
+  acceptance requires explicit disposition of M4/M5's pending performance signals.
+  M6 work does not silently approve either milestone.
+- **Internal-only boundary:** No new source syntax, ownership annotations, public
+  descriptor layout, host release obligations or general heap reset. Unsupported
+  cases retain existing lowering and lifetime guarantees.
+
+Round 2 confirms eligibility, activation and semantic preservation:
+
+- **Direct-root selection:** Only a `For` iterable whose root typed expression is
+  `Range` qualifies, including inclusive/exclusive bounds, default/explicit step
+  and grouping parentheses. Identifiers, calls, block wrappers, conditionals,
+  value loops and pipelines returning ranges retain allocated lowering. No alias
+  analysis, constant propagation or inferred-last-use selection is introduced.
+- **Effectful operands:** Calls, allocations, transfers and divergence within
+  operands do not exclude a direct range. Loops inside local callable bodies also
+  qualify. Evaluate operands once, left-to-right; only after normal completion of
+  all operands perform existing ordered numeric validation. Abrupt completion
+  suppresses later runtime effects, not static checks of later operands or bodies.
+  Preserve enclosing transfer targets and keep the new loop/binding inactive
+  during iterable evaluation. Iteration-capture allocation remains per yield.
+- **Activation:** All three enabled presets select the optimization through a
+  distinct internal policy, not through the integer proof. `None` stays default;
+  it and direct codegen entry points retain baseline lowering and bytes. No new
+  public flag is added. Require enabled-preset byte identity, adapter parity within
+  each preset and existing bytes for programs with no eligible direct range loop.
+- **Infrastructure:** Retain existing memory exports, helper discovery and helper
+  ordering even when selected loops no longer use their range helpers. This slice
+  eliminates runtime range-record allocation, not unused module infrastructure.
+  Smaller modules are not promised; measure actual size and compilation costs.
+- **Full range semantics:** Preserve the complete safe-integer domain
+  ±(2^53−1), exact `i64` iteration state and existing numeric validation rules.
+  Reject nonfinite, fractional and out-of-domain inputs and both zero steps;
+  accept negative-zero endpoints and yield canonical positive zero. Test endpoints
+  before conversion; an advanced value beyond the safe domain exhausts normally
+  instead of introducing a new trap. Preserve shared checked validation logic
+  where practical. Other operand allocations, captures and arbitrary-handle
+  validation are unchanged.
+
+Round 3 confirms proof and completion gates:
+
+- **Deterministic allocation benefit:** Each executed eligible construction has
+  zero range-record allocations versus one 32-byte record in the baseline.
+  Noncompleting operands produce no range record in either path. Operand, capture
+  and body allocations remain separate; an allocation-free loop is not promised.
+  Use independent decoded-Wasm assertions and narrowly scoped test-only allocation
+  observations, with no production telemetry or public inspection API.
+- **Correctness evidence:** Use independent expected results plus differential
+  baseline/enabled execution. Cover full-domain endpoints, step signs, inclusivity,
+  empty ranges, signed zero, invalid inputs and safe-domain-crossing advancement;
+  operand effects/order, abrupt transfers, nested loops, break/continue/return;
+  iteration captures, recursion, host reentry and caught traps preserving completed
+  effects and live outer state. Cover forged annotations, operands, bindings and
+  transfer targets, including skipped/unreachable children and unexported/local
+  callable bodies. Negative controls retain allocated indirect-range lowering.
+  Assess authorized resource differences separately. Require Wasm validation and
+  independent instruction/layout checks, preserving diagnostic variants, spans
+  and first-error ordering.
+- **Performance evidence and disposition:** Deterministic record elimination is
+  the required allocation benefit; no runtime speedup or module-size reduction is
+  required. Separately measure ordinary non-instrumented runtime, compilation cost
+  and module bytes, including repeated eligible-loop invocations, small/larger trip
+  counts and ineligible controls. Report methodology and repeated samples without
+  invented percentage thresholds or favorable-run selection. Material regressions
+  or unexplained timing variability require explicit disposition before acceptance.
+- **Integrated completion:** On final executable sources, pass documented offline
+  native tests, strict native Clippy, portable-core build, workspace-boundary checks,
+  freshly rebuilt browser checks, full ignored-workspace execution and strict browser
+  Clippy. Require adapter parity and a contract-to-test map. Acceptance additionally
+  requires performance disposition above and explicit disposition of M4/M5 pending
+  signals. Focused success alone is not integrated acceptance; `None` stays default
+  after acceptance. Update relevant range/optimization contracts and ADR 0001's
+  deferral with the narrow M6 exception, preserving historical release evidence and
+  explicit deferred-candidate status.
+
+See [ADR 0011](adr/0011-bounded-m6-range-scalar-replacement.md) for the scope and
+resource-observability trade-off. All three interview rounds and the final shared
+understanding are confirmed. No implementation is authorized by these interview
+records alone.
+
 ### Important safety rule
 
 Do **not** implement a general “reset heap at function return” strategy. The temporary-region path from M2 must remain isolated from longer-lived heap allocations. Function calls may return handles, mutate shared arrays, call the host, or create closure environments. A blanket reset can invalidate live data. Escape analysis or a typed ownership discipline must justify every region reset.
