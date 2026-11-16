@@ -23,6 +23,11 @@ fractional values, signed zero, infinities, and NaN. Integer-valued numbers do n
 form a separate language type.
 _Avoid_: Inferred integer type, integer-looking type
 
+**String**:
+An immutable UTF-8 text value whose length and positions in proposed M5 operations
+are measured in bytes; reassignment changes a binding, not the prior value.
+_Avoid_: Mutable text buffer, character-indexed string
+
 **Array**:
 A mutable collection whose elements share one type; assignment and parameter
 passing share the collection rather than copying its elements. Ordinary arrays

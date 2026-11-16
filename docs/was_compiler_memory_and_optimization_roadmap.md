@@ -1084,35 +1084,196 @@ milestone decision remain pending. There is no new ownership/marshaling API,
 full UTF-8 scan, reclamation or fusion. The design record below retains its
 proposal/confirmation scope; it is not evidence that the second slice is delivered.
 
-### Recommended semantics
+### M5 interview decisions (2026-10-30; confirmed)
 
-Keep `string` immutable. Operations such as concatenation and replacement return an immutable result without changing existing strings; unchanged or already available results may reuse storage rather than requiring fresh allocation. Reassignment updates a binding, not the bytes owned by the prior string value.
+The following boundaries are confirmed design decisions, not implemented support.
+Rounds 1–4 and the final shared-understanding confirmation settle the contracts
+below and close the design interview. Implementation and tracker planning remain
+separate work, not authorized by this design confirmation. See
+[ADR 0010](adr/0010-immutable-string-operations-and-fragment-construction.md)
+for the architectural trade-offs.
+
+- **Immutable values:** Transformations leave aliases, interned literals and
+  strings stored in arrays unchanged. Reassignment changes only the binding.
+  Results may reuse existing strings; fresh handle identity is not guaranteed.
+  No mutable-string type or general string reclamation is authorized.
+- **Two required slices:** First implement immutable concatenation, literal
+  replacement and slicing; then explicit buffered construction. Each slice needs
+  its own acceptance gate, and both are required for M5 completion. Measuring
+  quadratic retention from repeated immutable concatenation is not sufficient
+  to satisfy efficient construction. Automatic concatenation fusion stays in M6.
+- **Byte positions:** M5 uses UTF-8 byte offsets and byte lengths, exposed through
+  explicitly byte-named APIs. Slices must end and begin at Unicode-scalar
+  boundaries; splitting a code point traps. Scalar/grapheme indexing and
+  normalization remain deferred. Confirmed bounds are specified below.
+- **Builtin surface:** Immutable transformations start as named builtin functions,
+  not string `+`, identifier-only methods or general postfix chaining. Calls are
+  positional-only and excluded from direct builtin pipeline stages.
+- **Trusted-host boundary:** Preserve structural descriptor validation and the
+  host obligation to provide valid, immutable UTF-8. Add operation-specific checks,
+  not mandatory full UTF-8 scans for every string operation. Valid-output guarantees
+  assume inputs supplied under the existing ABI contract.
+
+#### Confirmed immutable API and construction direction (round 2)
+
+```text
+string_concat(left: string, right: string) -> string
+string_replace_all(source: string, needle: string, replacement: string) -> string
+string_slice_bytes(source: string, start: number, end: number) -> string
+string_byte_len(source: string) -> number
+```
+
+- Fixed arity and exact types; no conversions, optional arguments, string `+`, or
+  `len(string)` overload. Byte length does not count scalars or graphemes.
+- Replacement uses exact, case-sensitive UTF-8 matching, left-to-right and
+  nonoverlapping, without rescanning inserted text. Empty needles trap. There
+  are no regexes, normalization, locale rules or replacement-template syntax.
+  Replacing `aa` with `b` in `aaa` yields `ba`.
+- Slicing uses strict half-open `[start, end)` bounds. Both numbers must be finite
+  integers with `0 <= start <= end <= byte_length`, and both positions must be
+  Unicode-scalar boundaries. Accept negative zero as zero; never clamp. An empty
+  slice at a position inside a code point still traps.
+- Evaluate arguments once, left-to-right, before operation-specific checks;
+  then structurally validate string operands in argument order, check operation
+  constraints, check result size and allocate as necessary. Argument evaluation
+  traps stop later evaluation; existing function-entry and host-return validation
+  remains unchanged. Fast paths cannot skip argument effects or validation of an
+  otherwise unused operand. Completed effects and allocations are not rolled back.
+- The second slice uses `string[]` fragments plus one-shot join, not a new mutable
+  builder type. Existing resizable arrays support fragment accumulation. This
+  avoids repeatedly copying accumulated text but retains fragments and array
+  storage under existing lifetime rules; it promises no constant retained-memory
+  bound. Join's confirmed signature and observation rules follow below.
+- New builtin names are reserved for global user functions and host-language
+  registration, but lexical bindings may shadow them, following `resizable`.
+  A shadowing noncallable produces the ordinary call error, without builtin
+  fallback. Arbitrary nonempty host module/field names remain unrestricted.
+- All new M5 builtins, including byte length, remain outside the default/contract
+  pure-expression whitelist. Rejection covers skipped/unreachable source and
+  forged typed input; M5 does not authorize a whitelist expansion.
+
+#### Join, initial storage policy and validation gates (round 3)
+
+```text
+string_join(parts: string[], separator: string) -> string
+```
+
+- Both arguments are required. Accept fixed or resizable string arrays without
+  requiring resize authority. Insert separators only between entries, including
+  empty entries: `[]` and `[""]` yield empty text; `["", ""]` with separator `,`
+  yields `,`; `["a", "", "b"]` yields `a,,b`. Apply the other M5 builtin rules.
+- Evaluate parts then separator before inspecting the captured array's current
+  contents. Separator evaluation may mutate/resize that array through aliases;
+  join sees the resulting state. Binding reassignment does not redirect it.
+  Validate separator and complete array storage before processing entries, then
+  validate all consumed string handles in index order. Even zero/one-entry joins
+  validate the separator. After argument evaluation there are no callbacks.
+  Use a sizing/validation pass followed by copying without mutating inputs.
+- **Initial M5 implementation policy, not permanent language restrictions:** Empty-operand
+  concat returns the other operand; no-match or content-identical replacement
+  returns the source; full-range slicing returns the source; a one-entry join
+  returns its validated entry. Zero-byte results may reuse a shared empty string.
+  Other results use a new descriptor and copied payload, including proper
+  nonempty slices. Required validation always precedes reuse. Later implementations
+  may broaden reuse only after establishing equivalence for host-observable handles,
+  allocation failures, memory growth, validation/trap order and lifetime safety,
+  not merely equal contents. This authorizes no M5 concatenation fusion.
+- Preserve memory32 ABI and allocator bounds with widened checked result-size
+  arithmetic. Unrepresentable sizes trap before result allocation. Add no arbitrary
+  guest string-size cap, implicit host import, release of published strings, or
+  enrollment of string results in M4 reclaimable payloads. Prefer one allocation
+  for a new descriptor plus payload. Do not retain per-match/per-fragment
+  intermediate result strings; join uses constant auxiliary Wasm locals rather
+  than allocating a second collection.
+- Each slice requires frontend, forged-typed-input, independent decoded-Wasm and
+  bounded runtime coverage. Final completion also requires current-source CLI/
+  browser parity and the full documented offline validation gates. Cover aliases,
+  interned literals, malformed descriptors, UTF-8 boundaries, numeric edge cases,
+  argument effects/trap order, retained handles after traps, memory growth/reentry
+  and optimization-preset parity. Programs without new operations preserve bytes
+  and helper ordering except deliberate new-name reservation errors.
+- Fragment construction uses implemented M4 behavior but does not dispose of
+  M4's pending performance acceptance. Correctness, measurement evidence and
+  integrated release decisions remain separate.
+
+#### Efficient string construction — acceptance criteria (user-specified)
+
+Efficient string construction must be validated through deterministic allocation
+and copying instrumentation, complemented by independent runtime and
+compilation-time benchmarks.
+
+The primary comparison must cover repeated string concatenation versus fragment
+accumulation followed by a single final `join`.
+
+For fixed-size fragments, the validation suite must establish that:
+
+1. **Baseline concatenation:** A non-optimized, copy-based repeated-concatenation
+   baseline exhibits the expected cumulative copying cost. This behavior is not
+   required of optimized implementations.
+2. **Linear construction:** Fragment accumulation followed by `join` exhibits
+   O(n + B) aggregate storage and copying growth, where n is the fragment count
+   and B is the total byte length of fragments and separators.
+3. **No intermediate strings:** When final materialization is required, `join`
+   writes each fragment and separator occurrence directly into the final result
+   payload, without constructing intermediate concatenated strings.
+4. **Storage reuse:** The implementation may reuse an existing immutable string
+   representation when doing so preserves observable semantics and lifetime safety.
+5. **Correctness:** Tests cover empty fragments, empty arrays, empty and nonempty
+   separators, multibyte UTF-8, and array-growth boundaries.
+6. **Instrumentation:** Deterministic, test-only counters distinguish string
+   payload allocations and copies from array growth, descriptor allocations, and
+   other runtime overhead.
+7. **Performance measurements:** Runtime and compilation-time costs are measured
+   separately using ordinary, non-instrumented instances. Results must report
+   methodology and environment without assuming a guaranteed speedup.
+
+These criteria define the expected algorithmic and allocation behavior, not
+mandatory physical allocation counts or an implementation-specific storage layout.
+
+#### Accounting boundary and replacement complexity (round 4)
+
+- The O(n + B) claim covers one fragment-accumulation workload through one final
+  join. Count fragment occurrences, including empty ones, in n; count fragment
+  bytes by occurrence plus all output separator occurrences in B.
+- Attribute retained array-growth allocations, descriptors and newly allocated
+  string payloads to the workload. Count array-handle relocation separately from
+  string-payload copying. Report preexisting input storage separately rather than
+  charging it repeatedly as new allocation; report fragment-production costs
+  separately from accumulation/join overhead. Repeated joins producing separately
+  retained outputs are separate constructions.
+- Report transient storage peaks separately from completed-call retained storage.
+- Linear-construction acceptance does not promise linear-time substring search
+  for replacement. Initial replacement may use straightforward bounded-memory
+  search; include adversarial repetitive sources/needles in runtime measurements.
+  Checked result sizing and direct final-payload construction remain mandatory.
+
+### Agreed staged surface (not yet implemented)
+
+| Slice | Functionality | Acceptance |
+|---|---|---|
+| First | `string_concat`, `string_replace_all`, `string_slice_bytes`, `string_byte_len` | Immutable transformations, strict byte boundaries, checked lowering and observable-order tests. |
+| Second | `string_join` over fixed/resizable `string[]` fragments | Direct final materialization and deterministic O(n + B) construction evidence. |
+| Deferred | Scalar/grapheme operations, normalization, automatic fusion | Separately designed/authorized work; fusion stays in M6. |
+
+Proposed usage (not current language support):
 
 ```text
 let message = "hello";
-message = message.replace("hello", "world");
+let original = message;
+message = string_replace_all(message, "hello", "world");
+// original still denotes "hello".
+
+let parts: string[] = resizable([]);
+parts.push(message);
+parts.push("!");
+let result = string_join(parts, "");
 ```
 
-That supports a common meaning of “change a string” without exposing shared mutable UTF-8 buffers. Literal interning remains valid.
-
-### Implementation considerations
-
-- Store/validate UTF-8 byte length independently of any future Unicode scalar or grapheme operations.
-- Specify whether indexing is by byte, scalar value, or grapheme cluster; do not conflate them.
-- Prevent a shared literal from becoming the destination of a mutable write.
-- For many concatenations, introduce a builder/buffer abstraction or compiler-recognized concatenation lowering to reduce intermediate allocations.
-- Decide whether string APIs become builtins first or wait for a future standard library. They need not wait for a module system.
-- Ensure `string[]` stores valid handles and preserves value semantics during array resizing.
-
-### Candidate staged surface
-
-| Step | Candidate functionality | Rationale |
-|---|---|---|
-| First | Concatenation, `replace`, substring/slice | Usable immutable transformations. |
-| Next | `StringBuilder` or equivalent buffered construction | Avoid allocating O(n) intermediates in repeated appends. |
-| Later | Unicode-aware iteration/editing | Requires explicit indexing and normalization decisions. |
-
-**Exit gate:** Modifying a binding's string never mutates an aliased or interned string; UTF-8 remains valid; repeated construction has measured allocation behavior.
+**Exit gate:** Both slices pass their focused and integrated correctness gates;
+aliases/interned strings remain unchanged; valid UTF-8 inputs produce valid UTF-8
+results; efficient construction meets the representation-independent acceptance
+criteria above. Measurements report environment/methodology without promising a
+speedup. M5 completion does not imply M4 performance acceptance.
 
 ---
 
@@ -1442,7 +1603,9 @@ flowchart TD
 
 ## 21. Decisions required before implementation
 
-These are intentionally **open decisions**, not hidden assumptions:
+These are decision checkpoints, not hidden assumptions. M5 checkpoints 8–9
+are resolved in §9's confirmed interview record;
+other checkpoints retain their milestone-specific status.
 
 1. **Array descriptor compatibility:** adopt a public ABI v2 (e.g., 16-byte descriptor), or preserve the public 8-byte descriptor with private capacity metadata?
 2. **Reclamation model:** use proven region reclamation for temporaries; what ownership, RC, tracing, or nonreclamation fallback applies to arbitrary shared heap objects?
@@ -1451,8 +1614,8 @@ These are intentionally **open decisions**, not hidden assumptions:
 5. **Host ownership:** may JS/Node allocate and hand off array descriptors? Can the Wasm side resize these arrays, and who frees their storage?
 6. **`pop` and empty collections:** return type and error/trap behavior given the currently limited optional-value types.
 7. **Iteration under mutation:** M0 confirms initial-length capture and live checked reads as the proposed M4 contract; M4 must implement/test this behavior without assuming it is already shipped.
-8. **String API:** immutable `replace`/concat only, or an additional explicit mutable builder?
-9. **Unicode indexing:** bytes, Unicode scalars, grapheme clusters, or a restricted first implementation?
+8. **String API (M5 design resolved):** immutable transformation builtins plus fragment accumulation in `string[]` and one final `string_join`; no new mutable builder type. See §9.
+9. **Unicode indexing (M5 design resolved):** explicit byte lengths/offsets with strict scalar-boundary slicing; scalar/grapheme indexing and normalization deferred. See §9.
 10. **ABI numeric boundaries:** retain `f64` for all public `number` signatures and numeric arrays until a separately planned ABI version?
 11. **Optimization failure behavior:** should a missing/failing Binaryen installation be an error only for explicitly requested optimization, or always fall back to unoptimized Wasm?
 12. **Memory diagnostics:** M0/M2 establish test-only instrumentation boundaries; which additional counters and opt-in reports are worthwhile for M14 without shipping a debugging runtime in release builds?
