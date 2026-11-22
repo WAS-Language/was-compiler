@@ -1556,7 +1556,74 @@ Until then, the subset remains experimental.
 
 **Goal:** Implement optimizations that benefit from information only the WAS compiler knows.
 
-### Recommended starting passes
+### M8 interview decisions (round 1; confirmed)
+
+- M8 targets one bounded constant-folding pass for closed scalar expressions.
+  Constant propagation, dead-code elimination, control-flow simplification,
+  broader numeric representation selection, and allocation elimination are
+  deferred. M6 direct range-loop scalar replacement and M7 integer specialization
+  are composition cases, not new M8 deliverables.
+- This interview does not create an exception to the [WP13 entry gate](was_language_extensions_plan.md#wp13--benchmark-gated-optimization-separate-authorization).
+  Implementation requires WP12's pending correctness exit and separate explicit
+  authorization. A confirmed design is not implementation or release approval.
+- M6 and M7's pending performance decisions block M8 release acceptance, not
+  design or separately authorized implementation. Require current-source
+  composition evidence and explicit disposition of material regressions; an
+  explicit decision to keep either optimization experimental can satisfy the
+  sequencing gate without shipping it or changing defaults.
+- Preserve semantic and backend diagnostics for malformed source and forged
+  typed input, including unreachable and runtime-skipped children. Optimization
+  must not remove or replace any check that can produce a diagnostic.
+
+### M8 interview decisions (round 2; confirmed)
+
+- Fold only trees built from number and bool literals and the following operators:
+  numeric negation, addition, subtraction, multiplication, and ordering comparisons;
+  same-type number or bool equality/inequality; and boolean negation. Use binary64
+  semantics at every numeric operation, including rounding, subnormals, and signed
+  zero. Require finite numeric results at every step; decline a parent fold if an
+  intermediate result is nonfinite. Division, remainder, short-circuit operators,
+  calls, binding reads, strings, collections, ranges, and control flow are not
+  foldable roots. Their eligible children may still fold independently.
+- Use private folding facts in the existing checked lowering path. Emit a folded
+  constant only after checking the original subtree in diagnostic order. Do not
+  rewrite the public typed AST, add a second validator or IR, or compile a baseline
+  module as a preliminary check.
+- `None` remains default and byte-compatible, and direct `codegen::compile` is
+  unchanged. `Basic`, `Standard`, and `Aggressive` share one folding policy and
+  must emit identical bytes. Require adapter byte parity within each preset. A
+  private test toggle isolates M8 while holding M6 and M7 fixed; there is no new
+  public flag or preset split.
+
+### M8 interview decisions (round 3; confirmed)
+
+- Apply the same whitelist at existing checked expression sites, including
+  contracts, normalized defaults, local callables, and eligible children of
+  excluded constructs. Folding must not remove a contract guard, move evaluation
+  across control flow, or change argument, effect, or trap order.
+- Replace only the selected subtree's emitted instructions. Keep the representation
+  selected for that site and keep M6/M7 facts, local planning, helper discovery,
+  and module layout based on the original tree. If no fold applies, bytes must
+  match with M8 disabled and M6/M7 held fixed.
+- On final sources, require independent expected results, decoded Wasm, and
+  isolated M8-on/off comparisons. Cover signed zero, subnormal rounding,
+  overflow fallback, forged errors in skipped and unreachable code, effect
+  and trap order, and M6/M7 composition. Run the existing offline release
+  gates, including a fresh browser build, adapter byte parity, and the full
+  workspace with ignored tests enabled. An unavailable gate stays unverified.
+- Use reproducible, matched measurements of compilation cost, module bytes,
+  and guest time on folding workloads and no-fold controls, separating M8
+  from M6/M7. M8 stays experimental without a demonstrated size or guest-time
+  benefit and explicit disposition of material regressions. Instruction-count
+  reductions alone are insufficient; do not set a threshold after seeing results.
+- [ADR 0012](adr/0012-fold-scalars-during-checked-lowering.md) records the
+  checked-lowering boundary and why M8 does not rewrite the typed tree.
+
+The user confirmed the shared understanding after all three rounds, closing the
+M8 design interview. Implementation is not authorized and release acceptance has
+not been established.
+
+### Original candidate list (not the M8 completion checklist)
 
 1. Constant folding with exact source semantics and trap/evaluation-order preservation.
 2. Constant propagation for bindings without conflicting writes or captures.
@@ -1566,25 +1633,19 @@ Until then, the subset remains experimental.
 6. Local numeric representation selection backed by dataflow/range analysis.
 7. Targeted allocation elimination for provably nonescaping objects, informed by M1 escape facts and M2 region profiling.
 
-### Suggested pipeline
+### Selected pipeline and pass contract
 
 ```text
-Typed AST
-  -> semantic and effect information
-  -> conservative optimization passes
-  -> optional representation/lifetime analysis
-  -> wasm-encoder
-  -> optional Binaryen wasm-opt
-  -> validated Core Wasm
+original TypedProgram -> existing layout and representation planning
+                      -> checked lowering with optional scalar folding
+                      -> Wasm section assembly
 ```
 
-Avoid prematurely introducing a large custom intermediate representation. If join points, control-flow edges and effect analysis become cumbersome in the Typed AST, consider a small explicit-control-flow IR as a **later design decision**, supported by concrete optimizer needs.
-
-### Pass contract
-
-Each pass should declare its prerequisites, preserved invariants, whether it can allocate, and whether it may reorder effects. Optimizations must never suppress static errors in unreachable code if that remains the language's checking policy.
-
-**Exit gate:** Passes are independently toggleable in tests and preserve the behavior of their unoptimized inputs.
+M8 does not add guest allocation, reorder effects, or remove static checks.
+The pass is independently toggleable in tests and must preserve behavior and
+first-diagnostic order. M8 acceptance requires the correctness, composition,
+and measurement evidence above. Binaryen and any future control-flow IR remain
+separate decisions.
 
 ---
 
