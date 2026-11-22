@@ -20,6 +20,15 @@ impl OptimizationLevel {
             }
         }
     }
+
+    pub(crate) fn range_policy(self) -> crate::codegen::RangePolicy {
+        match self {
+            Self::None => crate::codegen::RangePolicy::Allocated,
+            Self::Basic | Self::Standard | Self::Aggressive => {
+                crate::codegen::RangePolicy::ScalarDirectLoops
+            }
+        }
+    }
 }
 
 pub(crate) fn optimize(program: &TypedProgram, level: OptimizationLevel) -> Cow<'_, TypedProgram> {

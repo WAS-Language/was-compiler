@@ -109,6 +109,150 @@ fn local_types(body: &FunctionBody<'_>) -> Vec<ValType> {
 }
 
 #[test]
+fn enabled_presets_remove_only_the_direct_loop_record() {
+    let source = "fn direct(a: number, b: number) -> void { for i in (a..=b) {} }
+                  fn indirect(a: number, b: number) -> void { for i in { a..=b } {} }";
+    let program = analyze(source);
+    let baseline = codegen::compile(&program).unwrap();
+    let mut compiler = Compiler::new();
+    assert_eq!(compiler.compile(&program).unwrap(), baseline);
+    let mut enabled = None;
+
+    for level in LEVELS.into_iter().skip(1) {
+        compiler.set_optimization_level(level);
+        let bytes = compiler.compile(&program).unwrap();
+        assert_eq!(&bytes, enabled.get_or_insert_with(|| bytes.clone()));
+
+        let direct = function_body(&bytes, 0);
+        let ops = direct
+            .get_operators_reader()
+            .unwrap()
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(!ops.iter().any(|op| matches!(
+            op,
+            Operator::Call { .. } | Operator::I64Load { .. } | Operator::I32Load { .. }
+        )));
+        assert_eq!(
+            ops.iter()
+                .filter(|op| matches!(op, Operator::I64TruncF64S))
+                .count(),
+            3
+        );
+        assert!(ops.iter().any(|op| matches!(op, Operator::I64Add)));
+        assert!(matches!(ops[..5], [
+            Operator::LocalGet { local_index: 0 },
+            Operator::LocalGet { local_index: 1 },
+            Operator::F64Const { value },
+            Operator::LocalSet { local_index: 9 },
+            Operator::LocalSet { local_index: 8 },
+        ] if f64::from_bits(value.bits()) == 1.0));
+        assert!(matches!(ops[5], Operator::LocalSet { local_index: 7 }));
+        let guards = ops[..ops
+            .iter()
+            .position(|op| matches!(op, Operator::I64TruncF64S))
+            .unwrap()]
+            .windows(3)
+            .filter_map(|op| match op {
+                [
+                    Operator::LocalGet { local_index },
+                    Operator::F64Abs,
+                    Operator::F64Const { value },
+                ] => {
+                    assert_eq!(f64::from_bits(value.bits()), 9_007_199_254_740_991.0);
+                    Some((*local_index, "domain"))
+                }
+                [
+                    Operator::LocalGet { local_index },
+                    Operator::F64Trunc,
+                    Operator::LocalGet {
+                        local_index: second,
+                    },
+                ] => {
+                    assert_eq!(local_index, second);
+                    Some((*local_index, "integral"))
+                }
+                [
+                    Operator::LocalGet { local_index },
+                    Operator::F64Const { value },
+                    Operator::F64Eq,
+                ] => {
+                    assert_eq!(value.bits(), 0);
+                    Some((*local_index, "nonzero"))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            guards,
+            [
+                (7, "domain"),
+                (7, "integral"),
+                (8, "domain"),
+                (8, "integral"),
+                (9, "domain"),
+                (9, "integral"),
+                (9, "nonzero")
+            ]
+        );
+
+        // The indirect control and every helper retain their exact bodies and indices.
+        for index in 1..11 {
+            assert_eq!(
+                function_body(&bytes, index).as_bytes(),
+                function_body(&baseline, index).as_bytes()
+            );
+        }
+        let non_code = |module: &[u8]| {
+            Parser::new(0)
+                .parse_all(module)
+                .filter_map(|payload| {
+                    let (id, range) = payload.unwrap().as_section()?;
+                    (id != 10).then(|| {
+                        (
+                            id,
+                            module[usize::try_from(range.start).unwrap()
+                                ..usize::try_from(range.end).unwrap()]
+                                .to_vec(),
+                        )
+                    })
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(non_code(&bytes), non_code(&baseline));
+    }
+}
+
+#[test]
+fn direct_range_checks_later_operands_after_abrupt_completion_before_checking_body() {
+    let mut program = analyze(
+        "fn main() -> void {
+        for i in { return; 0 }..2 by 1 { 3; }
+    }",
+    );
+    let span = program.functions[0].body[0].span;
+    let (_, _, iterable, body) = for_parts(&mut program.functions[0].body[0]);
+    let TypedExprKind::Range { end, step, .. } = &mut iterable.kind else {
+        panic!("expected direct range");
+    };
+    end.kind = TypedExprKind::Number("NaN".into());
+    step.as_mut().unwrap().kind = TypedExprKind::Number("Infinity".into());
+    let TypedStatementKind::Expression(expr) = &mut body[0].kind else {
+        panic!("expected expression statement");
+    };
+    expr.kind = TypedExprKind::Number("bad".into());
+    assert_rejected(
+        &program,
+        CodegenError::InvalidNumberLiteral {
+            function: "main".into(),
+            literal: "NaN".into(),
+            span,
+        },
+    );
+}
+
+#[test]
 fn iteration_binding_and_scratch_have_exact_types_and_order() {
     let compiler = Compiler::new();
     let program = compiler
@@ -966,17 +1110,16 @@ fn check_transfer_targets(iterable: &str) {
 
 #[test]
 fn iterable_transfers_use_the_enclosing_loop_never_the_new_for() {
-    for iterable in ["0..1", "[1]"] {
-        check_iterable_transfers(iterable);
+    for (tail, suffix) in [("0..1", ""), ("[1]", ""), ("0", "..1")] {
+        check_iterable_transfers(tail, suffix);
     }
 }
 
-fn check_iterable_transfers(iterable: &str) {
-    let analyze = |source: &str| analyze(&source.replace("0..1", iterable));
+fn check_iterable_transfers(tail: &str, suffix: &str) {
     for keyword in ["break", "continue"] {
         let source = format!(
             "fn hidden() -> void {{ while true {{
-            for i in {{ {keyword}; 0..1 }} {{}}
+            for i in {{ {keyword}; {tail} }}{suffix} {{}}
         }} }} fn main() -> void {{}}"
         );
         let original = analyze(&source);
@@ -988,7 +1131,11 @@ fn check_iterable_transfers(iterable: &str) {
         };
         let (id, _, iterable, _) = for_parts(&mut body[0]);
         let target = *id;
-        let TypedExprKind::Block(block) = &mut iterable.kind else {
+        let transfer = match &mut iterable.kind {
+            TypedExprKind::Range { start, .. } => &mut start.kind,
+            kind => kind,
+        };
+        let TypedExprKind::Block(block) = transfer else {
             panic!("block");
         };
         let span = block.statements[0].span;
@@ -1124,41 +1271,10 @@ fn planning_keeps_preorder_slots_for_nested_unreachable_and_short_circuited_fors
     }",
     );
     let snapshot = program.clone();
-    let expected_locals = [
-        ValType::F64,
-        ValType::I32,
-        ValType::F64,
-        ValType::I32,
-        ValType::F64,
-        ValType::F64,
-        ValType::I32,
-        ValType::I32,
-        ValType::I64,
-        ValType::I64,
-        ValType::I64,
-        ValType::I32,
-        ValType::I32,
-        ValType::I32,
-        ValType::I64,
-        ValType::I64,
-        ValType::I64,
-        ValType::I32,
-        ValType::I32,
-        ValType::I32,
-        ValType::F64,
-        ValType::I32,
-        ValType::I32,
-        ValType::I64,
-        ValType::I64,
-        ValType::I64,
-        ValType::I32,
-        ValType::I32,
-        ValType::I64,
-        ValType::I64,
-        ValType::I64,
-        ValType::I32,
-        ValType::I32,
-    ];
+    use ValType::{F64, I32, I64};
+    let bindings = [F64, I32, F64, I32, F64, F64, I32];
+    let allocated = [I32, I64, I64, I64, I32];
+    let scalar = [I64, I64, I64, I32, F64, F64, F64];
     let baseline = codegen::compile(&program).unwrap();
     let mut compiler = Compiler::new();
     for level in LEVELS {
@@ -1168,6 +1284,22 @@ fn planning_keeps_preorder_slots_for_nested_unreachable_and_short_circuited_fors
             assert_eq!(bytes, baseline);
         }
         assert_eq!(compiler.compile(&program).unwrap(), bytes);
+        let (direct, expected_updates): (&[_], _) = if level == OptimizationLevel::None {
+            (&allocated, [14, 8, 23, 28])
+        } else {
+            (&scalar, [13, 8, 24, 31])
+        };
+        let expected_locals = [
+            &bindings[..],
+            &allocated,
+            &[I32],
+            direct,
+            &[I32, I32, F64, I32],
+            direct,
+            direct,
+            &[I32],
+        ]
+        .concat();
         let body = function_body(&bytes, 0);
         assert_eq!(local_types(&body), expected_locals);
         let ops = body
@@ -1184,8 +1316,7 @@ fn planning_keeps_preorder_slots_for_nested_unreachable_and_short_circuited_fors
             })
             .collect::<Vec<_>>();
         assert_eq!(
-            induction_updates,
-            [14, 8, 23, 28],
+            induction_updates, expected_updates,
             "distinct reserved slots, emitted in structural child order"
         );
         assert_eq!(program, snapshot);

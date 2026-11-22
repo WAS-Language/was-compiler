@@ -164,7 +164,7 @@ const ITERABLE_SOURCE: &str = r#"
         let n = 0;
         loop {
             n += 1;
-            for i in { sample(1, n); break; 0..1 } { emit(999); }
+            for i in { sample(1, n); break; 0 }..1 { emit(999); }
             emit(998);
         }
         return n;
@@ -173,14 +173,14 @@ const ITERABLE_SOURCE: &str = r#"
         let n = 0;
         while n < 3 {
             n += 1;
-            for i in { sample(1, n); if n < 3 { continue; } 0..=1 } { emit(i); }
+            for i in { sample(1, n); if n < 3 { continue; } 0 }..=1 { emit(i); }
             emit(100 + n);
         }
         return n;
     }
     fn valueBreak() -> number {
         return 10 + loop {
-            for i in { sample(1, 5); break 7; 0..1 } { emit(999); }
+            for i in { sample(1, 5); break 7; 0 }..1 { emit(999); }
             break 99;
         };
     }
@@ -210,7 +210,7 @@ const ITERABLE_SOURCE: &str = r#"
     }
     fn names() -> number {
         let i = 1;
-        for i in { i += 1; i..=4 } { emit(i); }
+        for i in { i += 1; i }..=4 { emit(i); }
         return i;
     }
     fn onlyReturn() -> number {
@@ -296,7 +296,17 @@ fn run_node_at_all_levels(mut compiler: Compiler, source: &str, script: &str) {
         assert_eq!(compiler.compile(&program).unwrap(), bytes);
         assert_eq!(compiler.analyze(source).unwrap(), program);
         let output = test_process::output(
-            Command::new("node").arg("-e").arg(script),
+            Command::new("node")
+                .env(
+                    "WAS_BASELINE",
+                    if level == OptimizationLevel::None {
+                        "1"
+                    } else {
+                        "0"
+                    },
+                )
+                .arg("-e")
+                .arg(script),
             Some(&bytes),
             Duration::from_secs(30),
         );
@@ -536,13 +546,24 @@ fn nested_and_sibling_fors_reserve_distinct_scratch_without_new_helpers() {
                 std::iter::repeat_n(ty, usize::try_from(count).unwrap())
             })
             .collect::<Vec<_>>();
-        assert_eq!(locals.iter().filter(|ty| **ty == ValType::F64).count(), 3);
+        let (floats, words) = if level == OptimizationLevel::None {
+            (3, 6)
+        } else {
+            (12, 3)
+        };
+        assert_eq!(
+            locals.iter().filter(|ty| **ty == ValType::F64).count(),
+            floats
+        );
         assert_eq!(
             locals.iter().filter(|ty| **ty == ValType::I64).count(),
             9,
             "three exact induction slots per for, without sibling reuse"
         );
-        assert!(locals.iter().filter(|ty| **ty == ValType::I32).count() >= 6);
+        assert_eq!(
+            locals.iter().filter(|ty| **ty == ValType::I32).count(),
+            words
+        );
     }
 }
 
@@ -793,6 +814,61 @@ fn node_iterable_transfers_use_enclosing_targets_and_return_before_body() {
         }
     "#;
     run_node_at_all_levels(compiler(), ITERABLE_SOURCE, script);
+}
+
+#[test]
+#[ignore = "requires Node.js on PATH"]
+fn node_direct_loops_remove_records_but_keep_operand_body_and_capture_allocations() {
+    let source = r#"
+        fn main(start: number, stop: number, depth: number) -> number {
+            let run = (a: number, b: number, d: number) => {
+                let total = 0;
+                for i in ({ let operand = [a]; operand[0] }..=b) {
+                    let read = () => i;
+                    let body = [read()];
+                    emit(i);
+                    if d > 0 && i == a { total += main(a + 10, a + 11, d - 1); }
+                    total += read() + body[0];
+                }
+                total
+            };
+            return run(start, stop, depth);
+        }
+    "#;
+    let script = r#"
+        const assert = require('node:assert/strict');
+        const events = [];
+        const e = new WebAssembly.Instance(
+            new WebAssembly.Module(require('node:fs').readFileSync(0)), {
+                env: { sample(t,v) { return v; }, mutate() {}, emit(n) {
+                    assert.ok(events.length < 16, 'guest iteration cap');
+                    events.push(n);
+                    if (n === 1) {
+                        assert.equal(e.main(20,21,0),82);
+                        assert.throws(() => e.main(40,40.5,0),WebAssembly.RuntimeError);
+                    }
+                } }, other: { unused() { return 0; } }
+            }).exports;
+        const record = process.env.WAS_BASELINE === '1' ? 32 : 0;
+        function allocated(action, expected) {
+            const before = e.__alloc(8) >>> 0;
+            action();
+            assert.equal((e.__alloc(8) >>> 0) - before - 8, expected);
+        }
+        // A 16-byte operand array, then 32 bytes per yield: the cell,
+        // environment, and body array. Only the optional record disappears.
+        for (let repeat = 0; repeat < 2; ++repeat) {
+            allocated(() => assert.equal(e.main(2,3,0),10),80 + record);
+            assert.deepEqual(events.splice(0),[2,3]);
+            allocated(() => assert.equal(e.main(3,2,0),0),16 + record);
+            assert.deepEqual(events.splice(0),[]);
+        }
+        // Successful outer, host-reentrant and recursive invocations plus a
+        // trapped reentry that allocated its operand before validation.
+        allocated(() => assert.equal(e.main(1,2,1),52),3 * (80 + record) + 16);
+        assert.deepEqual(events.splice(0),[1,20,21,11,12,2]);
+    "#;
+    run_node_at_all_levels(compiler(), source, script);
 }
 
 #[test]

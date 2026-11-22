@@ -104,10 +104,11 @@ impl Compiler {
     pub fn compile(&self, program: &TypedProgram) -> Result<Vec<u8>, CodegenError> {
         let optimized = optimization::optimize(program, self.options.optimization_level);
 
-        codegen::compile_with_policy(
+        codegen::compile_with_policies(
             optimized.as_ref(),
             &self.exports,
             self.options.optimization_level.numeric_policy(),
+            self.options.optimization_level.range_policy(),
         )
     }
 

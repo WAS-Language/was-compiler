@@ -82,7 +82,7 @@ Use the documented direct commands for bounded validation evidence.
 
 ```text
 source -> lexer -> parser AST -> semantic analysis + host signatures
-       -> TypedProgram -> borrowed optimization boundary + numeric policy
+       -> TypedProgram -> borrowed optimization boundary + numeric and range policies
        -> ABI/module layout -> checked function-body lowering + representation facts
        -> private ValidatedProgram -> wasm_encoder section assembly -> Wasm bytes
 ```
@@ -105,7 +105,7 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 | `crates/compiler/src/match_patterns.rs` | Shared semantic/backend numeric-pattern, domain and exhaustiveness checks |
 | `crates/compiler/src/flow.rs` | Private completion sets shared by semantic/backend flow summaries |
 | `crates/compiler/src/host.rs`, `crates/compiler/src/exports.rs` | Ordered host declarations, private external-type eligibility, and owned export selection |
-| `crates/compiler/src/optimization.rs` | Preset-to-numeric policy selection; borrowed `Cow<TypedProgram>` boundary without AST rewrites |
+| `crates/compiler/src/optimization.rs` | Preset-to-lowering policy selection; borrowed `Cow<TypedProgram>` boundary without AST rewrites |
 | `crates/compiler/src/lifetime.rs`, `crates/compiler/src/lifetime/` | Private `cfg(test)` M1 classifier and tests; borrowed direct-body array origins, invocation-wide closed proof and owner-qualified conservative explanations; not part of the production pipeline |
 | `crates/compiler/src/codegen/representation.rs` | Private per-body `Facts` cache for exact-i32 literal/add-sub/negation and eligible ordinary-local/read proofs |
 | `crates/compiler/src/codegen/abi.rs` | Internal language-to-Wasm signatures, separate external signature checks, and named memory-layout constants |
@@ -120,7 +120,7 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 | `crates/compiler/src/codegen/memory.rs`, `crates/compiler/src/codegen/numeric.rs` | Memory planning/helpers and optional floating remainder helper |
 | `crates/compiler/src/codegen/allocator.rs`, `crates/compiler/src/codegen/allocator/` | Private `cfg(test)` M3 adapter, controls, observations and tests; separate from M2 |
 | `crates/compiler/src/codegen/allocator_core.rs`, `crates/compiler/src/codegen/resizable.rs` | Private reusable allocation emission and production M4 constructor/authority planning; no public management API |
-| `crates/compiler/src/codegen/range.rs` | Private range discovery, construction, record-validation, and exact membership helpers |
+| `crates/compiler/src/codegen/range.rs` | Private range discovery, checked construction/direct-loop inputs, record validation and exact membership |
 | `crates/compiler/src/codegen/match_.rs` | Private checked match lowering, scrutinee cache, scoped arms and ordered comparison regions |
 | `crates/compiler/tests/match_frontend.rs`, `crates/compiler/tests/match_lowering.rs` | Match syntax/inference and forged-tree/decoded lowering contracts |
 | `crates/compiler/tests/match_runtime.rs`, `crates/cli/tests/match_adapters.rs`, `crates/browser/tests/match_adapters.rs` | Bounded match effects and CLI/current-source browser compatibility |
@@ -785,7 +785,10 @@ refactors; specify and test any intentional behavior change explicitly.
   before index advancement/retest. Legacy numeric helper order is unchanged; array-only for
   requires no range helpers.
 - For ranges, validate the consumed record and cache `i64` current/end/step and
-  `i32` inclusivity scratch. Test signed endpoints before exact `f64` conversion/yield (zero is +0).
+  `i32` inclusivity scratch. Enabled presets use a distinct #82 policy to validate
+  and populate those locals directly for typed `Range` roots. Before changing
+  selection or validation, read the [private range contract](docs/memory-abi.md#private-range-record)
+  and [M6 decision](docs/adr/0011-bounded-m6-range-scalar-replacement.md). Test signed endpoints before exact `f64` conversion/yield (zero is +0).
   Continue exits a body latch block, then `I64Add` advances and the loop retests;
   resolve branch depths from label identity, including nested expression regions.
 - With `M = 2^53−1`, every yielded current and nonzero step have magnitude ≤ M,

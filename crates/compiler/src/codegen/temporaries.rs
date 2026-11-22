@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 use crate::typed_ast::{TypedExpr, TypedExprKind, TypedStatement, TypedStatementKind};
 use wasm_encoder::ValType;
 
-use super::{CodegenError, closures::BodyOwner, walker::Visitor};
+use super::{CodegenError, RangePolicy, closures::BodyOwner, walker::Visitor};
 
 #[cfg(test)]
 use super::walker;
@@ -17,17 +17,19 @@ pub(super) fn plan(
 
 #[cfg(test)]
 pub(super) fn for_owner(function: BodyOwner<'_>) -> Result<Vec<ValType>, CodegenError> {
-    for_owner_with_movable(function, false)
+    for_owner_with_policies(function, false, RangePolicy::Allocated)
 }
 
-pub(super) fn for_owner_with_movable(
+pub(super) fn for_owner_with_policies(
     function: BodyOwner<'_>,
     movable: bool,
+    ranges: RangePolicy,
 ) -> Result<Vec<ValType>, CodegenError> {
     let mut visitor = TemporaryVisitor {
         count: 0,
         types: Vec::new(),
         movable,
+        ranges,
     };
 
     if let ControlFlow::Break(error) = function.walk(&mut visitor) {
@@ -43,6 +45,7 @@ fn count(block: &crate::typed_ast::TypedBlock) -> Result<u32, CodegenError> {
         count: 0,
         types: Vec::new(),
         movable: false,
+        ranges: RangePolicy::Allocated,
     };
 
     if let ControlFlow::Break(error) = walker::walk_block(block, &mut visitor) {
@@ -54,6 +57,7 @@ fn count(block: &crate::typed_ast::TypedBlock) -> Result<u32, CodegenError> {
 
 struct TemporaryVisitor {
     movable: bool,
+    ranges: RangePolicy,
     count: u32,
     types: Vec<ValType>,
 }
@@ -124,13 +128,14 @@ impl Visitor<'_> for TemporaryVisitor {
             if super::array::iteration_element(iterable).is_some() {
                 self.reserve(&[ValType::I32, ValType::I32, ValType::I32])?;
             } else {
-                self.reserve(&[
-                    ValType::I32,
-                    ValType::I64,
-                    ValType::I64,
-                    ValType::I64,
-                    ValType::I32,
-                ])?;
+                let scalar = self.ranges.scalar_replaces(iterable);
+                if !scalar {
+                    self.reserve(&[ValType::I32])?;
+                }
+                self.reserve(&[ValType::I64, ValType::I64, ValType::I64, ValType::I32])?;
+                if scalar {
+                    self.reserve(&[ValType::F64; 3])?;
+                }
             }
         }
 
@@ -368,6 +373,7 @@ mod tests {
             count: u32::MAX - 1,
             types: Vec::new(),
             movable: false,
+            ranges: RangePolicy::Allocated,
         };
 
         assert_eq!(
@@ -389,6 +395,7 @@ mod tests {
             count: u32::MAX,
             types: Vec::new(),
             movable: false,
+            ranges: RangePolicy::Allocated,
         };
 
         assert_eq!(

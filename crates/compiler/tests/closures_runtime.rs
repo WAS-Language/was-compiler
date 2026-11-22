@@ -47,7 +47,16 @@ fn run(source: &str, selected: &[&str], assertions: &str) {
         "#
         );
         let output = test_process::output(
-            Command::new("node").args(["-e", &script]),
+            Command::new("node")
+                .env(
+                    "WAS_BASELINE",
+                    if level == OptimizationLevel::None {
+                        "1"
+                    } else {
+                        "0"
+                    },
+                )
+                .args(["-e", &script]),
             Some(&bytes),
             Duration::from_secs(30),
         );
@@ -502,13 +511,15 @@ fn captured_range_iterations_keep_fresh_monotonic_eight_byte_cells() {
         &["main"],
         r#"
         const retained = [];
+        const record = process.env.WAS_BASELINE === '1' ? 32 : 0;
         for (let call = 0; call < 2; call++) {
             const before = e.__alloc(8) >>> 0;
             assert.equal(e.main(), 9);
             const after = e.__alloc(8) >>> 0;
-            // One 32-byte range record, then three distinct cell/environment pairs.
-            assert.equal(after - before - 8, 80);
-            const cells = [before + 40, before + 56, before + 72];
+            // Three distinct cell/environment pairs after the optional range record.
+            assert.equal(after - before - 8, record + 48);
+            const first = before + 8 + record;
+            const cells = [first, first + 16, first + 32];
             const view = new DataView(e.memory.buffer);
             assert.deepEqual(cells.map(p => view.getFloat64(p, true)), [2,3,4]);
             assert.deepEqual(cells.map(p => view.getUint32(p + 8, true)), cells);
@@ -611,12 +622,13 @@ fn captured_iterations_allocate_only_successful_yields_even_when_declarations_ar
             assert.equal(iteration, values.length);
             assert.deepEqual(events.splice(0), values);
         }
-        check(() => e.ranged(2, 5, 0), 80, [2,3,4], 32, 16);
-        check(() => e.ranged(2, 5, 1), 56, [2,3,4], 32, 8);
-        check(() => e.ranged(2, 5, 2), 40, [2], 32, 8);
-        check(() => e.ranged(2, 2, 0), 32, [], 32, 16);
-        check(() => e.ranged(5, 2, 1), 32, [], 32, 8);
-        check(() => e.ranged(2, 3, 0), 48, [2], 32, 16);
+        const record = process.env.WAS_BASELINE === '1' ? 32 : 0;
+        check(() => e.ranged(2, 5, 0), record + 48, [2,3,4], record, 16);
+        check(() => e.ranged(2, 5, 1), record + 24, [2,3,4], record, 8);
+        check(() => e.ranged(2, 5, 2), record + 8, [2], record, 8);
+        check(() => e.ranged(2, 2, 0), record, [], record, 16);
+        check(() => e.ranged(5, 2, 1), record, [], record, 8);
+        check(() => e.ranged(2, 3, 0), record + 16, [2], record, 16);
         check(() => e.arrayed(xs, 0), 48, [2,3,4], 0, 16);
         check(() => e.arrayed(xs, 1), 24, [2,3,4], 0, 8);
         check(() => e.arrayed(xs, 2), 8, [2], 0, 8);

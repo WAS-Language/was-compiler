@@ -3,8 +3,9 @@
 WP5 adopts one immutable bump-allocated range record rather than introducing both
 handle and allocation-free scalar representations. This keeps internal calls and
 checked lowering uniform while supporting exact safe-integer membership semantics;
-scalar replacement is deferred to WP13 until measurements and semantic proofs
-justify its complexity.
+WP5 deferred scalar replacement to WP13 until measurements and semantic proofs
+could justify its complexity. The narrow exception below does not change the
+representation of first-class range values.
 
 Range handles are internal only: host imports and selected user exports with range
 signatures are rejected rather than extending the public descriptor ABI or silently
@@ -57,3 +58,13 @@ change this decision: external range signatures, range equality, and allocation-
 range optimization remain out of scope. See the
 [validation workflow](../was_language_extensions_plan.md#5-documentation-and-validation-workflow)
 for exact release commands/results, including the full ignored-test run.
+
+## Later exception: direct range loops (#82)
+
+Issue #82 implements the bounded M6 design in
+[ADR 0011](0011-bounded-m6-range-scalar-replacement.md): enabled presets keep directly owned `for` ranges
+in scalar loop scratch, leaving indirect range values and baseline lowering
+allocated. The [memory ABI contract](../memory-abi.md#private-range-record)
+describes the boundary. Helper layout and the host ABI are unchanged. This
+exception neither changes the historical WP5 evidence above nor establishes
+integrated M6 release acceptance.

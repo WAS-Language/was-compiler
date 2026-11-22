@@ -339,7 +339,8 @@ inclusivity flag at offset 24 is exactly 0 or 1; four bytes of reserved padding 
 offset 28 are initialized to zero. Copies share the immutable record. This is not
 the public string/array descriptor ABI and adds no host range-marshaling API.
 See [ADR-0001](adr/0001-private-range-representation.md) for the rationale and the
-[private record contract](memory-abi.md#private-range-record) for implemented checks.
+[private record contract](memory-abi.md#private-range-record) for implemented checks
+and the #82 exception for directly owned `for` ranges under enabled optimization presets.
 
 Internal functions may accept and return range handles. Reject range parameters
 or results in every host import, including unused imports and forged host
@@ -357,8 +358,10 @@ unchanged. Membership alone needs no floating remainder helper.
 Range `==` and `!=` are static errors, including for forged typed input.
 Membership does not define handle identity, record equality, or sequence equality.
 
-**Implemented range-for advancement:** Validate the consumed record once and cache
-signed `i64` current/end/step plus `i32` inclusivity scratch. Test signed endpoints
+**Implemented range-for advancement:** Allocated lowering validates the consumed
+record once before caching its fields. #82 validates direct numeric operands and
+fills the same scratch without a record. Both paths use signed `i64`
+current/end/step plus `i32` inclusivity and test signed endpoints
 before every exact `f64` conversion/yield, including after `I64Add` advancement.
 Positive steps use `<`/`<=` and negative steps use `>`/`>=`, according to inclusivity.
 A failed check exits immediately; zero yields canonical `+0`. Iteration never
@@ -375,9 +378,9 @@ an out-of-domain current. Valid advancement exhausts normally, without overflow,
 rounding stalls, traps, or out-of-range yields. Every passing current lies between
 the safe start/end and converts exactly to `f64`.
 
-Allocation-free scalar representations of unescaped ranges remain deferred to WP13,
-subject to evidence and semantic proofs; caching iteration fields is not scalar
-replacement of the immutable allocated range value.
+Beyond the direct-loop exception in #82, scalar replacement of range records
+remains deferred to WP13, subject to evidence and semantic proofs. Caching
+fields from an allocated record is not scalar replacement.
 
 **Implemented exact numeric membership:** After both operands evaluate, validate
 consumed record bounds and canonical fields **before** the candidate guard.
@@ -498,7 +501,9 @@ out of scope for v1; no implicit iterator protocol is introduced.
 
 ### 6.3 Lowering
 
-Implemented range lowering (the iterable runs before the new loop/binding is active):
+Allocated range lowering (the iterable runs before the new loop/binding is active).
+The #82 path fills the same scratch directly after validating the operands, then
+uses the same loop:
 
 ```
 let iterable = eval_range_once();
@@ -1655,9 +1660,10 @@ Map `if` values to `if (result T)`, `match` to optimized conditionals or `br_tab
 | `range` | immutable private allocated record, `i32` handle; for caches `i64` fields | All host imports and selected user range exports rejected |
 | local closure binding | compiler-known helper and per-invocation shared capture environment | Not a source-level callable ABI value; cannot be imported/exported/passed/returned |
 
-Range values retain their immutable allocated record; for caches validated fields
-in scratch locals without introducing another range-value representation.
-Allocation-free scalar replacement remains WP13 work. For a lexical local closure, the compiler can directly invoke its known helper and pass a pointer to shared capture cells. Neither a Wasm function table nor `call_indirect` nor the Component Model is required for v1.
+First-class range values retain their immutable allocated record; `for` caches
+validated fields in scratch locals. Only the direct-loop path in #82 can fill
+these locals without a record; broader scalar replacement remains WP13 work.
+For a lexical local closure, the compiler can directly invoke its known helper and pass a pointer to shared capture cells. Neither a Wasm function table nor `call_indirect` nor the Component Model is required for v1.
 
 ### 17.3 Known-target closure invocation (no function table required)
 

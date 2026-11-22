@@ -70,8 +70,11 @@ impl<'a> Context<'a> {
             .ok_or(CodegenError::LimitExceeded {
                 what: "function local count",
             })?;
-        let temporary_types =
-            temporaries::for_owner_with_movable(function, module.resizable.is_some())?;
+        let temporary_types = temporaries::for_owner_with_policies(
+            function,
+            module.resizable.is_some(),
+            module.range_policy,
+        )?;
         let first_storage = first_temporary
             .checked_add(checked_u32(temporary_types.len(), "temporary local count")?)
             .ok_or(CodegenError::LimitExceeded {
@@ -338,6 +341,10 @@ impl<'a> BodyEmitter<'a> {
 
     pub fn name(&self) -> &'a str {
         self.context.name
+    }
+
+    pub(super) fn range_policy(&self) -> range::Policy {
+        self.context.module.range_policy
     }
 
     pub fn return_type(&self) -> Type {

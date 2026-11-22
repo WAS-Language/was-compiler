@@ -996,8 +996,8 @@ input, scratch layout, cached fields, and decoded conversion/latch ordering.
 and bounded execution against an independent BigInt progression reference at all
 optimization levels. Node execution cases retain the ignored-test policy: default
 Cargo success alone does not establish runtime coverage.
-No optimization passes, ABI changes, or helper-order changes were added. For adds
-no range helpers; array-only iteration requires none.
+WP5 did not change ABI or helper ordering. `for` adds no range helpers of its
+own; array-only iteration requires none.
 The optional `Contains` helper follows `Construct` and `Validate` only when membership exists;
 construction-only programs retain their bytes, as do programs without ranges.
 Membership alone needs no floating remainder helper or host callback.
@@ -1093,7 +1093,13 @@ refinement is added. Public AST, source language, ABI and captures are unchanged
 bytes, with semantic/diagnostic parity across levels and adapter byte parity within
 each level.
 
-[Contracts and status](docs/integer-specialization.md) distinguish this subset from
+All three enabled presets also [eliminate the private record for direct range
+loops (#82)](docs/memory-abi.md#private-range-record), including grouped ranges
+and loops in local callables. Indirect ranges, default compilation and direct
+codegen keep allocated lowering. Memory exports and helper ordering are unchanged;
+this optimization does not establish integrated M6 release acceptance.
+
+[Integer specialization contracts and status](docs/integer-specialization.md) distinguish this subset from
 remaining #38 work. Authorization through #41 covers implementation, not release
 acceptance. [#41 measurements](docs/benchmarks/integer-comparisons-negation-41/README.md)
 show cumulative current `None` → `Basic` size across 27 cases of 13,414 → 9,538 bytes

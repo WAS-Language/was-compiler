@@ -16,16 +16,27 @@ impl<'a> ValidatedProgram<'a> {
         Self::with_policy(program, exports, super::NumericPolicy::Baseline)
     }
 
+    #[cfg(test)]
     pub fn with_policy(
         program: &'a TypedProgram,
         exports: &ExportOptions,
         policy: super::NumericPolicy,
     ) -> Result<Self, CodegenError> {
-        let layout = match exports {
+        Self::with_policies(program, exports, policy, super::RangePolicy::Allocated)
+    }
+
+    pub(super) fn with_policies(
+        program: &'a TypedProgram,
+        exports: &ExportOptions,
+        numeric: super::NumericPolicy,
+        ranges: super::RangePolicy,
+    ) -> Result<Self, CodegenError> {
+        let mut layout = match exports {
             ExportOptions::All => Layout::new(program),
             _ => Layout::with_exports(program, exports),
         }?;
-        Self::lower(program, layout, policy)
+        layout.range_policy = ranges;
+        Self::lower(program, layout, numeric)
     }
 
     #[cfg(test)]

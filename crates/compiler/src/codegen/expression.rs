@@ -290,24 +290,8 @@ pub(super) fn emit_as(
             (flow, result(flow, Type::Array(*element_type)))
         }
 
-        TypedExprKind::Range {
-            start,
-            end,
-            step,
-            inclusive,
-        } => {
-            let predicted = if [Some(start.as_ref()), Some(end.as_ref()), step.as_deref()]
-                .into_iter()
-                .flatten()
-                .any(|operand| operand.ty == ExprResult::Never)
-            {
-                ExprResult::Never
-            } else {
-                Type::Range.into()
-            };
-            expect_result(function, predicted, expr.ty, span)?;
-            let flow =
-                range::emit_construction(start, end, step.as_deref(), *inclusive, body, span)?;
+        TypedExprKind::Range { .. } => {
+            let flow = range::emit_construction(expr, body, span)?;
             (flow, result(flow, Type::Range))
         }
 

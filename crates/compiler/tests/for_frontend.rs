@@ -1,5 +1,5 @@
 use was_compiler::{
-    CompileError, Compiler, HostRegistrationError, Type,
+    CompileError, Compiler, HostRegistrationError, OptimizationLevel, Type,
     ast::{BinaryOp, Expr, Program, StatementKind},
     lexer::Lexer,
     parser::{ParseError, Parser},
@@ -47,6 +47,29 @@ fn range_for_exposes_a_numeric_iteration_binding() {
     assert_eq!(value.ty, ExprResult::Value(Type::Number));
     assert!(matches!(&value.kind, TypedExprKind::Identifier { id, name }
         if id == variable && name == "i"));
+}
+
+#[test]
+fn grouping_preserves_direct_range_root_and_presets_do_not_change_analysis() {
+    let mut compiler = Compiler::new();
+    for (iterable, direct) in [("((0..=3 by 2))", true), ("{ 0..=3 by 2 }", false)] {
+        let source = format!("fn main() -> void {{ for i in {iterable} {{}} }}");
+        compiler.set_optimization_level(OptimizationLevel::None);
+        let baseline = compiler.analyze(&source).unwrap();
+        let TypedStatementKind::For { iterable, .. } = &baseline.functions[0].body[0].kind else {
+            panic!("expected typed for");
+        };
+        assert_eq!(iterable.ty, ExprResult::Value(Type::Range));
+        assert_eq!(matches!(iterable.kind, TypedExprKind::Range { .. }), direct);
+        for level in [
+            OptimizationLevel::Basic,
+            OptimizationLevel::Standard,
+            OptimizationLevel::Aggressive,
+        ] {
+            compiler.set_optimization_level(level);
+            assert_eq!(compiler.analyze(&source).unwrap(), baseline);
+        }
+    }
 }
 
 #[test]

@@ -1384,6 +1384,10 @@ resource-observability trade-off. All three interview rounds and the final share
 understanding are confirmed. No implementation is authorized by these interview
 records alone.
 
+Issue #82 authorizes and implements the direct-loop slice described in Round 2;
+see the [private range contract](memory-abi.md#private-range-record). Other
+candidates remain deferred, and Round 3's integrated release decision is pending.
+
 ### Important safety rule
 
 Do **not** implement a general “reset heap at function return” strategy. The temporary-region path from M2 must remain isolated from longer-lived heap allocations. Function calls may return handles, mutate shared arrays, call the host, or create closure environments. A blanket reset can invalidate live data. Escape analysis or a typed ownership discipline must justify every region reset.

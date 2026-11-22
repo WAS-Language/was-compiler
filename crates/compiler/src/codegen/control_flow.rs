@@ -112,37 +112,51 @@ pub(super) fn emit_for(
     emitter.scoped(|emitter| {
         emitter.register_loop(id, span)?;
         let binding = emitter.declaration(variable, Type::Number, span)?;
-        let handle = emitter.temporary(ValType::I32);
+        let scalar = emitter.range_policy().scalar_replaces(iterable);
+        let handle = (!scalar).then(|| emitter.temporary(ValType::I32));
         let current = emitter.temporary(ValType::I64);
         let end = emitter.temporary(ValType::I64);
         let step = emitter.temporary(ValType::I64);
         let inclusive = emitter.temporary(ValType::I32);
 
         // Iterable transfers still see only enclosing loops and bindings.
-        let iterable_flow = emitter.emit_expr(iterable, span)?;
-        emitter.call(emitter.range_helper(range::Helper::Validate));
-        emitter.local_set(handle);
+        let iterable_flow = if let Some(handle) = handle {
+            let flow = emitter.emit_expr(iterable, span)?;
+            emitter.call(emitter.range_helper(range::Helper::Validate));
+            emitter.local_set(handle);
 
-        for (local, offset) in [
-            (current, abi::RANGE_START_OFFSET),
-            (end, abi::RANGE_END_OFFSET),
-            (step, abi::RANGE_STEP_OFFSET),
-        ] {
+            for (local, offset) in [
+                (current, abi::RANGE_START_OFFSET),
+                (end, abi::RANGE_END_OFFSET),
+                (step, abi::RANGE_STEP_OFFSET),
+            ] {
+                emitter.local_get(handle);
+                emitter.instruction(&Instruction::I64Load(MemArg {
+                    offset,
+                    align: abi::RANGE_INTEGER_ALIGN_LOG2,
+                    memory_index: 0,
+                }));
+                emitter.local_set(local);
+            }
             emitter.local_get(handle);
-            emitter.instruction(&Instruction::I64Load(MemArg {
-                offset,
-                align: abi::RANGE_INTEGER_ALIGN_LOG2,
+            emitter.instruction(&Instruction::I32Load(MemArg {
+                offset: abi::RANGE_INCLUSIVE_OFFSET,
+                align: abi::RANGE_FLAG_ALIGN_LOG2,
                 memory_index: 0,
             }));
-            emitter.local_set(local);
-        }
-        emitter.local_get(handle);
-        emitter.instruction(&Instruction::I32Load(MemArg {
-            offset: abi::RANGE_INCLUSIVE_OFFSET,
-            align: abi::RANGE_FLAG_ALIGN_LOG2,
-            memory_index: 0,
-        }));
-        emitter.local_set(inclusive);
+            emitter.local_set(inclusive);
+            flow
+        } else {
+            let inputs = std::array::from_fn(|_| emitter.temporary(ValType::F64));
+            range::emit_scalar_loop_inputs(
+                iterable,
+                inputs,
+                [current, end, step],
+                inclusive,
+                emitter,
+                span,
+            )?
+        };
 
         let break_label = emitter.begin_block()?;
         let backedge = emitter.begin_loop()?;

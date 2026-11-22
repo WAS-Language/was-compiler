@@ -329,17 +329,33 @@ pub fn compile_with_exports(
     program: &TypedProgram,
     exports: &ExportOptions,
 ) -> Result<Vec<u8>, CodegenError> {
-    compile_with_policy(program, exports, representation::NumericPolicy::Baseline)
+    compile_with_policies(
+        program,
+        exports,
+        NumericPolicy::Baseline,
+        RangePolicy::Allocated,
+    )
 }
 
+pub(crate) use range::Policy as RangePolicy;
 pub(crate) use representation::NumericPolicy;
 
-pub(crate) fn compile_with_policy(
+#[cfg(test)]
+fn compile_with_policy(
     program: &TypedProgram,
     exports: &ExportOptions,
     policy: NumericPolicy,
 ) -> Result<Vec<u8>, CodegenError> {
-    let validated = validation::ValidatedProgram::with_policy(program, exports, policy)?;
+    compile_with_policies(program, exports, policy, RangePolicy::Allocated)
+}
+
+pub(crate) fn compile_with_policies(
+    program: &TypedProgram,
+    exports: &ExportOptions,
+    numeric: NumericPolicy,
+    ranges: RangePolicy,
+) -> Result<Vec<u8>, CodegenError> {
+    let validated = validation::ValidatedProgram::with_policies(program, exports, numeric, ranges)?;
 
     Ok(assemble(&validated))
 }

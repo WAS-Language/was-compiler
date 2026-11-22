@@ -397,8 +397,9 @@ for exact evidence, including rebuilt browser bindings and the full ignored-test
 Cross-feature ABI compatibility coverage is detailed in the
 [WP5 checkpoint](was_language_extensions_plan.md#wp5--safe-ranges-rangearray-for-membership-spec-56).
 `range` uses an `i32` handle internally, but is **not** a public string/array
-descriptor or host marshaling type. Every successfully completed construction allocates an immutable,
-eight-byte-aligned 32-byte record with the existing bump allocator:
+descriptor or host marshaling type. Every successfully completed construction
+allocates an immutable, eight-byte-aligned 32-byte record with the existing bump
+allocator, except when #82 scalar-replaces a directly owned `for` iterable:
 
 | Offset | Field | Representation |
 | --- | --- | --- |
@@ -439,16 +440,27 @@ can be `i64::MIN`, excluding division-by-zero and the `MIN / -1` corner; signed
 remainder is safe. Iteration has the separate advancement proof below.
 These checks do not isolate a malicious host with access to exported memory.
 
-**Range-for consumption:** Evaluate the iterable once in the enclosing context,
-then validate the consumed record before reading/caching its fields. Keep current,
-end, and step as exact signed `i64`, and inclusivity as `i32` scratch; do not reread
-record fields per iteration. For a positive step, yield only while `current < end`
+**Range-for consumption:** Evaluate the iterable once in the enclosing context.
+In allocated lowering, validate the record before reading/caching its fields;
+do not reread them per iteration. Both paths keep current, end, and step as exact
+signed `i64`, and inclusivity as `i32` scratch. For a positive step, yield only while `current < end`
 (or `<=` if inclusive); for a negative step, use `current > end` (or `>=`). A failed
 signed endpoint check exits immediately. Convert only a passing current to `f64`;
 it is exact within the safe bounds and integer zero yields canonical `+0`.
 Continue exits the body latch block, reaches `I64Add` advancement, and retests;
 break and return skip advancement. For allocates no array of elements and adds no
 range helper or public marshaling API.
+
+**Direct range-loop scalar replacement (#82):** `Basic`, `Standard` and
+`Aggressive` use a separate internal range policy for `for` iterables rooted
+in a typed `Range`, including grouped ranges and loops in local callable bodies.
+Evaluate start/end/step as above, then apply the same ordered numeric guards and
+convert directly into loop scratch without allocating or reading a record.
+Indirect iterables retain allocated lowering. `None` and direct codegen retain
+baseline bytes; helper discovery, ordering and memory exports are unchanged.
+The eliminated record may change later addresses, growth and exhaustion, but
+operand, capture and body allocations and published-value lifetimes are unchanged.
+See [ADR 0011](adr/0011-bounded-m6-range-scalar-replacement.md) for release scope.
 
 **Advancement bounds proof:** Let `M = 2^53−1`. Every yielded current and the
 validated nonzero step satisfy `|current|, |step| <= M`. Consequently

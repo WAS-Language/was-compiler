@@ -4,19 +4,34 @@ use crate::{
     ast::{BinaryOp, Type},
     flow::Flow,
     tokens::Span,
-    typed_ast::{TypedExpr, TypedExprKind, TypedProgram, TypedStatement, TypedStatementKind},
+    typed_ast::{
+        ExprResult, TypedExpr, TypedExprKind, TypedProgram, TypedStatement, TypedStatementKind,
+    },
 };
 use wasm_encoder::{BlockType, Function, Instruction, MemArg, ValType};
 
 use super::{
     CodegenError,
     abi::{self, Signature},
-    expect_operand,
+    expect_operand, expect_result,
     function::BodyEmitter,
-    indices::FunctionIndex,
+    indices::{FunctionIndex, LocalIndex},
     memory,
     walker::{self, Visitor},
 };
+
+#[derive(Clone, Copy)]
+pub(crate) enum Policy {
+    Allocated,
+    ScalarDirectLoops,
+}
+
+impl Policy {
+    pub(super) fn scalar_replaces(self, iterable: &TypedExpr) -> bool {
+        matches!(self, Self::ScalarDirectLoops)
+            && matches!(iterable.kind, TypedExprKind::Range { .. })
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Helper {
@@ -132,25 +147,93 @@ pub(super) fn needed(program: &TypedProgram) -> bool {
     })
 }
 
-pub(super) fn emit_construction(
-    start: &TypedExpr,
-    end: &TypedExpr,
-    step: Option<&TypedExpr>,
-    inclusive: bool,
+fn emit_operands(
+    expr: &TypedExpr,
     body: &mut BodyEmitter<'_>,
     span: Span,
-) -> Result<Flow, CodegenError> {
+) -> Result<(Flow, bool), CodegenError> {
+    let TypedExprKind::Range {
+        start,
+        end,
+        step,
+        inclusive,
+    } = &expr.kind
+    else {
+        unreachable!("only direct Range nodes enter construction lowering");
+    };
+    let operands = [Some(start.as_ref()), Some(end.as_ref()), step.as_deref()];
+    let predicted = if operands
+        .into_iter()
+        .flatten()
+        .any(|operand| operand.ty == ExprResult::Never)
+    {
+        ExprResult::Never
+    } else {
+        Type::Range.into()
+    };
+    expect_result(body.name(), predicted, expr.ty, span)?;
+
     let mut flow = Flow::FALLTHROUGH;
-    // The helper's parameters cache every input before its first validation.
-    for operand in [Some(start), Some(end), step].into_iter().flatten() {
+    for operand in operands.into_iter().flatten() {
         expect_operand(body.name(), Type::Number, operand.ty, span)?;
         flow = flow.then(body.emit_expr(operand, span)?);
     }
+    let actual = if flow.can_fall_through() {
+        Type::Range.into()
+    } else {
+        ExprResult::Never
+    };
+    expect_result(body.name(), actual, expr.ty, span)?;
     if step.is_none() {
         body.instruction(&Instruction::F64Const(1.0.into()));
     }
+    Ok((flow, *inclusive))
+}
+
+pub(super) fn emit_construction(
+    expr: &TypedExpr,
+    body: &mut BodyEmitter<'_>,
+    span: Span,
+) -> Result<Flow, CodegenError> {
+    let (flow, inclusive) = emit_operands(expr, body, span)?;
     body.instruction(&Instruction::I32Const(i32::from(inclusive)));
     body.call(body.range_helper(Helper::Construct));
+    Ok(flow)
+}
+
+pub(super) fn emit_scalar_loop_inputs(
+    expr: &TypedExpr,
+    inputs: [LocalIndex; 3],
+    integers: [LocalIndex; 3],
+    inclusive_flag: LocalIndex,
+    body: &mut BodyEmitter<'_>,
+    span: Span,
+) -> Result<Flow, CodegenError> {
+    let (flow, inclusive) = emit_operands(expr, body, span)?;
+    if !flow.can_fall_through() {
+        body.instruction(&Instruction::Unreachable);
+        return Ok(flow);
+    }
+
+    for input in inputs.into_iter().rev() {
+        body.local_set(input);
+    }
+    validate_inputs(inputs.map(LocalIndex::raw), |condition| {
+        for op in condition {
+            body.instruction(op);
+        }
+        body.begin_if(BlockType::Empty)?;
+        body.instruction(&Instruction::Unreachable);
+        body.end();
+        Ok(())
+    })?;
+    for (input, integer) in inputs.into_iter().zip(integers) {
+        body.local_get(input);
+        body.instruction(&Instruction::I64TruncF64S);
+        body.local_set(integer);
+    }
+    body.instruction(&Instruction::I32Const(i32::from(inclusive)));
+    body.local_set(inclusive_flag);
     Ok(flow)
 }
 
@@ -187,41 +270,40 @@ fn field(offset: u64, align: u32) -> MemArg {
     }
 }
 
+fn validate_inputs<E>(
+    [start, end, step]: [u32; 3],
+    mut trap_on: impl FnMut(&[Instruction<'_>]) -> Result<(), E>,
+) -> Result<(), E> {
+    for index in [start, end, step] {
+        // Negated <= rejects NaN as well as infinity and out-of-domain values.
+        trap_on(&[
+            Instruction::LocalGet(index),
+            Instruction::F64Abs,
+            Instruction::F64Const((abi::RANGE_SAFE_INTEGER as f64).into()),
+            Instruction::F64Le,
+            Instruction::I32Eqz,
+        ])?;
+        trap_on(&[
+            Instruction::LocalGet(index),
+            Instruction::F64Trunc,
+            Instruction::LocalGet(index),
+            Instruction::F64Ne,
+        ])?;
+    }
+    trap_on(&[
+        Instruction::LocalGet(step),
+        Instruction::F64Const(0.0.into()),
+        Instruction::F64Eq,
+    ])
+}
+
 fn construct(allocator: FunctionIndex) -> Function {
     let mut body = Function::new([(1, ValType::I32)]);
-    for index in 0..3 {
-        // Negated <= rejects NaN as well as infinity and out-of-domain values.
-        instructions(
-            &mut body,
-            &[
-                Instruction::LocalGet(index),
-                Instruction::F64Abs,
-                Instruction::F64Const((abi::RANGE_SAFE_INTEGER as f64).into()),
-                Instruction::F64Le,
-                Instruction::I32Eqz,
-            ],
-        );
+    let Ok(()) = validate_inputs([0, 1, 2], |condition| {
+        instructions(&mut body, condition);
         trap_if(&mut body);
-        instructions(
-            &mut body,
-            &[
-                Instruction::LocalGet(index),
-                Instruction::F64Trunc,
-                Instruction::LocalGet(index),
-                Instruction::F64Ne,
-            ],
-        );
-        trap_if(&mut body);
-    }
-    instructions(
-        &mut body,
-        &[
-            Instruction::LocalGet(2),
-            Instruction::F64Const(0.0.into()),
-            Instruction::F64Eq,
-        ],
-    );
-    trap_if(&mut body);
+        Ok::<_, std::convert::Infallible>(())
+    });
     instructions(
         &mut body,
         &[
