@@ -24,7 +24,9 @@ reproduce the size benefit on the 26 M7-focused workloads, find higher compilati
 medians and mixed guest timings, and report `loop_local` separately as M6/M7
 composition. [#89's current-source correctness run](#89-current-source-correctness-and-m6-composition-2026-11-22)
 verifies the native subset and composition, but browser and strict-native-Clippy
-release gates remain open. Neither record changes the release decision.
+release gates remain open. [#90's disposition brief](#90-m7-release-readiness-and-maintainer-disposition)
+brings both records together: the size benefit is demonstrated, but M7 remains
+experimental pending passing gates and explicit maintainer disposition.
 
 The approved #39/#40/#41 subset is a narrow scheduling exception ahead of deferred
 WP12, not general WP13 authorization. #41 preserves the existing proof interface,
@@ -547,6 +549,78 @@ To finish the gates, make the matching `wasm-bindgen` CLI available offline and
 rerun the fresh build, browser smoke, browser parity, and full ignored workspace
 tests. Resolve the independent native lint and rerun strict native Clippy on
 final sources. The M7 subset stays experimental and `None` stays the default.
+
+## #90 M7 release readiness and maintainer disposition
+
+**Not ready for release acceptance.** The [#88 current-source measurements](benchmarks/integer-current-88/README.md)
+and [#89 current-source correctness run](#89-current-source-correctness-and-m6-composition-2026-11-22)
+cover the same production implementation. #89 added a decoded composition test,
+not a production change. [#42](#42-integrated-validation-and-release-readiness-2026-10-20)
+is historical context for corpus and module continuity, not a substitute for any
+current-source gate or a cross-machine timing control.
+
+### Gate status
+
+| Required gate | Status | Evidence or prerequisite |
+| --- | --- | --- |
+| Native all-target typecheck | Pass | #89 workspace check, including browser test targets compiled natively. |
+| Independent numeric differential execution, decoded Wasm and negative controls | Pass | #89 numeric/local suites and the corpus oracle: 108 workload/preset pairs, numeric edges, effects, traps and checked forged input. |
+| Focused M6/M7 composition | Pass (native) | #89 `loop_local` verifies decoded integer locals and direct `i64` range induction together across enabled presets; the oracle independently expects `4576`. Browser composition parity is tracked separately below. |
+| Native CLI/library parity | Pass | #89 checks same-preset Wasm/WAT bytes, diagnostics and bounded guest execution. |
+| Default native tests and workspace contract | Pass | #89: 1,368 default tests passed (326 ignored); all three workspace-contract tests passed. |
+| Strict native all-target Clippy | Failure | Existing `needless_range_loop` at [`named_defaults.rs:487`](../crates/compiler/tests/named_defaults.rs#L487). The focused test-target Clippy pass does not clear this gate. |
+| Portable `wasm32-unknown-unknown` core build | Pass | #89 offline library build. |
+| Fresh offline browser package build | Failure | Rust Wasm compiled, but wasm-pack could not find the matching local `wasm-bindgen` CLI (`0.2.129`). |
+| Browser smoke and same-preset adapter parity (including composition) | Unverified | Not run without a fresh browser package; native typechecking and target Clippy do not execute the bindings. |
+| Full workspace with ignored tests enabled | Unverified | Blocked by the missing fresh browser package. The 1,694 passing native tests with ignored cases enabled exclude browser tests; the workspace test inventory is not execution evidence. |
+| Strict browser target Clippy | Pass | #89 offline `wasm32-unknown-unknown` browser library lint. |
+| Repeated matched size, guest time and compilation measurements | Pass (evidence collected) | #88 retained both repetitions, reversed preset order, checked output identities and ran the independent oracle. |
+| Demonstrated size or guest-time benefit | Pass (size) | The 26 M7-focused modules reproducibly shrink in aggregate. No general guest speedup is established or required. |
+| Explicit disposition of material regressions | Unverified | No maintainer acceptance or bounded improvement authorization is recorded. |
+
+To clear the execution gates, resolve the native lint separately and rerun strict
+all-target Clippy on final sources. Make `wasm-bindgen` CLI `0.2.129` available
+locally for the offline workflow, rebuild the browser package, then run the
+browser smoke and parity checks and the full workspace including ignored tests.
+The exact commands and recorded outcomes are in [#89's offline gates](#offline-release-gates).
+
+### Trade-off for the existing opt-in subset
+
+The [per-workload table](benchmarks/integer-current-88/results.md) compares `None`
+with `Basic` in two matched repetitions. The 26 **M7-focused** workloads have no
+M6-eligible direct range loop, but `Basic` still selects M6; these results do not
+isolate the cost of the integer pass.
+
+- **Module size:** 12,206 → 8,360 bytes (−3,846; −31.51%); 23 modules shrink,
+  three are unchanged, and none grow. The bytes match #42 on this set. This is an
+  unweighted sum of independent modules, not an application-size estimate.
+- **Compilation cost:** all 26 cases are slower in both repetitions at both the
+  source and typed boundaries. Median changes span +0.76% to +23.20% at the source
+  boundary and +1.13% to +69.60% at the typed boundary. For example, `literal_32`
+  rises +23.20% / +22.09% at source and +69.60% / +68.29% at typed. This consistent
+  cost is a material opt-in regression that requires explicit disposition.
+- **Guest time:** of 25 timed cases, five improve twice, 11 worsen twice, and nine
+  reverse direction (`trap_order` is verification-only). `compare_32` improves
+  58.99% / 59.44% and `effects` 31.62% / 32.79%; `positive_zero` slows
+  9.57% / 7.98% and `locals_32` 11.41% / 1.14%. The slower cases are regression
+  signals, not proof of an intrinsic slowdown: `fraction` has identical Wasm
+  bytes yet reports +55.68% / +57.89% with overlapping sample ranges, and
+  `locals_1` reverses when preset order reverses. Background load, thermals and
+  JIT tiering were not controlled. No post hoc threshold is applied.
+- **M6/M7 composition — `loop_local` only:** 1,208 → 1,267 bytes (+59), source
+  medians +10.99% / +9.36%, typed medians +10.95% / +14.19%, and guest medians
+  −12.73% / −14.41%. #42 instead measured a smaller `Basic` module and higher
+  guest medians in both repeats. The current result is for the composed preset,
+  not a benefit or cost attributable to either pass in isolation.
+
+**Maintainer decision requested:** explicitly accept the compilation-cost
+regression and mixed guest timing for the existing opt-in size trade-off, or
+explicitly authorize a bounded improvement within the existing proof scope and
+another matched run. M7 remains experimental until all required gates pass and
+the trade-offs are resolved. This brief changes no production optimization,
+no ABI, and no activation: `None` stays the default and byte baseline, and
+`Basic`, `Standard`, and `Aggressive` retain the same numeric policy. It does
+not resolve M4–M6 or authorize M8.
 
 ## Review completion (#41)
 
