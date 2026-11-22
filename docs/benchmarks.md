@@ -21,6 +21,13 @@ recorder, read the [M5 sampling and provenance contract](benchmarks/m5-strings-2
 Its raw samples complement, not replace, #79's deterministic construction evidence;
 the historical scalar/calls/captures suite remains distinct.
 
+## M6 ordinary range-loop measurements (#86)
+
+The dedicated `m6_ranges` target and Node harness compare the allocated
+baseline and all enabled presets on direct and indirect range loops. See the
+[reproduction steps, raw samples and pending performance disposition](benchmarks/m6-ranges-86/README.md).
+This evidence is separate from the private #84 allocation proof.
+
 ## Timing contract
 
 | Measurement | Prepared outside timing | Included in timing |

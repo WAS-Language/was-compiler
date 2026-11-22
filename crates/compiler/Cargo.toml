@@ -19,6 +19,10 @@ harness = false
 name = "m5_strings"
 harness = false
 
+[[bench]]
+name = "m6_ranges"
+harness = false
+
 [dev-dependencies]
 divan = "0.1.21"
 wasmparser.workspace = true

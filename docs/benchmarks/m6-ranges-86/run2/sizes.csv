@@ -1,0 +1,13 @@
+workload,preset,source_bytes,module_bytes
+direct,None,113,1152
+direct,Basic,113,1241
+direct,Standard,113,1241
+direct,Aggressive,113,1241
+binding,None,138,1158
+binding,Basic,138,1158
+binding,Standard,138,1158
+binding,Aggressive,138,1158
+call,None,173,1165
+call,Basic,173,1165
+call,Standard,173,1165
+call,Aggressive,173,1165

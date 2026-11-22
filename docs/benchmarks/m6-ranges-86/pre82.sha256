@@ -1,0 +1,4 @@
+418a7fe53acbb96399088f0368f520724551c6fc9397d9406387c5deec8eae61  target/m6-ranges-86/pre82-target/debug/was-compiler
+9fad973fbdfe633f439d803599b9b4f8ac7891ef6069328244c5668d51649e31  target/m6-ranges-86/pre82/binding.wasm
+61f2fe19de17d42c3b71e6290281f02d1190b8379ba1aa87bdc1b2762d7b1e93  target/m6-ranges-86/pre82/call.wasm
+75ffa45615b47146a2418ae7e3ebc61dbfc98ace0ee8d73cfcb340b6ac040b76  target/m6-ranges-86/pre82/direct.wasm
