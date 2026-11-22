@@ -1388,6 +1388,37 @@ Issue #82 authorizes and implements the direct-loop slice described in Round 2;
 see the [private range contract](memory-abi.md#private-range-record). Other
 candidates remain deferred, and Round 3's integrated release decision is pending.
 
+### Direct-loop compatibility evidence (#83)
+
+- [`for_loops.rs`](../crates/compiler/tests/for_loops.rs) validates and executes
+  baseline and all enabled presets against literal results and host-effect traces.
+  Nested direct ranges exercise enclosing break/continue targets from start,
+  end, and step and suppress later operands after Never. Enabled presets emit
+  identical bytes for these runtime fixtures. A range loop in a local callable exercises
+  transitive dependencies, recursive and reentrant calls, a caught guest bounds
+  trap after publication, growth while the outer loop is suspended, and retained
+  array identity and completed writes after resumption.
+- [`closures_runtime.rs`](../crates/compiler/tests/closures_runtime.rs) independently
+  checks distinct, retained per-yield cells. The existing allocation and decoded
+  controls in `for_loops.rs` and [`for_lowering.rs`](../crates/compiler/tests/for_lowering.rs)
+  isolate the optional 32-byte range record. Compatibility checks compare handle
+  identity within each instance, not absolute addresses or page counts across
+  presets. Resource exhaustion parity is not required and was not tested here.
+- [`for_frontend.rs`](../crates/compiler/tests/for_frontend.rs) and `for_lowering.rs`
+  check later operands and bodies after an abrupt operand, including a source-level
+  read-only capture write and forged transfers to the not-yet-active loop. The
+  lowering suite also decodes the correct enclosing branch depths in all presets.
+  No production change was needed.
+
+`cargo check --offline --workspace --all-targets` passed. `cargo test --offline
+--workspace` passed (1,365 passed, 342 ignored); `cargo test --offline -p was-compiler
+-p was-compiler-cli -- --include-ignored` passed (1,687 passed, none ignored).
+Strict Clippy passed for the three changed test targets. Workspace strict Clippy
+was blocked by an existing `needless_range_loop` in `named_defaults.rs`; the
+offline browser rebuild was blocked by a missing local `wasm-bindgen` CLI, so the
+full ignored workspace suite was not run. This is focused compatibility evidence,
+not integrated M6 release acceptance.
+
 ### Important safety rule
 
 Do **not** implement a general “reset heap at function return” strategy. The temporary-region path from M2 must remain isolated from longer-lived heap allocations. Function calls may return handles, mutate shared arrays, call the host, or create closure environments. A blanket reset can invalidate live data. Escape analysis or a typed ownership discipline must justify every region reset.

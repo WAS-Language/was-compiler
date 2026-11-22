@@ -96,6 +96,37 @@ fn iteration_binding_rejects_writes_even_when_unreachable() {
 }
 
 #[test]
+fn never_range_start_does_not_hide_later_operands_or_readonly_capture_writes() {
+    for (end, step, missing) in [
+        ("missing_end", "missing_step", "missing_end"),
+        ("1", "missing_step", "missing_step"),
+    ] {
+        let statement = format!("for i in {{ return; }}..{end} by {step} {{}}");
+        let source = format!("fn main() -> void {{ {statement} }}");
+        let start = source.find(&statement).unwrap();
+        assert_eq!(
+            semantic_error(&source),
+            SemanticError::UndefinedVariable {
+                name: missing.into(),
+                span: Span::new(start, start + statement.len()),
+            }
+        );
+    }
+
+    let source = "fn main() -> void {
+        for i in { return; }..1 by 1 { let write = () => { i += 1; }; }
+    }";
+    let start = source.find("i += 1;").unwrap();
+    assert_eq!(
+        semantic_error(source),
+        SemanticError::ReadOnlyVariable {
+            name: "i".into(),
+            span: Span::new(start, start + "i += 1;".len()),
+        }
+    );
+}
+
+#[test]
 fn for_keyword_preserves_boundaries_trivia_strings_and_utf8_spans() {
     let source = "/*λ*/for/*μ*/item in 0..1 {} for1 foreach For \"for\"";
     let tokens = Lexer::new(source).tokenize();

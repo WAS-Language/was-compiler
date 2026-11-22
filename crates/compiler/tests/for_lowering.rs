@@ -226,30 +226,43 @@ fn enabled_presets_remove_only_the_direct_loop_record() {
 
 #[test]
 fn direct_range_checks_later_operands_after_abrupt_completion_before_checking_body() {
-    let mut program = analyze(
-        "fn main() -> void {
-        for i in { return; 0 }..2 by 1 { 3; }
-    }",
-    );
-    let span = program.functions[0].body[0].span;
-    let (_, _, iterable, body) = for_parts(&mut program.functions[0].body[0]);
-    let TypedExprKind::Range { end, step, .. } = &mut iterable.kind else {
-        panic!("expected direct range");
-    };
-    end.kind = TypedExprKind::Number("NaN".into());
-    step.as_mut().unwrap().kind = TypedExprKind::Number("Infinity".into());
-    let TypedStatementKind::Expression(expr) = &mut body[0].kind else {
-        panic!("expected expression statement");
-    };
-    expr.kind = TypedExprKind::Number("bad".into());
-    assert_rejected(
-        &program,
-        CodegenError::InvalidNumberLiteral {
-            function: "main".into(),
-            literal: "NaN".into(),
-            span,
-        },
-    );
+    let original = analyze("fn main() -> void { for i in { return; 0 }..2 by 1 { 3; } }");
+    for (end_literal, step_literal) in [
+        (Some("NaN"), Some("Infinity")),
+        (None, Some("Infinity")),
+        (None, None),
+    ] {
+        let mut program = original.clone();
+        let statement = &mut program.functions[0].body[0];
+        let for_span = statement.span;
+        let (_, _, iterable, body) = for_parts(statement);
+        let TypedExprKind::Range { end, step, .. } = &mut iterable.kind else {
+            panic!("expected direct range");
+        };
+        if let Some(literal) = end_literal {
+            end.kind = TypedExprKind::Number(literal.into());
+        }
+        if let Some(literal) = step_literal {
+            step.as_mut().unwrap().kind = TypedExprKind::Number(literal.into());
+        }
+        let body_span = body[0].span;
+        let TypedStatementKind::Expression(expr) = &mut body[0].kind else {
+            panic!("expected expression statement");
+        };
+        expr.kind = TypedExprKind::Number("bad".into());
+
+        let (literal, span) = end_literal
+            .or(step_literal)
+            .map_or(("bad", body_span), |literal| (literal, for_span));
+        assert_rejected(
+            &program,
+            CodegenError::InvalidNumberLiteral {
+                function: "main".into(),
+                literal: literal.into(),
+                span,
+            },
+        );
+    }
 }
 
 #[test]
@@ -1110,21 +1123,59 @@ fn check_transfer_targets(iterable: &str) {
 
 #[test]
 fn iterable_transfers_use_the_enclosing_loop_never_the_new_for() {
-    for (tail, suffix) in [("0..1", ""), ("[1]", ""), ("0", "..1")] {
-        check_iterable_transfers(tail, suffix);
+    for template in [
+        "{ @; 0..1 }",
+        "{ @; [1] }",
+        "{ @; 0 }..1",
+        "0..{ @; 1 } by 1",
+        "0..1 by { @; 1 }",
+    ] {
+        check_iterable_transfers(template);
     }
 }
 
-fn check_iterable_transfers(tail: &str, suffix: &str) {
-    for keyword in ["break", "continue"] {
+fn check_iterable_transfers(template: &str) {
+    for (keyword, depth) in [("break", 2), ("continue", 1)] {
+        let iterable = template.replace('@', keyword);
         let source = format!(
-            "fn hidden() -> void {{ while true {{
-            for i in {{ {keyword}; {tail} }}{suffix} {{}}
-        }} }} fn main() -> void {{}}"
+            "fn hidden() -> void {{ while true {{ for i in {iterable} {{}} }} }}
+            fn main() -> void {{}}"
         );
         let original = analyze(&source);
-        let bytes = codegen::compile(&original).unwrap();
-        function_body(&bytes, 0);
+        let mut compiler = Compiler::new();
+        for level in LEVELS {
+            compiler.set_optimization_level(level);
+            let bytes = compiler.compile(&original).unwrap();
+            let body = function_body(&bytes, 0);
+            let control = body
+                .get_operators_reader()
+                .unwrap()
+                .into_iter()
+                .map(Result::unwrap)
+                .filter(|op| {
+                    matches!(
+                        op,
+                        Operator::Block { .. }
+                            | Operator::Loop { .. }
+                            | Operator::If { .. }
+                            | Operator::End
+                            | Operator::Br { .. }
+                            | Operator::BrIf { .. }
+                    )
+                });
+            // The operand block branches to the enclosing while's exit or loop,
+            // before the inner for opens any regions of its own.
+            assert!(
+                matches!(control.take(5).collect::<Vec<_>>().as_slice(), [
+                Operator::Block { blockty: BlockType::Empty },
+                Operator::Loop { blockty: BlockType::Empty },
+                Operator::BrIf { relative_depth: 1 },
+                Operator::Block { .. },
+                Operator::Br { relative_depth },
+            ] if *relative_depth == depth),
+                "{level:?}: {iterable}"
+            );
+        }
         let mut program = original;
         let TypedStatementKind::While { body, .. } = &mut program.functions[0].body[0].kind else {
             panic!("while");
@@ -1132,7 +1183,17 @@ fn check_iterable_transfers(tail: &str, suffix: &str) {
         let (id, _, iterable, _) = for_parts(&mut body[0]);
         let target = *id;
         let transfer = match &mut iterable.kind {
-            TypedExprKind::Range { start, .. } => &mut start.kind,
+            TypedExprKind::Range {
+                start, end, step, ..
+            } => {
+                if matches!(start.kind, TypedExprKind::Block(_)) {
+                    &mut start.kind
+                } else if matches!(end.kind, TypedExprKind::Block(_)) {
+                    &mut end.kind
+                } else {
+                    &mut step.as_mut().unwrap().kind
+                }
+            }
             kind => kind,
         };
         let TypedExprKind::Block(block) = transfer else {

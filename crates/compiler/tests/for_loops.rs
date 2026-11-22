@@ -4,7 +4,7 @@ mod test_process;
 use std::{process::Command, time::Duration};
 
 use was_compiler::{
-    CodegenError, Compiler, ExportOptions, OptimizationLevel, Type,
+    ArrayElementType, CodegenError, Compiler, ExportOptions, OptimizationLevel, Type,
     typed_ast::{LoopId, TypedExpr, TypedExprKind, TypedStatementKind},
 };
 use wasmparser::{BlockType, ExternalKind, Operator, Parser, Payload, ValType, Validator};
@@ -202,6 +202,22 @@ const ITERABLE_SOURCE: &str = r#"
         }
         return 23;
     }
+    fn nestedDirectIterable() -> number {
+        for n in 1..=5 {
+            for i in { sample(1, n); if n == 1 { continue; } 0 }
+                ..= { sample(2, n); if n == 5 { break; } 2 }
+                by { sample(3, n); if n == 4 { continue; } 1 } {
+                if i == 1 { continue; }
+                emit(10 * n + i);
+                if n == 2 { break; }
+            }
+            emit(100 + n);
+        }
+        return 31;
+    }
+    fn neverStart() -> number {
+        for i in { return sample(1, 19); }..sample(2, 2) by sample(3, 1) { emit(i); }
+    }
     fn condition() -> number {
         while { for i in { sample(1, 0); break; 0..1 } { emit(999); } true } {
             emit(998);
@@ -289,9 +305,13 @@ fn non_export_sections(bytes: &[u8]) -> Vec<(u8, Vec<u8>)> {
 
 fn run_node_at_all_levels(mut compiler: Compiler, source: &str, script: &str) {
     let program = compiler.analyze(source).unwrap();
+    let mut basic_bytes = None;
     for level in LEVELS {
         compiler.set_optimization_level(level);
         let bytes = compile(&compiler, source);
+        if level != OptimizationLevel::None {
+            assert_eq!(&bytes, basic_bytes.get_or_insert_with(|| bytes.clone()));
+        }
         assert_eq!(compiler.compile_source(source).unwrap(), bytes);
         assert_eq!(compiler.compile(&program).unwrap(), bytes);
         assert_eq!(compiler.analyze(source).unwrap(), program);
@@ -800,15 +820,20 @@ fn node_iterable_transfers_use_enclosing_targets_and_return_before_body() {
             ['returnIterable',17,[['sample',1,0],['sample',2,3]]],
             ['nestedIterable',23,[['sample',1,0],['emit',0],['emit',100],
                 ['sample',1,1],['sample',1,2]]],
+            ['nestedDirectIterable',31,[['sample',1,1],
+                ['sample',1,2],['sample',2,2],['sample',3,2],['emit',20],['emit',102],
+                ['sample',1,3],['sample',2,3],['sample',3,3],['emit',30],['emit',32],['emit',103],
+                ['sample',1,4],['sample',2,4],['sample',3,4],['sample',1,5],['sample',2,5]]],
+            ['neverStart',19,[['sample',1,19]]],
             ['condition',21,[['sample',1,0]]],
             ['names',2,[['emit',2],['emit',3],['emit',4]]],
-                        ['onlyReturn',8,[['sample',1,8]]],
+            ['onlyReturn',8,[['sample',1,8]]],
         ]) {
             events = [];
             const anchor = e.__alloc(8);
             assert.equal(e[name](),result);
             assert.deepEqual(events,expected,name);
-            if (['outerBreak','valueBreak','returnIterable','condition','onlyReturn'].includes(name)) {
+            if (['outerBreak','valueBreak','returnIterable','neverStart','condition','onlyReturn'].includes(name)) {
                 assert.equal(e.__alloc(8),anchor+8,'abrupt iterable never constructs a record');
             }
         }
@@ -869,6 +894,107 @@ fn node_direct_loops_remove_records_but_keep_operand_body_and_capture_allocation
         assert.deepEqual(events.splice(0),[1,20,21,11,12,2]);
     "#;
     run_node_at_all_levels(compiler(), source, script);
+}
+
+#[test]
+#[ignore = "requires Node.js on PATH"]
+fn node_direct_loop_captures_and_published_arrays_survive_recursion_reentry_and_traps() {
+    let mut compiler = compiler();
+    compiler
+        .register_host_function(
+            "publish",
+            "env",
+            "publish",
+            vec![Type::Number, Type::Array(ArrayElementType::Number)],
+            Type::Void,
+        )
+        .unwrap();
+    let source = r#"
+        fn main(seed: number, depth: number, fail: bool) -> number[] {
+            let values = [seed, 0];
+            let total = 0;
+            let run = () => {
+                for i in seed..=seed + 1 {
+                    let add = () => { total += i; total };
+                    let relay = () => add();
+                    let read = () => {
+                        let leaf = () => relay();
+                        leaf()
+                    };
+                    values[0] = read();
+                    publish(i, values);
+                    if depth > 0 && i == seed { main(seed + 10, depth - 1, false); }
+                    if fail { values[2]; }
+                    values[1] = read();
+                    emit(values[1]);
+                }
+            };
+            run();
+            return values;
+        }
+    "#;
+    let script = r#"
+        const assert = require('node:assert/strict');
+        const events = [], published = new Map();
+        function record(kind, value) {
+            assert.ok(events.length < 32, 'guest effect cap');
+            events.push([kind, value]);
+        }
+        function contents(handle) {
+            const view = new DataView(e.memory.buffer);
+            const data = view.getUint32(handle, true);
+            assert.equal(view.getUint32(handle + 4, true), 2);
+            return [view.getFloat64(data, true), view.getFloat64(data + 8, true)];
+        }
+        const e = new WebAssembly.Instance(
+            new WebAssembly.Module(require('node:fs').readFileSync(0)), {
+                env: { sample(t,v) { return v; }, mutate() {}, emit(n) { record('emit', n); },
+                    publish(i, handle) {
+                        record('publish', i);
+                        assert.ok(!published.has(i), 'fixture yields each index once');
+                        published.set(i, handle);
+                        if (i !== 1) return;
+
+                        const inner = e.main(20, 0, 0);
+                        assert.equal(inner, published.get(20));
+                        assert.deepEqual(contents(inner), [61,82]);
+                        assert.throws(() => e.main(40, 0, 1), WebAssembly.RuntimeError);
+                        const trapped = published.get(40);
+                        assert.deepEqual(contents(trapped), [40,0]);
+
+                        // Exercise growth while the outer loop and its helpers are suspended.
+                        // Neither page counts nor offsets are compared between presets.
+                        const oldBuffer = e.memory.buffer;
+                        e.__alloc(oldBuffer.byteLength);
+                        assert.notEqual(e.memory.buffer, oldBuffer);
+                        assert.deepEqual(contents(handle), [1,0]);
+                        assert.deepEqual(contents(inner), [61,82]);
+                        assert.deepEqual(contents(trapped), [40,0]);
+                    }
+                }, other: { unused() { return 0; } }
+            }).exports;
+
+        assert.equal(e.main(1, 1, 0), published.get(1));
+        assert.equal(e.main(50, 0, 0), published.get(50));
+        assert.deepEqual(events, [
+            ['publish',1], ['publish',20], ['emit',40], ['publish',21], ['emit',82],
+            ['publish',40], ['publish',11], ['emit',22], ['publish',12], ['emit',46],
+            ['emit',2], ['publish',2], ['emit',6],
+            ['publish',50], ['emit',100], ['publish',51], ['emit',202],
+        ]);
+        const handles = [];
+        for (const [first, second, expected] of [
+            [1,2,[4,6]], [11,12,[34,46]], [20,21,[61,82]],
+            [40,40,[40,0]], [50,51,[151,202]],
+        ]) {
+            const handle = published.get(first);
+            assert.equal(handle, published.get(second));
+            assert.deepEqual(contents(handle), expected);
+            handles.push(handle);
+        }
+        assert.equal(new Set(handles).size, handles.length);
+    "#;
+    run_node_at_all_levels(compiler, source, script);
 }
 
 #[test]
