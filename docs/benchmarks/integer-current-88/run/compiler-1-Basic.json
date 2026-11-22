@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/home/luanroger/Projects/personal/rust/was-compiler/target/release/build/was-compiler/95616319b440374a/out/integer_specialization-95616319b440374a",
+    "--bench",
+    "--sample-count",
+    "100",
+    "--sample-size",
+    "1",
+    "--timer",
+    "os",
+    "--color",
+    "never"
+  ],
+  "utc_started": "2026-11-22T17:43:58.324380+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "compiler-1-Basic.txt",
+  "utc_finished": "2026-11-22T17:43:58.467978+00:00"
+}

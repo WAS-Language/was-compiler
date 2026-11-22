@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/home/luanroger/Projects/personal/rust/was-compiler/target/debug/build/was-compiler/de92bdbc7e3b5d8b/out/integer_baselines-de92bdbc7e3b5d8b",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1",
+    "--ignored",
+    "record_integer_guest_timing"
+  ],
+  "utc_started": "2026-11-22T17:43:58.519050+00:00",
+  "timeout_seconds": 120,
+  "exit_code": 0,
+  "timed_out": false,
+  "output": "guest-1-Basic.txt",
+  "utc_finished": "2026-11-22T17:43:58.571364+00:00"
+}

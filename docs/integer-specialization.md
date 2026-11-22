@@ -19,7 +19,10 @@ now records the complete composition/current-source adapter gates and repeated
 matched measurements. The decision remains **keep experimental pending explicit
 regression/release acceptance**. Neither correctness validation, implementation
 authorization nor measurements establish that acceptance. `None` remains the
-default and byte-compatibility baseline.
+default and byte-compatibility baseline. [#88's current-source M7 measurements](benchmarks/integer-current-88/README.md)
+reproduce the size benefit on the 26 M7-focused workloads, find higher compilation
+medians and mixed guest timings, and report `loop_local` separately as M6/M7
+composition. This evidence does not change the release decision.
 
 The approved #39/#40/#41 subset is a narrow scheduling exception ahead of deferred
 WP12, not general WP13 authorization. #41 preserves the existing proof interface,
