@@ -460,7 +460,8 @@ Indirect iterables retain allocated lowering. `None` and direct codegen retain
 baseline bytes; helper discovery, ordering and memory exports are unchanged.
 The eliminated record may change later addresses, growth and exhaustion, but
 operand, capture and body allocations and published-value lifetimes are unchanged.
-See [ADR 0011](adr/0011-bounded-m6-range-scalar-replacement.md) for release scope.
+See [ADR 0011](adr/0011-bounded-m6-range-scalar-replacement.md) for release scope
+and [#85's adapter coverage and validation status](m6-range-adapter-compatibility.md).
 
 **Advancement bounds proof:** Let `M = 2^53−1`. Every yielded current and the
 validated nonzero step satisfy `|current|, |step| <= M`. Consequently
