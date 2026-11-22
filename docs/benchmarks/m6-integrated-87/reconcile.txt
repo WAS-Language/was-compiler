@@ -1,0 +1,26 @@
+bench-build: timeout=120s elapsed=0.07s exit=0 | cargo bench --offline -p was-compiler --bench m6_ranges --no-run
+bench-native1: timeout=45s elapsed=0.79s exit=0 | taskset -c 4 target/release/build/was-compiler/563b1ae62aae54ea/out/m6_ranges-563b1ae62aae54ea --record-samples target/m6-release-87/timing1
+bench-guest1: timeout=45s elapsed=0.82s exit=0 | taskset -c 4 /usr/bin/node tests/support/m6_range_timing.cjs target/m6-release-87/timing1
+bench-hashes1: cwd=target/m6-release-87/timing1 timeout=10s elapsed=0.00s exit=0 | sh -c 'sha256sum *.was *.wasm'
+bench-hash-compare1: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/bench-hashes1.log docs/benchmarks/m6-ranges-86/run1/modules.sha256
+bench-size-compare1: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/timing1/sizes.csv docs/benchmarks/m6-ranges-86/run1/sizes.csv
+bench-pre82-direct-1: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/timing1/direct-None.wasm target/m6-ranges-86/pre82/direct.wasm
+bench-pre82-binding-1: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/timing1/binding-None.wasm target/m6-ranges-86/pre82/binding.wasm
+bench-pre82-call-1: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/timing1/call-None.wasm target/m6-ranges-86/pre82/call.wasm
+bench-native2: timeout=45s elapsed=0.82s exit=0 | taskset -c 4 target/release/build/was-compiler/563b1ae62aae54ea/out/m6_ranges-563b1ae62aae54ea --record-samples target/m6-release-87/timing2
+bench-guest2: timeout=45s elapsed=0.79s exit=0 | taskset -c 4 /usr/bin/node tests/support/m6_range_timing.cjs target/m6-release-87/timing2
+bench-hashes2: cwd=target/m6-release-87/timing2 timeout=10s elapsed=0.00s exit=0 | sh -c 'sha256sum *.was *.wasm'
+bench-hash-compare2: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/bench-hashes2.log docs/benchmarks/m6-ranges-86/run1/modules.sha256
+bench-size-compare2: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/timing2/sizes.csv docs/benchmarks/m6-ranges-86/run1/sizes.csv
+bench-pre82-direct-2: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/timing2/direct-None.wasm target/m6-ranges-86/pre82/direct.wasm
+bench-pre82-binding-2: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/timing2/binding-None.wasm target/m6-ranges-86/pre82/binding.wasm
+bench-pre82-call-2: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/timing2/call-None.wasm target/m6-ranges-86/pre82/call.wasm
+alloc-test1: timeout=120s elapsed=0.12s exit=0 | cargo test --offline -p was-compiler --lib codegen::range_allocation_tests -- --include-ignored --test-threads=1
+alloc-trace1: timeout=20s elapsed=0.03s exit=0 | node tests/support/m6_range_allocations.cjs target/m6-range-allocations
+alloc-hashes1: timeout=10s elapsed=0.00s exit=0 | sh -c 'sha256sum target/m6-range-allocations/*.wasm'
+alloc-test2: timeout=120s elapsed=0.11s exit=0 | cargo test --offline -p was-compiler --lib codegen::range_allocation_tests -- --include-ignored --test-threads=1
+alloc-trace2: timeout=20s elapsed=0.03s exit=0 | node tests/support/m6_range_allocations.cjs target/m6-range-allocations
+alloc-hashes2: timeout=10s elapsed=0.00s exit=0 | sh -c 'sha256sum target/m6-range-allocations/*.wasm'
+alloc-compare-trace: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/alloc-trace1.log target/m6-release-87/alloc-trace2.log
+alloc-compare-hashes: timeout=10s elapsed=0.00s exit=0 | cmp target/m6-release-87/alloc-hashes1.log target/m6-release-87/alloc-hashes2.log
+allocation trace lines: 136 sha256: 0a26623288efc0b86c356b4dcd05fc28441f5f9684fe0128a71e45f7f7ecb663

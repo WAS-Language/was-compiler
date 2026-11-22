@@ -1386,7 +1386,10 @@ records alone.
 
 Issue #82 authorizes and implements the direct-loop slice described in Round 2;
 see the [private range contract](memory-abi.md#private-range-record). Other
-candidates remain deferred, and Round 3's integrated release decision is pending.
+candidates remain deferred. [#87's final-source release record](m6-release-readiness.md)
+and [contract-to-test map](m6-contract-test-map.md) document the verified native
+and allocation evidence, blocked gates, and pending performance dispositions.
+Round 3's integrated release decision is pending.
 
 ### Direct-loop compatibility evidence (#83)
 

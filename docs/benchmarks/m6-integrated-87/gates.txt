@@ -1,0 +1,9 @@
+check: timeout=120s elapsed=0.17s exit=0 | cargo check --offline --workspace --all-targets
+default: timeout=180s elapsed=24.85s exit=0 | cargo test --offline
+native-clippy: timeout=120s elapsed=3.59s exit=101 | cargo clippy --offline --all-targets -- -D warnings
+core-wasm: timeout=120s elapsed=0.06s exit=0 | cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown
+architecture: timeout=120s elapsed=0.24s exit=0 | cargo test --offline -p was-compiler --test workspace_contract
+browser-build: timeout=180s elapsed=0.12s exit=1 | wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline
+native-full: timeout=300s elapsed=32.71s exit=0 | cargo test --offline -- --include-ignored
+browser-clippy: timeout=120s elapsed=0.50s exit=0 | cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings
+inventory: timeout=120s elapsed=0.66s exit=0 | cargo test --offline --workspace -- --list
