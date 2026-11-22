@@ -22,7 +22,9 @@ authorization nor measurements establish that acceptance. `None` remains the
 default and byte-compatibility baseline. [#88's current-source M7 measurements](benchmarks/integer-current-88/README.md)
 reproduce the size benefit on the 26 M7-focused workloads, find higher compilation
 medians and mixed guest timings, and report `loop_local` separately as M6/M7
-composition. This evidence does not change the release decision.
+composition. [#89's current-source correctness run](#89-current-source-correctness-and-m6-composition-2026-11-22)
+verifies the native subset and composition, but browser and strict-native-Clippy
+release gates remain open. Neither record changes the release decision.
 
 The approved #39/#40/#41 subset is a narrow scheduling exception ahead of deferred
 WP12, not general WP13 authorization. #41 preserves the existing proof interface,
@@ -480,6 +482,71 @@ Review independently reconciled raw results, test totals and artifact/source
 hashes. Only documentation and postprocessing-audit coverage changed after the
 full correctness run; production/test sources remain the validated versions.
 Review completion does not accept material regressions or authorize release.
+
+## #89 current-source correctness and M6 composition (2026-11-22)
+
+**Native correctness passed; integrated release validation is incomplete.**
+This run does not reuse #42's results as current-source evidence. No production
+optimization, ABI, preset, or performance decision changed.
+
+### Provenance
+
+The run started on `main` at `ac69cac42e6376b1bde209d2f378ea6a967d64c1`
+(tree `849e48dd4fb54bd31ff00d146baec00f67b33ab8`). The only executable input
+changed from that tree was the test in `crates/compiler/tests/integer_baselines.rs`
+(SHA-256 `0403a28599d2e5e7acf8fc9b27a933ac3f135a9dd1c5968523885a2d0a476231`).
+An unrelated pre-existing worktree edit to the memory and optimization roadmap
+was left untouched. `Cargo.lock` SHA-256 was
+`af7880ab794e4a61cf78a04cc10b1478084132648d39a4cfb8495d0ec0294145`.
+Linux `7.2.15-1-omarchy`, AMD Ryzen 7 5700X, `x86_64-unknown-linux-gnu`, Rust
+`1.100.0` (`0ef1bc386`), Cargo `1.100.0` (`3acc79c0c`), installed
+`wasm32-unknown-unknown`, Node `v26.13.1` (V8 `14.6.202.34-node.40`), and wasm-pack
+`0.15.1`. Commands ran from the repository root without fetching tools.
+
+### Numeric and composition checks
+
+| Command | Result |
+| --- | --- |
+| `cargo test --offline -p was-compiler --test integer_specialization -- --include-ignored` | Passed: 13 tests. Validator and independent instruction/local inspection cover proofs and floating fallbacks; bounded Node cases cover worked numeric edges, effects, and traps. Forged trees retain checked errors in skipped/unreachable code. |
+| `cargo test --offline -p was-compiler --test integer_locals -- --include-ignored` | Passed: 18 tests. Decodes storage and read propagation, excludes writes and captures, and executes bounded composition with calls, contracts, matches, and loops. Also checks first errors and spans on forged input. |
+| `cargo test --offline -p was-compiler --test integer_baselines -- --include-ignored --skip record_integer_guest_timing` | Passed: three tests. The independent [Node oracle](../tests/support/integer_measure.cjs) checked 108 workload/preset pairs, including signed zero, subnormal, overflow, NaN, infinities, effects, and bounds-before-RHS trap order. |
+| `cargo test --offline -p was-compiler-cli --test cli integer_specialization -- --include-ignored` | Passed: seven tests. Same-preset CLI/library Wasm and WAT byte parity, diagnostic parity, and independent bounded guest results. |
+
+The [new decoded check](../crates/compiler/tests/integer_baselines.rs) uses the
+same `loop_local` corpus case that the Node oracle checks for `4576` (32 trips
+with a contribution of 143 per trip). `None` matches direct codegen, uses `f64`
+for all four source locals, and makes two range-helper calls and four record
+loads in `main`. Across all enabled presets, the validated bytes match each
+other but differ from `None`. The loop-body locals `a` and `b` use `i32` slots
+and `i32.add`; the mutable accumulator and iteration binding remain `f64`, with
+floating accumulation. Independently, `main` has no calls or record loads and
+retains `i64` induction. These are decoded checks on one composed loop, not
+an inference from byte size or a whole-module allocation claim. The existing
+native suite also covers M6 allocated fallbacks and private allocation
+observations; this test does not replace those checks.
+
+### Offline release gates
+
+| Command | Result |
+| --- | --- |
+| `cargo check --offline --workspace --all-targets` | Passed, including native typechecking of browser test targets. |
+| `cargo test --offline` | Passed: 1,368 passed, 0 failed, 326 ignored across 82 result targets. |
+| `cargo clippy --offline --all-targets -- -D warnings` | Failed (exit 101): existing `clippy::needless_range_loop` at [`named_defaults.rs:487`](../crates/compiler/tests/named_defaults.rs#L487), also reported by [#87](m6-release-readiness.md#offline-gates-and-execution-counts). No unrelated edit or suppression. |
+| `cargo clippy --offline -p was-compiler --test integer_baselines -- -D warnings` | Passed for the changed test target; not a substitute for the all-target gate. |
+| `cargo build --offline -p was-compiler --lib --target wasm32-unknown-unknown` | Passed. |
+| `cargo test --offline -p was-compiler --test workspace_contract` | Passed: three tests. |
+| `wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline` | Failed (exit 1) after compiling Rust Wasm: `Not able to find or install a local wasm-bindgen`. The lockfile requires matching CLI `0.2.129`. |
+| `node tests/browser.cjs pkg` | Blocked: no fresh browser build. |
+| `cargo test --offline -p was-compiler-browser --tests -- --include-ignored` | Blocked: no fresh browser build. Same-preset M7 and M6 browser parity remains unverified. |
+| `cargo test --offline --workspace -- --include-ignored` | Blocked: no fresh browser build. No stale artifacts used. |
+| `cargo clippy --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings` | Passed; does not execute generated bindings. |
+| `cargo test --offline -- --include-ignored` | Passed: 1,694 passed, 0 failed or ignored across 82 result targets. Native-only substitute, including compiler/CLI execution; not a full workspace pass. |
+| `cargo test --offline --workspace -- --list` | 1,715 tests listed across 96 targets, including 21 browser tests outside the native run. Inventory only. |
+
+To finish the gates, make the matching `wasm-bindgen` CLI available offline and
+rerun the fresh build, browser smoke, browser parity, and full ignored workspace
+tests. Resolve the independent native lint and rerun strict native Clippy on
+final sources. The M7 subset stays experimental and `None` stays the default.
 
 ## Review completion (#41)
 

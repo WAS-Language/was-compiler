@@ -4,8 +4,8 @@ mod corpus;
 #[path = "../../../tests/support/process.rs"]
 mod test_process;
 
-use was_compiler::{Compiler, CompilerOptions, OptimizationLevel};
-use wasmparser::{Operator, Parser, Payload, Validator};
+use was_compiler::{Compiler, CompilerOptions, OptimizationLevel, codegen};
+use wasmparser::{Operator, Parser, Payload, ValType, Validator};
 
 #[test]
 fn integer_workloads_preserve_the_unoptimized_public_compilation_contract() {
@@ -83,6 +83,97 @@ fn integer_workloads_preserve_the_unoptimized_public_compilation_contract() {
             );
         }
         assert_eq!(*Compiler::new().options(), CompilerOptions::default());
+    }
+}
+
+#[test]
+fn loop_local_composes_integer_storage_with_direct_range_record_elision() {
+    let case = corpus::cases()
+        .into_iter()
+        .find(|case| case.name == "loop_local")
+        .unwrap();
+    let program = corpus::compiler(OptimizationLevel::None)
+        .analyze(&case.source)
+        .unwrap();
+    let baseline = codegen::compile(&program).unwrap();
+    let mut first_enabled_bytes = None;
+
+    // execute_integer_workloads independently checks this same case returns 4576.
+    for level in [
+        OptimizationLevel::None,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Standard,
+        OptimizationLevel::Aggressive,
+    ] {
+        let compiler = corpus::compiler(level);
+        let bytes = compiler.compile_source(&case.source).unwrap();
+        assert_eq!(bytes, compiler.compile(&program).unwrap(), "{level:?}");
+        Validator::new().validate_all(&bytes).unwrap();
+        let main = Parser::new(0)
+            .parse_all(&bytes)
+            .find_map(|payload| match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => Some(body),
+                _ => None,
+            })
+            .unwrap();
+        let locals = main
+            .get_locals_reader()
+            .unwrap()
+            .into_iter()
+            .map(Result::unwrap)
+            .flat_map(|(count, ty)| std::iter::repeat_n(ty, usize::try_from(count).unwrap()))
+            .collect::<Vec<_>>();
+        let ops = main
+            .get_operators_reader()
+            .unwrap()
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        let calls = ops
+            .iter()
+            .filter(|op| matches!(op, Operator::Call { .. }))
+            .count();
+        let loads = ops
+            .iter()
+            .filter(|op| matches!(op, Operator::I64Load { .. } | Operator::I32Load { .. }))
+            .count();
+        let int_adds = ops
+            .iter()
+            .filter(|op| matches!(op, Operator::I32Add))
+            .count();
+        let float_adds = ops
+            .iter()
+            .filter(|op| matches!(op, Operator::F64Add))
+            .count();
+
+        // Range iteration remains i64 in both layouts. The record path additionally
+        // constructs and validates a handle, then loads its fields in main.
+        assert!(
+            ops.iter().any(|op| matches!(op, Operator::I64Add)),
+            "{level:?}"
+        );
+        if level == OptimizationLevel::None {
+            assert_eq!(bytes, baseline);
+            assert_eq!(locals[..4], [ValType::F64; 4]);
+            assert_eq!((int_adds, float_adds), (0, 2));
+            assert_eq!(calls, 2);
+            assert_eq!(loads, 4);
+        } else {
+            assert_ne!(bytes, baseline, "{level:?}");
+            assert_eq!(
+                &bytes,
+                first_enabled_bytes.get_or_insert_with(|| bytes.clone()),
+                "{level:?}"
+            );
+            // The accumulator and iteration binding stay f64; only a and b narrow.
+            assert_eq!(
+                locals[..4],
+                [ValType::F64, ValType::F64, ValType::I32, ValType::I32]
+            );
+            assert_eq!((int_adds, float_adds), (1, 1));
+            assert!(ops.iter().any(|op| matches!(op, Operator::F64ConvertI32S)));
+            assert_eq!((calls, loads), (0, 0));
+        }
     }
 }
 
