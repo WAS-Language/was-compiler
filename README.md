@@ -1087,7 +1087,7 @@ Ordinary loop-body lets may qualify. User-authorized #41 reuses the existing fac
 for all six numeric comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`) when both operands
 are proven signed-i32 integers, using signed ordering, and for safe unary negation
 when operand bounds exclude both zero and `i32::MIN`. Multiplication, division,
-remainder and unknown f64 fallbacks remain unchanged. No branch/contract/caller
+remainder and unknown f64 fallbacks remain outside integer specialization. No branch/contract/caller
 refinement is added. Public AST, source language, ABI and captures are unchanged.
 `None`/default bytes are preserved; enabled presets must match each other's
 bytes, with semantic/diagnostic parity across levels and adapter byte parity within
@@ -1098,6 +1098,13 @@ loops (#82)](docs/memory-abi.md#private-range-record), including grouped ranges
 and loops in local callables. Indirect ranges, default compilation and direct
 codegen keep allocated lowering. Memory exports and helper ordering are unchanged;
 this optimization does not establish integrated M6 release acceptance.
+
+The enabled presets also [fold closed finite arithmetic (#92)](docs/adr/0012-fold-scalars-during-checked-lowering.md):
+negation, addition, subtraction, and multiplication. Every intermediate result
+uses binary64 semantics, including signed zero and subnormal rounding. Nonfinite
+intermediates prevent the parent from folding; eligible children can still fold.
+Folding preserves the original checks and selected representation. `None` and
+direct codegen do not fold. No public option or ABI changes are introduced.
 
 [Integer specialization contracts and status](docs/integer-specialization.md) distinguish this subset from
 remaining #38 work. Authorization through #41 covers implementation, not release

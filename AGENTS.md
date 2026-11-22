@@ -259,6 +259,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   confirm size benefit with material compilation regressions and mixed guest timings;
   keep experimental pending explicit regression/release acceptance. No release/default
   change, broader proof scope or public type/ABI change is authorized.
+- M8 #92 folds finite closed numeric negation/add/subtract/multiply in enabled
+  presets. Before extending folding or changing its test toggle, read
+  [ADR 0012](docs/adr/0012-fold-scalars-during-checked-lowering.md). Fold after
+  the original checks and preserve the selected representation and M6/M7 plans.
+  #92 authorizes only this slice, not further WP13 work or release acceptance.
 
 ## Current language support
 
@@ -292,10 +297,10 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   [the milestone boundary](docs/wp12-placeholder-development.md#implemented-control-flow-and-nesting-milestone-47)
   and [approved bare-initializer ownership rule](docs/wp12-placeholder-development.md#implemented-localcollection-milestone-46).
   #48 implements immediate unary typed-lambda/placeholder stages alongside #44's
-  known lexical callable stages; integrated WP12 release validation remains pending.
+  known lexical callable stages. [#49's integrated WP12 correctness gates passed](docs/wp12-release-validation-2026-10-25.md).
   Before changing immediate-stage ownership, inference or allocation order, read
   [the #48 milestone](docs/wp12-placeholder-development.md#implemented-immediate-stage-milestone-48).
-  WP13 optimization requires separate authorization.
+  WP13 work beyond #92 requires separate authorization.
   Preserve `target/wp7-inference` when cleaning generated output. Before changing defaults, call binding, or
   normalized lowering, read [the handoff](docs/wp6-wp7-development.md) and
   [named-call interface](docs/named-call-interface.md) for origins, ownership,
@@ -520,7 +525,8 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   and nested regions through the same helper boundary.
   #48 adds immediate unary typed-lambda/placeholder stages through that boundary;
   reclamation and separately authorized WP13 optimization remain out of scope.
-  #44 implementation is committed; integrated WP12 release validation is pending. Use [#35's release evidence](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
+  [#49 records integrated WP12 correctness evidence](docs/wp12-release-validation-2026-10-25.md).
+  Use [#35's release evidence](docs/local-callable-interface.md#issue-35-wp11-release-validation-2026-10-15)
   for full native/current-source browser validation; earlier subsets retain their
   historical scope.
 - Keep `crates/compiler/tests/closures_frontend.rs`, `crates/compiler/tests/closures_lowering.rs`,

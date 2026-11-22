@@ -49,6 +49,9 @@ use function::closures;
 mod contracts_tests;
 
 #[cfg(test)]
+mod folding_tests;
+
+#[cfg(test)]
 mod export_tests;
 
 #[cfg(test)]
@@ -337,9 +340,11 @@ pub fn compile_with_exports(
         exports,
         NumericPolicy::Baseline,
         RangePolicy::Allocated,
+        FoldingPolicy::Disabled,
     )
 }
 
+pub(crate) use expression::FoldingPolicy;
 pub(crate) use range::Policy as RangePolicy;
 pub(crate) use representation::NumericPolicy;
 
@@ -349,7 +354,13 @@ fn compile_with_policy(
     exports: &ExportOptions,
     policy: NumericPolicy,
 ) -> Result<Vec<u8>, CodegenError> {
-    compile_with_policies(program, exports, policy, RangePolicy::Allocated)
+    compile_with_policies(
+        program,
+        exports,
+        policy,
+        RangePolicy::Allocated,
+        FoldingPolicy::Disabled,
+    )
 }
 
 pub(crate) fn compile_with_policies(
@@ -357,8 +368,10 @@ pub(crate) fn compile_with_policies(
     exports: &ExportOptions,
     numeric: NumericPolicy,
     ranges: RangePolicy,
+    folding: FoldingPolicy,
 ) -> Result<Vec<u8>, CodegenError> {
-    let validated = validation::ValidatedProgram::with_policies(program, exports, numeric, ranges)?;
+    let validated =
+        validation::ValidatedProgram::with_policies(program, exports, numeric, ranges, folding)?;
 
     Ok(assemble(&validated))
 }
@@ -412,7 +425,7 @@ fn assemble_inner(
             exports.export(&user.name, ExportKind::Func, plan.function_index.raw());
         }
 
-        code.function(body);
+        code.raw(body);
     }
 
     let mut memories = MemorySection::new();
@@ -500,7 +513,7 @@ fn assemble_inner(
 
     for (plan, body) in layout.callables.iter().zip(validated.callable_bodies()) {
         functions.function(plan.type_index.raw());
-        code.function(body);
+        code.raw(body);
     }
 
     if let Some(plan) = &layout.resizable {

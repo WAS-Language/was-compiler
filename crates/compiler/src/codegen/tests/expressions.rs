@@ -216,7 +216,7 @@ fn nested_arithmetic_preserves_precedence_associativity_and_operand_order() {
 }
 
 #[test]
-fn arithmetic_preserves_import_indices_and_is_not_folded_at_any_optimization_level() {
+fn arithmetic_folding_preserves_import_indices_abi_and_division() {
     use DecodedInstruction::*;
 
     let mut expected_bytes = None;
@@ -309,19 +309,7 @@ fn arithmetic_preserves_import_indices_and_is_not_folded_at_any_optimization_lev
             ]
         } else {
             vec![
-                vec![
-                    I32Const(1),
-                    Runtime("F64ConvertI32S".into()),
-                    I32Const(2),
-                    Runtime("F64ConvertI32S".into()),
-                    I32Const(3),
-                    Runtime("F64ConvertI32S".into()),
-                    F64Mul,
-                    F64Add,
-                    F64Neg,
-                    Return,
-                    End,
-                ],
+                vec![F64Const(-7.0), Return, End],
                 vec![
                     I32Const(1),
                     Runtime("F64ConvertI32S".into()),
@@ -334,16 +322,7 @@ fn arithmetic_preserves_import_indices_and_is_not_folded_at_any_optimization_lev
                     Return,
                     End,
                 ],
-                vec![
-                    I32Const(1),
-                    I32Const(2),
-                    Runtime("I32Add".into()),
-                    I32Const(3),
-                    Runtime("I32Sub".into()),
-                    Runtime("F64ConvertI32S".into()),
-                    Return,
-                    End,
-                ],
+                vec![I32Const(0), Runtime("F64ConvertI32S".into()), Return, End],
             ]
         };
         assert_eq!(module.bodies, expected, "optimization level {level:?}");

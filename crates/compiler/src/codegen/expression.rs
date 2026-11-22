@@ -46,12 +46,10 @@ pub(super) fn block_type(result: ExprResult) -> BlockType {
     wasm_result(result).map_or(BlockType::Empty, BlockType::Result)
 }
 
-pub(super) fn emit(
-    expr: &TypedExpr,
-    body: &mut BodyEmitter<'_>,
-    span: Span,
-) -> Result<Flow, CodegenError> {
-    emit_as(expr, body, span, Representation::F64)
+#[derive(Clone, Copy)]
+pub(crate) enum FoldingPolicy {
+    Disabled,
+    FiniteArithmetic,
 }
 
 pub(super) fn emit_as(
@@ -59,15 +57,18 @@ pub(super) fn emit_as(
     body: &mut BodyEmitter<'_>,
     span: Span,
     output: Representation,
-) -> Result<Flow, CodegenError> {
+) -> Result<(Flow, Option<f64>), CodegenError> {
     let function = body.name();
     let representation = body.numeric_representation(expr);
+    let checkpoint = body.folding_checkpoint();
+    let mut constant = None;
 
     let (flow, actual) = match &expr.kind {
         TypedExprKind::Number(literal) => {
             expect_result(function, Type::Number.into(), expr.ty, span)?;
 
             let value = number(literal, function, span)?;
+            constant = checkpoint.map(|_| value);
 
             if representation == Representation::I32 {
                 // The private proof checked parsed-value integrality and i32 bounds.
@@ -107,16 +108,19 @@ pub(super) fn emit_as(
             expect_result(function, eager_result(ty, &[operand]), expr.ty, span)?;
             expect_operand(function, ty, operand.ty, span)?;
 
-            let flow = if representation == Representation::I32 {
+            let (flow, value) = if representation == Representation::I32 {
                 body.instruction(&Instruction::I32Const(0));
-                let flow = body.emit_expr_as(operand, span, Representation::I32)?;
+                let outcome = body.emit_expr_with_value(operand, span, Representation::I32)?;
                 body.instruction(&Instruction::I32Sub);
-                flow
+                outcome
             } else {
-                let flow = body.emit_expr(operand, span)?;
+                let outcome = body.emit_expr_with_value(operand, span, Representation::F64)?;
                 body.instruction(&instruction);
-                flow
+                outcome
             };
+            if *op == UnaryOp::Negate {
+                constant = value.map(|value| -value);
+            }
 
             (flow, result(flow, ty))
         }
@@ -196,7 +200,7 @@ pub(super) fn emit_as(
             } else {
                 representation
             };
-            let left_flow = body.emit_expr_as(left, span, operands)?;
+            let (left_flow, left_value) = body.emit_expr_with_value(left, span, operands)?;
             let flow = if logical {
                 emit_logical(op, right, left_flow, body, span)?
             } else {
@@ -205,7 +209,7 @@ pub(super) fn emit_as(
                 if normalize {
                     body.normalize_bool();
                 }
-                let right_flow = body.emit_expr_as(right, span, operands)?;
+                let (right_flow, right_value) = body.emit_expr_with_value(right, span, operands)?;
                 if normalize {
                     body.normalize_bool();
                 }
@@ -248,6 +252,15 @@ pub(super) fn emit_as(
                         })?;
                     body.instruction(&instruction);
                 }
+                constant = left_value.zip(right_value).and_then(|(left, right)| {
+                    let value = match op {
+                        BinaryOp::Add => left + right,
+                        BinaryOp::Subtract => left - right,
+                        BinaryOp::Multiply => left * right,
+                        _ => return None,
+                    };
+                    value.is_finite().then_some(value)
+                });
                 left_flow.then(right_flow)
             };
             (flow, result(flow, result_type))
@@ -472,6 +485,17 @@ pub(super) fn emit_as(
     };
 
     expect_result(function, actual, expr.ty, span)?;
+    if let (Some(start), Some(value)) = (checkpoint, constant)
+        && !matches!(expr.kind, TypedExprKind::Number(_))
+    {
+        // A finite value can only come from checked literals and eager arithmetic.
+        // Replace their instructions, not the site's representation or widening.
+        let instruction = match representation {
+            Representation::I32 => Instruction::I32Const(value as i32),
+            Representation::F64 => Instruction::F64Const(value.into()),
+        };
+        body.replace_instructions(start, &instruction);
+    }
     if representation == Representation::I32 && output == Representation::F64 {
         body.instruction(&Instruction::F64ConvertI32S);
     }
@@ -480,7 +504,7 @@ pub(super) fn emit_as(
         // checked absence of a normal path, rather than inventing a result value.
         body.instruction(&Instruction::Unreachable);
     }
-    Ok(flow)
+    Ok((flow, constant))
 }
 
 fn emit_logical(

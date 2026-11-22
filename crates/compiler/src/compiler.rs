@@ -109,6 +109,7 @@ impl Compiler {
             &self.exports,
             self.options.optimization_level.numeric_policy(),
             self.options.optimization_level.range_policy(),
+            self.options.optimization_level.folding_policy(),
         )
     }
 

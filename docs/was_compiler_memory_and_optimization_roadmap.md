@@ -1564,7 +1564,7 @@ Until then, the subset remains experimental.
   deferred. M6 direct range-loop scalar replacement and M7 integer specialization
   are composition cases, not new M8 deliverables.
 - This interview does not create an exception to the [WP13 entry gate](was_language_extensions_plan.md#wp13--benchmark-gated-optimization-separate-authorization).
-  Implementation requires WP12's pending correctness exit and separate explicit
+  Implementation requires WP12's verified correctness exit and separate explicit
   authorization. A confirmed design is not implementation or release approval.
 - M6 and M7's pending performance decisions block M8 release acceptance, not
   design or separately authorized implementation. Require current-source
@@ -1620,8 +1620,9 @@ Until then, the subset remains experimental.
   checked-lowering boundary and why M8 does not rewrite the typed tree.
 
 The user confirmed the shared understanding after all three rounds, closing the
-M8 design interview. Implementation is not authorized and release acceptance has
-not been established.
+M8 design interview. The separately authorized [#92 arithmetic slice](adr/0012-fold-scalars-during-checked-lowering.md#implemented-slice-92)
+is implemented after verification of WP12's correctness exit. The rest of the
+whitelist and M8 release acceptance are beyond this slice.
 
 ### Original candidate list (not the M8 completion checklist)
 

@@ -5,7 +5,7 @@ use std::{
     ops::ControlFlow,
 };
 
-use wasm_encoder::{Function, Instruction};
+use wasm_encoder::Instruction;
 
 use crate::{
     ast::Type,
@@ -504,7 +504,7 @@ pub(in crate::codegen) fn emit_closure<'a>(
     closure: &'a TypedClosure,
     module: &'a Layout<'a>,
     policy: super::NumericPolicy,
-) -> Result<Function, CodegenError> {
+) -> Result<Vec<u8>, CodegenError> {
     let mut emitter = BodyEmitter::for_owner(BodyOwner::Closure(closure), module, policy)?;
     emitter.context.lexical_prefix = module.callables[closure.id.0]
         .creator

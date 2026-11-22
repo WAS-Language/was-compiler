@@ -215,7 +215,7 @@ fn local_bounds_require_every_intermediate_and_exclude_unsupported_initializers(
         (
             "let a = -0; let b = a - 0; let c = b + -0;",
             vec![ValType::F64; 3],
-            "F64Neg",
+            "F64Add",
         ),
         (
             "let a = 7; let b = a * 2; let c = b + 1;",

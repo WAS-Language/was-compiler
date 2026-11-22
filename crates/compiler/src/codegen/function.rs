@@ -12,7 +12,7 @@ use crate::{
         TypedFunction, TypedParam, VariableId,
     },
 };
-use wasm_encoder::{BlockType, Function, Instruction, ValType};
+use wasm_encoder::{BlockType, Encode, Function, Instruction, ValType};
 
 use super::{
     CodegenError, abi, checked_u32,
@@ -232,7 +232,7 @@ pub(super) struct LoopContext {
 }
 
 pub(super) struct BodyEmitter<'a> {
-    body: Function,
+    body: Vec<u8>,
     context: Context<'a>,
     labels: Vec<LabelId>,
     next_label: usize,
@@ -310,7 +310,7 @@ impl<'a> BodyEmitter<'a> {
         };
 
         Ok(Self {
-            body: Function::new(locals),
+            body: Function::new(locals).into_raw_body(),
             context,
             labels: Vec::new(),
             next_label: 0,
@@ -352,7 +352,19 @@ impl<'a> BodyEmitter<'a> {
     }
 
     pub fn instruction(&mut self, instruction: &Instruction<'_>) {
-        self.body.instruction(instruction);
+        instruction.encode(&mut self.body);
+    }
+
+    pub(super) fn folding_checkpoint(&self) -> Option<usize> {
+        match self.context.module.folding_policy {
+            expression::FoldingPolicy::Disabled => None,
+            expression::FoldingPolicy::FiniteArithmetic => Some(self.body.len()),
+        }
+    }
+
+    pub(super) fn replace_instructions(&mut self, start: usize, instruction: &Instruction<'_>) {
+        self.body.truncate(start);
+        self.instruction(instruction);
     }
 
     pub fn local_get(&mut self, index: LocalIndex) {
@@ -755,7 +767,7 @@ impl<'a> BodyEmitter<'a> {
     }
 
     pub fn emit_expr(&mut self, expr: &TypedExpr, span: Span) -> Result<Flow, CodegenError> {
-        self.structured(|emitter| expression::emit(expr, emitter, span))
+        self.emit_expr_as(expr, span, Representation::F64)
     }
 
     pub fn local_representation(&self, id: VariableId) -> Representation {
@@ -774,6 +786,16 @@ impl<'a> BodyEmitter<'a> {
         span: Span,
         representation: Representation,
     ) -> Result<Flow, CodegenError> {
+        self.emit_expr_with_value(expr, span, representation)
+            .map(|(flow, _)| flow)
+    }
+
+    pub(super) fn emit_expr_with_value(
+        &mut self,
+        expr: &TypedExpr,
+        span: Span,
+        representation: Representation,
+    ) -> Result<(Flow, Option<f64>), CodegenError> {
         self.structured(|emitter| expression::emit_as(expr, emitter, span, representation))
     }
 
@@ -786,7 +808,7 @@ pub(super) fn emit<'a>(
     function: &'a TypedFunction,
     module: &'a Layout<'a>,
     policy: NumericPolicy,
-) -> Result<Function, CodegenError> {
+) -> Result<Vec<u8>, CodegenError> {
     let mut emitter = BodyEmitter::for_owner(BodyOwner::Function(function), module, policy)?;
 
     validate_parameters(&function.params, &mut emitter)?;

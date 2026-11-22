@@ -1,5 +1,21 @@
 pub const CASES: &[(&str, &str, f64, Option<&str>)] = &[
     (
+        "finite_arithmetic_defaults_contracts_and_range",
+        r#"
+fn stage(x: number = (1.5 + 2.25) * 2) -> number requires x > (1.5 - 1.5) {
+    let offset = () => -(3.5 - 2.25);
+    let result = x + offset();
+    for i in (1 + 2)..(5 + 1) { result += i; }
+    return result;
+}
+fn main() -> number { return stage(); }
+fn reject() -> number { return stage(0); }
+"#,
+        // 7.5 - 1.25 + (3 + 4 + 5).
+        18.25,
+        Some("reject"),
+    ),
+    (
         "defaults_contracts_pipeline_match",
         r#"
 fn stage(x: number, step: number = x + 2) -> number

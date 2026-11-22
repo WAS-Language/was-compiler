@@ -21,6 +21,15 @@ impl OptimizationLevel {
         }
     }
 
+    pub(crate) fn folding_policy(self) -> crate::codegen::FoldingPolicy {
+        match self {
+            Self::None => crate::codegen::FoldingPolicy::Disabled,
+            Self::Basic | Self::Standard | Self::Aggressive => {
+                crate::codegen::FoldingPolicy::FiniteArithmetic
+            }
+        }
+    }
+
     pub(crate) fn range_policy(self) -> crate::codegen::RangePolicy {
         match self {
             Self::None => crate::codegen::RangePolicy::Allocated,

@@ -95,7 +95,7 @@ fn legacy_compile(
         if plan.exported {
             exports.export(&user.name, ExportKind::Func, plan.function_index.raw());
         }
-        code.function(&body);
+        code.raw(&body);
     }
     let mut memories = MemorySection::new();
     let mut globals = GlobalSection::new();

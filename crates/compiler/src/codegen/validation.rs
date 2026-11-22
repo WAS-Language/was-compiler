@@ -1,13 +1,12 @@
 use crate::{exports::ExportOptions, typed_ast::TypedProgram};
-use wasm_encoder::Function;
 
 use super::{CodegenError, closures, function, layout::Layout};
 
 pub(super) struct ValidatedProgram<'a> {
     program: &'a TypedProgram,
     layout: Layout<'a>,
-    bodies: Vec<Function>,
-    callable_bodies: Vec<Function>,
+    bodies: Vec<Vec<u8>>,
+    callable_bodies: Vec<Vec<u8>>,
 }
 
 impl<'a> ValidatedProgram<'a> {
@@ -22,7 +21,13 @@ impl<'a> ValidatedProgram<'a> {
         exports: &ExportOptions,
         policy: super::NumericPolicy,
     ) -> Result<Self, CodegenError> {
-        Self::with_policies(program, exports, policy, super::RangePolicy::Allocated)
+        Self::with_policies(
+            program,
+            exports,
+            policy,
+            super::RangePolicy::Allocated,
+            super::FoldingPolicy::Disabled,
+        )
     }
 
     pub(super) fn with_policies(
@@ -30,12 +35,14 @@ impl<'a> ValidatedProgram<'a> {
         exports: &ExportOptions,
         numeric: super::NumericPolicy,
         ranges: super::RangePolicy,
+        folding: super::FoldingPolicy,
     ) -> Result<Self, CodegenError> {
         let mut layout = match exports {
             ExportOptions::All => Layout::new(program),
             _ => Layout::with_exports(program, exports),
         }?;
         layout.range_policy = ranges;
+        layout.folding_policy = folding;
         Self::lower(program, layout, numeric)
     }
 
@@ -92,11 +99,11 @@ impl<'a> ValidatedProgram<'a> {
         &self.layout
     }
 
-    pub fn callable_bodies(&self) -> &[Function] {
+    pub fn callable_bodies(&self) -> &[Vec<u8>] {
         &self.callable_bodies
     }
 
-    pub fn bodies(&self) -> &[Function] {
+    pub fn bodies(&self) -> &[Vec<u8>] {
         &self.bodies
     }
 }

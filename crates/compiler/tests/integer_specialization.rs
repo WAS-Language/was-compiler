@@ -30,7 +30,7 @@ fn instructions(bytes: &[u8]) -> Vec<String> {
 }
 
 #[test]
-fn proven_subtrees_use_integer_operations_without_folding_or_changing_the_abi() {
+fn folded_proven_subtrees_keep_integer_representation_and_the_f64_abi() {
     let source = "fn main() -> number { return (10 + 20) - 3; }";
     let baseline = Compiler::new().compile_source(source).unwrap();
     let program = Compiler::new().analyze(source).unwrap();
@@ -44,16 +44,7 @@ fn proven_subtrees_use_integer_operations_without_folding_or_changing_the_abi() 
         assert_ne!(bytes, baseline);
         assert_eq!(
             instructions(&bytes),
-            [
-                "I32Const { value: 10 }",
-                "I32Const { value: 20 }",
-                "I32Add",
-                "I32Const { value: 3 }",
-                "I32Sub",
-                "F64ConvertI32S",
-                "Return",
-                "End",
-            ]
+            ["I32Const { value: 27 }", "F64ConvertI32S", "Return", "End",]
         );
         for payload in Parser::new(0).parse_all(&bytes) {
             match payload.unwrap() {
@@ -99,14 +90,8 @@ fn proven_numeric_comparisons_use_signed_integer_operands_without_result_convers
             assert_eq!(
                 instructions(&bytes),
                 [
-                    "I32Const { value: 0 }",
+                    "I32Const { value: -2147483648 }",
                     "I32Const { value: 2147483647 }",
-                    "I32Sub",
-                    "I32Const { value: 1 }",
-                    "I32Sub",
-                    "I32Const { value: 2147483646 }",
-                    "I32Const { value: 1 }",
-                    "I32Add",
                     integer,
                     "Return",
                     "End",
@@ -117,50 +102,13 @@ fn proven_numeric_comparisons_use_signed_integer_operands_without_result_convers
 }
 
 #[test]
-fn safe_negation_uses_integer_subtraction_and_propagates_bounds() {
-    for (expr, expected) in [
-        (
-            "-(2 + 3)",
-            vec![
-                "I32Const { value: 0 }",
-                "I32Const { value: 2 }",
-                "I32Const { value: 3 }",
-                "I32Add",
-                "I32Sub",
-                "F64ConvertI32S",
-                "Return",
-                "End",
-            ],
-        ),
-        (
-            "-(-2147483647)",
-            vec![
-                "I32Const { value: 0 }",
-                "I32Const { value: 0 }",
-                "I32Const { value: 2147483647 }",
-                "I32Sub",
-                "I32Sub",
-                "F64ConvertI32S",
-                "Return",
-                "End",
-            ],
-        ),
-        (
-            "-(1 - 2) + 3",
-            vec![
-                "I32Const { value: 0 }",
-                "I32Const { value: 1 }",
-                "I32Const { value: 2 }",
-                "I32Sub",
-                "I32Sub",
-                "I32Const { value: 3 }",
-                "I32Add",
-                "F64ConvertI32S",
-                "Return",
-                "End",
-            ],
-        ),
+fn folded_safe_negation_preserves_proven_integer_results() {
+    for (expr, constant) in [
+        ("-(2 + 3)", "I32Const { value: -5 }"),
+        ("-(-2147483647)", "I32Const { value: 2147483647 }"),
+        ("-(1 - 2) + 3", "I32Const { value: 4 }"),
     ] {
+        let expected = [constant, "F64ConvertI32S", "Return", "End"];
         let source = format!("fn main() -> number {{ return {expr}; }}");
         assert!(
             instructions(&Compiler::new().compile_source(&source).unwrap())
@@ -193,9 +141,7 @@ fn never_reassigned_local_chains_use_i32_slots_and_one_return_conversion() {
         assert_eq!(
             instructions(&bytes),
             [
-                "I32Const { value: 10 }",
-                "I32Const { value: 20 }",
-                "I32Add",
+                "I32Const { value: 30 }",
                 "LocalSet { local_index: 0 }",
                 "LocalGet { local_index: 0 }",
                 "I32Const { value: 3 }",
@@ -226,24 +172,24 @@ fn never_reassigned_local_chains_use_i32_slots_and_one_return_conversion() {
 
 #[test]
 fn parsed_values_and_every_intermediate_bound_control_specialization() {
-    // Counts are independent expected opcodes, not values computed by the proof.
-    for (expr, integer_adds, integer_subs, float_adds, float_subs) in [
-        ("2147483647 + 0", 1, 0, 0, 0),
-        ("0 - 2147483647 - 1", 0, 2, 0, 0),
-        ("(0 - 2147483647 - 1) - (0 - 1)", 0, 4, 0, 0),
-        ("(2147483647 + 1) - 1", 0, 0, 1, 1),
-        ("(0 - 2147483647 - 1) - 1", 0, 2, 0, 1),
-        ("2147483648 - 1", 0, 0, 0, 1),
-        ("1.00000000000000001 + 2.000", 1, 0, 0, 0),
-        ("2147483647.00000001 + 0", 1, 0, 0, 0),
-        ("2147483647.99999999 - 1", 0, 0, 0, 1),
-        ("0 - 0", 0, 1, 0, 0),
-        ("-0 + 0", 0, 0, 1, 0),
-        ("0 - -0", 0, 0, 0, 1),
-        ("-0 - 0", 0, 0, 0, 1),
-        ("1.5 + (2 + 3)", 1, 0, 1, 0),
-        ("(2 + 3) * (4 - 1)", 1, 1, 0, 0),
-        ("-(2 + 3)", 1, 1, 0, 0),
+    // Folding must not feed the final value back into the M7 proof.
+    for (expr, integer) in [
+        ("2147483647 + 0", true),
+        ("0 - 2147483647 - 1", true),
+        ("(0 - 2147483647 - 1) - (0 - 1)", true),
+        ("(2147483647 + 1) - 1", false),
+        ("(0 - 2147483647 - 1) - 1", false),
+        ("2147483648 - 1", false),
+        ("1.00000000000000001 + 2.000", true),
+        ("2147483647.00000001 + 0", true),
+        ("2147483647.99999999 - 1", false),
+        ("0 - 0", true),
+        ("-0 + 0", false),
+        ("0 - -0", false),
+        ("-0 - 0", false),
+        ("1.5 + (2 + 3)", false),
+        ("(2 + 3) * (4 - 1)", false),
+        ("-(2 + 3)", true),
     ] {
         let source = format!("fn main() -> number {{ return {expr}; }}");
         let expected = compiler(OptimizationLevel::Basic)
@@ -253,18 +199,14 @@ fn parsed_values_and_every_intermediate_bound_control_specialization() {
             let bytes = compiler(level).compile_source(&source).unwrap();
             assert_eq!(bytes, expected, "enabled preset identity: {expr}");
             let ops = instructions(&bytes);
-            for (op, count) in [
-                ("I32Add", integer_adds),
-                ("I32Sub", integer_subs),
-                ("F64Add", float_adds),
-                ("F64Sub", float_subs),
-            ] {
-                assert_eq!(
-                    ops.iter().filter(|actual| actual.as_str() == op).count(),
-                    count,
-                    "{level:?}: {expr}: {op}"
-                );
-            }
+            let expected_tail = if integer {
+                ["F64ConvertI32S", "Return", "End"].as_slice()
+            } else {
+                ["Return", "End"].as_slice()
+            };
+            let constant = if integer { "I32Const" } else { "F64Const" };
+            assert!(ops[0].starts_with(constant), "{level:?}: {expr}");
+            assert_eq!(&ops[1..], expected_tail, "{level:?}: {expr}");
         }
     }
 }
@@ -289,7 +231,7 @@ fn unknown_inputs_mutable_storage_and_unspecialized_consumers_remain_floating() 
             "F64Add",
         ),
         (
-            "fn main() -> number { return (1 + 2) * (3 + 4); }",
+            "fn main(x: number) -> number { return (1 + 2) * x; }",
             "F64Mul",
         ),
         (
@@ -300,7 +242,10 @@ fn unknown_inputs_mutable_storage_and_unspecialized_consumers_remain_floating() 
             "fn main(x: number) -> bool { return (1 + 2) < x; }",
             "F64Lt",
         ),
-        ("fn main() -> number { return -(1 + 2 - 3); }", "F64Neg"),
+        (
+            "fn main() -> number { let a = 1 + 2 - 3; return -a; }",
+            "F64Neg",
+        ),
         (
             "fn main() -> number { let a = [1 + 2]; return a[0] + 3; }",
             "F64Add",
@@ -317,7 +262,16 @@ fn unknown_inputs_mutable_storage_and_unspecialized_consumers_remain_floating() 
         for level in ENABLED {
             let bytes = compiler(level).compile_source(source).unwrap();
             let ops = instructions(&bytes);
-            assert!(ops.contains(&"I32Add".into()), "{source}");
+            let constant = if required == "F64Neg" { 0 } else { 3 };
+            let folded = format!("I32Const {{ value: {constant} }}");
+            assert!(
+                ops.windows(2)
+                    .any(|pair| pair == [folded.as_str(), "F64ConvertI32S"]
+                        || (required == "F64Neg"
+                            && pair[0] == folded
+                            && pair[1].starts_with("LocalSet"))),
+                "{source}: folded child"
+            );
             assert!(ops.contains(&required.into()), "{source}: {required}");
             for payload in Parser::new(0).parse_all(&bytes) {
                 if let Payload::CodeSectionEntry(body) = payload.unwrap() {
@@ -387,7 +341,9 @@ fn proof_cache_preserves_forged_tree_errors_and_does_not_survive_compilation() {
     right.kind = TypedExprKind::Number("2147483648".into());
     let after = selected.compile(&program).unwrap();
     assert_ne!(before, after);
-    assert!(instructions(&after).contains(&"F64Add".into()));
+    let after = instructions(&after);
+    assert!(after[0].starts_with("F64Const"));
+    assert_eq!(&after[1..], ["Return", "End"]);
 
     for source in [
         "fn main() -> number { return 1; return 2 + 3; }",
@@ -448,7 +404,7 @@ fn insufficient_comparison_proofs_keep_floating_consumers_and_independent_childr
                 for level in ENABLED {
                     let ops = instructions(&compiler(level).compile_source(&source).unwrap());
                     assert!(ops.contains(&floating.into()), "{level:?}: {source}");
-                    assert!(ops.contains(&"I32Add".into()), "{source}");
+                    assert!(ops.contains(&"I32Const { value: 5 }".into()), "{source}");
                     assert!(ops.contains(&"F64ConvertI32S".into()), "{source}");
                 }
             }
@@ -468,36 +424,29 @@ fn insufficient_comparison_proofs_keep_floating_consumers_and_independent_childr
 }
 
 #[test]
-fn unsafe_negation_keeps_float_and_does_not_hide_supported_children() {
-    for (expr, float_negations, integer_subtractions) in [
-        ("-0", 1, 0),
-        ("-(-0)", 2, 0),
-        ("-(1 - 1)", 1, 1),
-        ("-(0 - 2147483647 - 1)", 1, 2),
-        ("-2147483648", 1, 0),
-        ("-2147483649", 1, 0),
-        ("-1.5", 1, 0),
-        ("-(0 / 0)", 1, 0),
-        ("-(1 / 0)", 1, 0),
-        ("-x", 1, 0),
-        ("-((2 + 3) * 4)", 1, 0),
+fn negation_without_an_integer_proof_keeps_float_representation() {
+    for (expr, folded) in [
+        ("-0", true),
+        ("-(-0)", true),
+        ("-(1 - 1)", true),
+        ("-(0 - 2147483647 - 1)", true),
+        ("-2147483648", true),
+        ("-2147483649", true),
+        ("-1.5", true),
+        ("-(0 / 0)", false),
+        ("-(1 / 0)", false),
+        ("-x", false),
+        ("-((2 + 3) * 4)", true),
     ] {
         let source = format!("fn main(x: number) -> number {{ return {expr}; }}");
         for level in ENABLED {
             let ops = instructions(&compiler(level).compile_source(&source).unwrap());
-            assert_eq!(
-                ops.iter().filter(|op| *op == "F64Neg").count(),
-                float_negations,
-                "{expr}"
-            );
-            assert_eq!(
-                ops.iter().filter(|op| *op == "I32Sub").count(),
-                integer_subtractions,
-                "{expr}"
-            );
-            if expr.contains("2 + 3") {
-                assert!(ops.contains(&"I32Add".into()));
-                assert!(ops.contains(&"F64ConvertI32S".into()));
+            if folded {
+                assert!(ops[0].starts_with("F64Const"), "{expr}");
+                assert_eq!(&ops[1..], ["Return", "End"], "{expr}");
+            } else {
+                assert!(ops.contains(&"F64Neg".into()), "{expr}");
+                assert!(!ops.contains(&"I32Sub".into()), "{expr}");
             }
         }
     }

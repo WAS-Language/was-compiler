@@ -7,7 +7,7 @@ use std::{fs, path::Path, process::Command, time::Duration};
 use wasmparser::{Operator, Parser, Payload};
 
 #[test]
-fn ordinary_modules_preserve_pre_folding_operations_and_composition_controls() {
+fn ordinary_modules_fold_closed_arithmetic_and_preserve_composition_controls() {
     for (name, source) in corpus::cases() {
         let (_, [none, basic, _, _]) = corpus::prepare(&source);
         let body = |bytes: &[u8], matches: fn(Operator<'_>) -> bool| {
@@ -28,10 +28,15 @@ fn ordinary_modules_preserve_pre_folding_operations_and_composition_controls() {
 
         match name {
             "wide_closed" => {
-                for bytes in [&none, &basic] {
-                    assert_eq!(body(bytes, |op| matches!(op, Operator::F64Mul)), 16);
-                    assert_eq!(body(bytes, |op| matches!(op, Operator::F64Add)), 31);
-                }
+                assert_eq!(body(&none, |op| matches!(op, Operator::F64Mul)), 16);
+                assert_eq!(body(&none, |op| matches!(op, Operator::F64Add)), 31);
+                assert_eq!(
+                    body(&basic, |op| matches!(
+                        op,
+                        Operator::F64Mul | Operator::F64Add
+                    )),
+                    0
+                );
             }
             "integer_local" => {
                 assert_eq!(body(&none, |op| matches!(op, Operator::I32Add)), 0);

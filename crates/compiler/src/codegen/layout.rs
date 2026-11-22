@@ -43,6 +43,7 @@ pub(super) struct Layout<'a> {
     pub remainder: Option<UserFunctionPlan>,
     pub ranges: Vec<UserFunctionPlan>,
     pub range_policy: super::RangePolicy,
+    pub folding_policy: super::FoldingPolicy,
     pub callables: Vec<CallablePlan<'a>>,
     pub resizable: Option<super::resizable::Plan>,
     #[cfg(test)]
@@ -78,6 +79,7 @@ impl<'a> Layout<'a> {
             remainder: None,
             ranges: Vec::new(),
             range_policy: super::RangePolicy::Allocated,
+            folding_policy: super::FoldingPolicy::Disabled,
             callables: Vec::new(),
             resizable: None,
             #[cfg(test)]
