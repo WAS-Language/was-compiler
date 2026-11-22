@@ -1,0 +1,9 @@
+ M crates/compiler/Cargo.toml
+ M docs/benchmarks.md
+?? crates/compiler/benches/m8_scalars.rs
+?? crates/compiler/benches/support/m8_corpus.rs
+?? crates/compiler/tests/m8_benchmarks.rs
+?? docs/benchmarks/m8-pre-folding-91.md
+?? tests/support/m8_scalar_timing.cjs
+?? tests/support/record_m8_baseline.py
+?? tests/support/test_record_m8_baseline.py

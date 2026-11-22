@@ -1,0 +1,32 @@
+{
+  "executable": "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/build/release/build/was-compiler/3be4778355bfbbd2/out/m8_scalars-3be4778355bfbbd2",
+  "features": [],
+  "filenames": [
+    "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/build/release/build/was-compiler/3be4778355bfbbd2/out/m8_scalars-3be4778355bfbbd2"
+  ],
+  "fresh": false,
+  "manifest_path": "/home/luanroger/Projects/personal/rust/was-compiler/crates/compiler/Cargo.toml",
+  "package_id": "path+file:///home/luanroger/Projects/personal/rust/was-compiler/crates/compiler#was-compiler@0.1.0",
+  "profile": {
+    "debug_assertions": false,
+    "debuginfo": 0,
+    "opt_level": "3",
+    "overflow_checks": false,
+    "test": true
+  },
+  "reason": "compiler-artifact",
+  "target": {
+    "crate_types": [
+      "bin"
+    ],
+    "doc": false,
+    "doctest": false,
+    "edition": "2024",
+    "kind": [
+      "bench"
+    ],
+    "name": "m8_scalars",
+    "src_path": "/home/luanroger/Projects/personal/rust/was-compiler/crates/compiler/benches/m8_scalars.rs",
+    "test": false
+  }
+}

@@ -1,0 +1,366 @@
+{
+  "argv": [
+    "tests/support/record_m8_baseline.py",
+    "target/m8-pre-folding-91-reviewed"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "--no-pager",
+        "--no-optional-locks",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:27:47.176147+00:00",
+      "label": "before-git-head",
+      "started_utc": "2026-11-22T18:27:47.174751+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "git",
+        "--no-pager",
+        "--no-optional-locks",
+        "status",
+        "--short",
+        "--untracked-files=all"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:27:47.183325+00:00",
+      "label": "before-git-status",
+      "started_utc": "2026-11-22T18:27:47.176289+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "git",
+        "--no-pager",
+        "--no-optional-locks",
+        "diff",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--binary"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:27:47.188030+00:00",
+      "label": "before-git-diff-unstaged",
+      "started_utc": "2026-11-22T18:27:47.183444+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "git",
+        "--no-pager",
+        "--no-optional-locks",
+        "diff",
+        "--cached",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--binary"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:27:47.190199+00:00",
+      "label": "before-git-diff-staged",
+      "started_utc": "2026-11-22T18:27:47.188199+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "rustc",
+        "-vV"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:27:47.199718+00:00",
+      "label": "rustc",
+      "started_utc": "2026-11-22T18:27:47.190366+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "cargo",
+        "--version"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:27:47.206383+00:00",
+      "label": "cargo",
+      "started_utc": "2026-11-22T18:27:47.199872+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "/home/luanroger/.local/share/mise/installs/node/26.13.1/bin/node",
+        "-p",
+        "JSON.stringify(process.versions)"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:27:47.224679+00:00",
+      "label": "node",
+      "started_utc": "2026-11-22T18:27:47.206511+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "cargo",
+        "bench",
+        "--offline",
+        "-p",
+        "was-compiler",
+        "--bench",
+        "m8_scalars",
+        "--no-run",
+        "--message-format=json",
+        "--target-dir",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/build"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:34.464040+00:00",
+      "label": "bench-build",
+      "started_utc": "2026-11-22T18:27:47.224939+00:00",
+      "timeout_seconds": 600
+    },
+    {
+      "argv": [
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/build/release/build/was-compiler/3be4778355bfbbd2/out/m8_scalars-3be4778355bfbbd2",
+        "--test"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:34.551370+00:00",
+      "label": "bench-smoke",
+      "started_utc": "2026-11-22T18:28:34.548582+00:00",
+      "timeout_seconds": 120
+    },
+    {
+      "argv": [
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/build/release/build/was-compiler/3be4778355bfbbd2/out/m8_scalars-3be4778355bfbbd2",
+        "--prepare",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/forward"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:34.556603+00:00",
+      "label": "forward-prepare",
+      "started_utc": "2026-11-22T18:28:34.551531+00:00",
+      "timeout_seconds": 120
+    },
+    {
+      "argv": [
+        "/home/luanroger/.local/share/mise/installs/node/26.13.1/bin/node",
+        "tests/support/m8_scalar_timing.cjs",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/forward",
+        "verify"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:34.608912+00:00",
+      "label": "forward-verify",
+      "started_utc": "2026-11-22T18:28:34.557937+00:00",
+      "timeout_seconds": 120
+    },
+    {
+      "argv": [
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/build/release/build/was-compiler/3be4778355bfbbd2/out/m8_scalars-3be4778355bfbbd2",
+        "--record-samples",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/forward",
+        "forward"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.010216+00:00",
+      "label": "forward-native",
+      "started_utc": "2026-11-22T18:28:34.609407+00:00",
+      "timeout_seconds": 600
+    },
+    {
+      "argv": [
+        "/home/luanroger/.local/share/mise/installs/node/26.13.1/bin/node",
+        "tests/support/m8_scalar_timing.cjs",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/forward",
+        "forward"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.080207+00:00",
+      "label": "forward-guest",
+      "started_utc": "2026-11-22T18:28:35.010440+00:00",
+      "timeout_seconds": 120
+    },
+    {
+      "argv": [
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/build/release/build/was-compiler/3be4778355bfbbd2/out/m8_scalars-3be4778355bfbbd2",
+        "--prepare",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/reverse"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.087379+00:00",
+      "label": "reverse-prepare",
+      "started_utc": "2026-11-22T18:28:35.081982+00:00",
+      "timeout_seconds": 120
+    },
+    {
+      "argv": [
+        "/home/luanroger/.local/share/mise/installs/node/26.13.1/bin/node",
+        "tests/support/m8_scalar_timing.cjs",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/reverse",
+        "verify"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.145130+00:00",
+      "label": "reverse-verify",
+      "started_utc": "2026-11-22T18:28:35.088947+00:00",
+      "timeout_seconds": 120
+    },
+    {
+      "argv": [
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/build/release/build/was-compiler/3be4778355bfbbd2/out/m8_scalars-3be4778355bfbbd2",
+        "--record-samples",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/reverse",
+        "reverse"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.541039+00:00",
+      "label": "reverse-native",
+      "started_utc": "2026-11-22T18:28:35.145795+00:00",
+      "timeout_seconds": 600
+    },
+    {
+      "argv": [
+        "/home/luanroger/.local/share/mise/installs/node/26.13.1/bin/node",
+        "tests/support/m8_scalar_timing.cjs",
+        "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-pre-folding-91-reviewed/reverse",
+        "reverse"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.612357+00:00",
+      "label": "reverse-guest",
+      "started_utc": "2026-11-22T18:28:35.541259+00:00",
+      "timeout_seconds": 120
+    },
+    {
+      "argv": [
+        "git",
+        "--no-pager",
+        "--no-optional-locks",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.699922+00:00",
+      "label": "after-git-head",
+      "started_utc": "2026-11-22T18:28:35.698330+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "git",
+        "--no-pager",
+        "--no-optional-locks",
+        "status",
+        "--short",
+        "--untracked-files=all"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.707270+00:00",
+      "label": "after-git-status",
+      "started_utc": "2026-11-22T18:28:35.700128+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "git",
+        "--no-pager",
+        "--no-optional-locks",
+        "diff",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--binary"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.712322+00:00",
+      "label": "after-git-diff-unstaged",
+      "started_utc": "2026-11-22T18:28:35.707458+00:00",
+      "timeout_seconds": 30
+    },
+    {
+      "argv": [
+        "git",
+        "--no-pager",
+        "--no-optional-locks",
+        "diff",
+        "--cached",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--binary"
+      ],
+      "exit_code": 0,
+      "finished_utc": "2026-11-22T18:28:35.714422+00:00",
+      "label": "after-git-diff-staged",
+      "started_utc": "2026-11-22T18:28:35.712497+00:00",
+      "timeout_seconds": 30
+    }
+  ],
+  "complete": true,
+  "cwd": "/home/luanroger/Projects/personal/rust/was-compiler",
+  "environment": {
+    "CARGO_NET_OFFLINE": "true",
+    "PATH": "/home/luanroger/.local/bin:/home/luanroger/.local/share/mise/command-wrappers/bin:/home/luanroger/.local/share/mise/installs/bun/latest/bin:/home/luanroger/.local/share/mise/installs/pnpm/latest:/home/luanroger/.local/share/mise/installs/python/latest/bin:/home/luanroger/.local/share/mise/installs/uv/latest/.mise-bins:/home/luanroger/.local/share/mise/installs/wrangler/latest/node_modules/.bin:/home/luanroger/.local/share/mise/installs/codex/latest/bin:/home/luanroger/.local/share/mise/installs/gh/latest/gh_2.105.0_linux_amd64/bin:/home/luanroger/.local/share/mise/installs/node/latest/bin:/home/luanroger/.local/share/mise/installs/opencode/latest/node_modules/.bin:/home/luanroger/.local/share/mise/shims:/home/luanroger/.local/share/mise/command-wrappers/bin:/usr/share/omarchy/bin:/home/luanroger/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/home/luanroger/.local/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl",
+    "RUSTUP_AUTO_INSTALL": "0"
+  },
+  "finished_utc": "2026-11-22T18:28:35.717585+00:00",
+  "machine_after": {
+    "architecture": "x86_64",
+    "conditions": "Background activity and thermal state are not controlled by this recorder.",
+    "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+    "cpu_affinity": [
+      6
+    ],
+    "logical_cpus": 16,
+    "os": "Linux-7.2.15-1-omarchy-x86_64-with-glibc2.44",
+    "power_settings": {
+      "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy1/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy10/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy11/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy12/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy13/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy14/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy15/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy2/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy3/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy4/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy5/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy6/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy7/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy8/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy9/scaling_governor": "performance"
+    }
+  },
+  "machine_before": {
+    "architecture": "x86_64",
+    "conditions": "Background activity and thermal state are not controlled by this recorder.",
+    "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+    "cpu_affinity": [
+      6
+    ],
+    "logical_cpus": 16,
+    "os": "Linux-7.2.15-1-omarchy-x86_64-with-glibc2.44",
+    "power_settings": {
+      "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy1/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy10/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy11/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy12/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy13/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy14/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy15/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy2/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy3/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy4/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy5/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy6/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy7/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy8/scaling_governor": "performance",
+      "/sys/devices/system/cpu/cpufreq/policy9/scaling_governor": "performance"
+    }
+  },
+  "python": "3.15.2 (main, Oct 26 2026, 14:06:56) [Clang 23.1.3 ]",
+  "python_executable": "/home/luanroger/.local/share/mise/installs/python/latest/bin/python3",
+  "started_utc": "2026-11-22T18:27:47.091050+00:00"
+}
