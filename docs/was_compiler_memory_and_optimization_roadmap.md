@@ -1482,7 +1482,57 @@ flowchart TD
 | Loop ranges | Range implementation may internally use integer progression already; this does not justify changing all `number` values. |
 | Calls and arrays | Maintain `f64` at established ABI boundaries until explicitly revised. |
 
-**Suggested first slice:** specialize a small, proven-safe integer induction variable in a bounded loop, keeping the public result as `f64`. Do not start with a generic “integer-looking literal -> i32” rewrite.
+### M7 interview decisions (round 1; confirmed)
+
+- M7's implementation scope is the existing [#38–#42 subset](integer-specialization.md):
+  exact signed-`i32` literals, proven addition and subtraction, eligible
+  never-reassigned ordinary locals, comparisons, and restricted negation.
+  Bounded induction variables, mutable locals, and broader proofs are deferred.
+  If performance requires follow-up, improve the existing pass before widening it.
+- Keep `number` as the single binary64 language type. As in
+  [ADR 0007](adr/0007-proven-integer-specialization.md), function signatures
+  (including internal calls), array elements, capture cells, and range records
+  keep their existing representations. Select signed `i32` only with a static
+  proof of equivalent behavior; otherwise retain `f64`. No runtime guards or
+  ABI migration are in scope. M6 direct range-loop scalar replacement is separate
+  and does not narrow the range progression to `i32`.
+- Acceptance does not change activation: `None` stays the default and byte
+  baseline; `Basic`, `Standard`, and `Aggressive` keep the same numeric policy.
+  No new flag or preset split is in scope.
+
+### M7 interview decisions (round 2; confirmed)
+
+- Repeat matched measurements on current sources before deciding the
+  [#42 trade-offs](integer-specialization.md#repeated-measurements-and-decision).
+  Reuse the historical corpus for continuity, reporting compilation cost,
+  module bytes, and guest time. Distinguish M7-only results from M6/M7
+  composition. Reproducible size savings can qualify without a guest speedup,
+  but material regressions require explicit disposition, not a post hoc threshold.
+- Require current-source numeric differential execution and independent decoded
+  checks, focused M6/M7 composition coverage, and the existing offline release
+  gates, including a fresh browser build and parity checks and the full workspace
+  run with ignored tests enabled. A blocked gate is unverified; historical passes
+  do not substitute for it.
+- Decide M7 separately from M4, M5, and M6. Shared validation blockers still count,
+  but M7 acceptance does not resolve other milestones' pending decisions or
+  authorize M8.
+
+### M7 interview decisions (round 3; confirmed)
+
+- Preserve all 27 historical cases. Report the 26 without an M6-eligible loop
+  as the M7-focused set and report `loop_local` separately as M6/M7 composition.
+  Enabled presets still select the M6 policy, even when there is no eligible
+  loop; compilation timing is not an isolated cost measurement of the M7 pass.
+  Do not add a compiler switch solely to isolate the measurement.
+- Keep the first follow-up to tests, measurements, and documentation. Do not
+  change production optimization during evidence collection. If fresh results
+  show material regressions, keep M7 experimental until the user explicitly
+  accepts the opt-in trade-off or authorizes a bounded improvement and another
+  matched run.
+
+The user confirmed the shared understanding after all three rounds, closing
+M7's design interview. The evidence follow-up is not yet authorized, and
+M7 release acceptance remains pending.
 
 ### Validation method
 
@@ -1494,7 +1544,11 @@ Run the same program both with and without specialization, comparing:
 - Boundary cases for `i32`, IEEE-754, safe integers, `-0`, infinities and NaN.
 - Wasm emitted types, instruction counts and benchmark results.
 
-**Exit gate:** A documented set of proven-safe patterns produces `i32`-based Wasm without semantic regression; everything else still uses `f64`.
+**Exit gate:** The documented proof subset emits `i32`-based Wasm without
+semantic regression; unproven operations and storage retain `f64`. Current-source
+correctness gates must pass and repeated matched measurements must establish a
+size or guest-time benefit with explicit disposition of material regressions.
+Until then, the subset remains experimental.
 
 ---
 
@@ -1747,8 +1801,9 @@ flowchart TD
 ## 21. Decisions required before implementation
 
 These are decision checkpoints, not hidden assumptions. M5 checkpoints 8–9
-are resolved in §9's confirmed interview record;
-other checkpoints retain their milestone-specific status.
+are resolved in §9's confirmed interview record, and M7 checkpoint 10 is
+resolved for this milestone in §11. Other checkpoints retain their
+milestone-specific status.
 
 1. **Array descriptor compatibility:** adopt a public ABI v2 (e.g., 16-byte descriptor), or preserve the public 8-byte descriptor with private capacity metadata?
 2. **Reclamation model:** use proven region reclamation for temporaries; what ownership, RC, tracing, or nonreclamation fallback applies to arbitrary shared heap objects?
@@ -1759,7 +1814,7 @@ other checkpoints retain their milestone-specific status.
 7. **Iteration under mutation:** M0 confirms initial-length capture and live checked reads as the proposed M4 contract; M4 must implement/test this behavior without assuming it is already shipped.
 8. **String API (M5 design resolved):** immutable transformation builtins plus fragment accumulation in `string[]` and one final `string_join`; no new mutable builder type. See §9.
 9. **Unicode indexing (M5 design resolved):** explicit byte lengths/offsets with strict scalar-boundary slicing; scalar/grapheme indexing and normalization deferred. See §9.
-10. **ABI numeric boundaries:** retain `f64` for all public `number` signatures and numeric arrays until a separately planned ABI version?
+10. **ABI numeric boundaries (M7 design resolved):** retain `f64` for all `number` signatures and numeric array elements. ABI changes are outside M7; see §11.
 11. **Optimization failure behavior:** should a missing/failing Binaryen installation be an error only for explicitly requested optimization, or always fall back to unoptimized Wasm?
 12. **Memory diagnostics:** M0/M2 establish test-only instrumentation boundaries; which additional counters and opt-in reports are worthwhile for M14 without shipping a debugging runtime in release builds?
 13. **M10 effect granularity:** which calls, memory effects and alias classes merit precise modeling after M9 versus unknown conservative fallback?
