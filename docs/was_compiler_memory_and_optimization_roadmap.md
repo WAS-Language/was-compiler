@@ -1419,6 +1419,15 @@ offline browser rebuild was blocked by a missing local `wasm-bindgen` CLI, so th
 full ignored workspace suite was not run. This is focused compatibility evidence,
 not integrated M6 release acceptance.
 
+### Direct-loop allocation evidence (#84)
+
+[Repeated deterministic accounting](m6-range-allocation-evidence.md) combines
+ordinary Wasm decoding with a private test-only observer. It confirms one 32-byte
+baseline record versus zero with enabled presets per completed eligible direct
+construction, including empty ranges. Indirect controls still allocate, and
+operand, capture and body allocations remain separately attributable. This is not
+ordinary timing evidence or integrated M6 release acceptance.
+
 ### Important safety rule
 
 Do **not** implement a general “reset heap at function return” strategy. The temporary-region path from M2 must remain isolated from longer-lived heap allocations. Function calls may return handles, mutate shared arrays, call the host, or create closure environments. A blanket reset can invalidate live data. Escape analysis or a typed ownership discipline must justify every region reset.

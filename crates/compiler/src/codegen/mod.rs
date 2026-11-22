@@ -58,6 +58,9 @@ mod memory_tests;
 mod range_tests;
 
 #[cfg(test)]
+mod range_allocation_tests;
+
+#[cfg(test)]
 mod tests;
 
 #[derive(Debug, Error, PartialEq, Eq)]

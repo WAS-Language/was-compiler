@@ -1,0 +1,64 @@
+fn operand(tag: number, value: number) -> number {
+    let data = [value];
+    checkpoint(tag);
+    return data[0];
+}
+
+fn direct(start: number, end: number) -> number {
+    let sum = 0;
+    for i in (operand(1, start)..operand(2, end)) {
+        checkpoint(10);
+        sum += i;
+    }
+    return sum;
+}
+
+fn local(start: number, end: number, step: number) -> number {
+    let run = (a: number, b: number, s: number) => {
+        let sum = 0;
+        for i in operand(1, a)..=operand(2, b) by operand(3, s) {
+            checkpoint(10);
+            let read = () => i;
+            checkpoint(11);
+            let data = [read()];
+            checkpoint(12);
+            sum += data[0];
+        }
+        sum
+    };
+    return run(start, end, step);
+}
+
+fn indirect_binding(start: number, end: number) -> number {
+    let r = start..end;
+    let sum = 0;
+    for i in r { sum += i; }
+    return sum;
+}
+
+fn make(start: number, end: number) -> range { return start..=end by -2; }
+
+fn indirect_call(start: number, end: number) -> number {
+    let sum = 0;
+    for i in make(start, end) { sum += i; }
+    return sum;
+}
+
+fn abrupt(at: number) -> number {
+    for i in {
+        let a = operand(1, 0);
+        if at == 1 { return 71; }
+        a
+    }..{
+        let b = operand(2, 3);
+        if at == 2 { return 72; }
+        b
+    } by {
+        let s = operand(3, 1);
+        if at == 3 { return 73; }
+        s
+    } {
+        checkpoint(10);
+    }
+    return 0;
+}
