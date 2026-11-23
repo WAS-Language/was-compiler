@@ -94,7 +94,7 @@ struct Arguments {
         short = 'O',
         value_name = "LEVEL",
         value_parser = clap::value_parser!(u8).range(0..=3),
-        help = "Optimization preset (-O0 default; -O1/-O2/-O3 use experimental proven integer addition/subtraction)"
+        help = "Optimization preset (-O1 default; -O0 disables optimization; -O1/-O2/-O3 use the same optimizations)"
     )]
     level: Option<u8>,
 }
@@ -150,11 +150,12 @@ fn parse(args: impl Iterator<Item = OsString>) -> Result<Options, clap::Error> {
         format: args.format,
         exports,
         hosts: args.hosts,
-        level: match args.level.unwrap_or(0) {
-            0 => OptimizationLevel::None,
-            1 => OptimizationLevel::Basic,
-            2 => OptimizationLevel::Standard,
-            _ => OptimizationLevel::Aggressive,
+        level: match args.level {
+            None => OptimizationLevel::default(),
+            Some(0) => OptimizationLevel::None,
+            Some(1) => OptimizationLevel::Basic,
+            Some(2) => OptimizationLevel::Standard,
+            Some(_) => OptimizationLevel::Aggressive,
         },
     };
 

@@ -2728,11 +2728,14 @@ mod tests {
             ),
         ];
 
+        let compiler = crate::Compiler::with_options(crate::CompilerOptions {
+            optimization_level: crate::OptimizationLevel::None,
+        });
         for (source, code_section) in cases {
             let expected = [prefix.as_slice(), code_section].concat();
 
             for source in [source.to_owned(), source.replace(' ', " /* é */\n")] {
-                let actual = crate::Compiler::new().compile_source(&source).unwrap();
+                let actual = compiler.compile_source(&source).unwrap();
 
                 wasmparser::Validator::new().validate_all(&actual).unwrap();
                 assert_eq!(actual, expected, "{source}");

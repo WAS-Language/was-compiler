@@ -32,8 +32,9 @@ fn instructions(bytes: &[u8]) -> Vec<String> {
 #[test]
 fn folded_proven_subtrees_keep_integer_representation_and_the_f64_abi() {
     let source = "fn main() -> number { return (10 + 20) - 3; }";
-    let baseline = Compiler::new().compile_source(source).unwrap();
-    let program = Compiler::new().analyze(source).unwrap();
+    let unoptimized = compiler(OptimizationLevel::None);
+    let baseline = unoptimized.compile_source(source).unwrap();
+    let program = unoptimized.analyze(source).unwrap();
     assert_eq!(baseline, codegen::compile(&program).unwrap());
     assert!(instructions(&baseline).contains(&"F64Add".into()));
 
@@ -79,7 +80,9 @@ fn proven_numeric_comparisons_use_signed_integer_operands_without_result_convers
         let source = format!(
             "fn main() -> bool {{ let min = 0 - 2147483647 - 1; let max = 2147483646 + 1; return min {operator} max; }}"
         );
-        let baseline = Compiler::new().compile_source(&source).unwrap();
+        let baseline = compiler(OptimizationLevel::None)
+            .compile_source(&source)
+            .unwrap();
         assert!(instructions(&baseline).contains(&floating.into()));
         let expected = compiler(OptimizationLevel::Basic)
             .compile_source(&source)
@@ -114,10 +117,10 @@ fn folded_safe_negation_preserves_proven_integer_results() {
     ] {
         let expected = [constant, "F64ConvertI32S", "Return", "End"];
         let source = format!("fn main() -> number {{ return {expr}; }}");
-        assert!(
-            instructions(&Compiler::new().compile_source(&source).unwrap())
-                .contains(&"F64Neg".into())
-        );
+        let baseline = compiler(OptimizationLevel::None)
+            .compile_source(&source)
+            .unwrap();
+        assert!(instructions(&baseline).contains(&"F64Neg".into()));
         for level in ENABLED {
             assert_eq!(
                 instructions(&compiler(level).compile_source(&source).unwrap()),
@@ -131,10 +134,11 @@ fn folded_safe_negation_preserves_proven_integer_results() {
 #[test]
 fn never_reassigned_local_chains_use_i32_slots_and_one_return_conversion() {
     let source = "fn main() -> number { let a = 10 + 20; let b = a - 3; return b + a; }";
-    let baseline = Compiler::new().compile_source(source).unwrap();
+    let unoptimized = compiler(OptimizationLevel::None);
+    let baseline = unoptimized.compile_source(source).unwrap();
     assert_eq!(
         baseline,
-        codegen::compile(&Compiler::new().analyze(source).unwrap()).unwrap()
+        codegen::compile(&unoptimized.analyze(source).unwrap()).unwrap()
     );
     let expected = compiler(OptimizationLevel::Basic)
         .compile_source(source)

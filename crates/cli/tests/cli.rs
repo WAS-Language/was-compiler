@@ -12,7 +12,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use was_compiler::{Compiler, ExportOptions, Type};
+use was_compiler::{Compiler, ExportOptions, Type, codegen};
 use wasmparser::{ExternalKind, Parser, Payload, TypeRef, Validator};
 
 const PROCESS_TIMEOUT: Duration = Duration::from_secs(15);
@@ -1795,10 +1795,8 @@ fn integer_specialization_cli_bytes_and_wat_match_library_at_every_level() {
     let source = "fn main() -> number { return (10 + 20) - 3; }";
     let scratch = Scratch::new("integer_specialization");
     let mut compiler = Compiler::new();
-    let baseline = compiler.compile_source(source).unwrap();
-    assert_eq!(scratch.compile(source, &[]), baseline);
-
-    let mut enabled = None;
+    let baseline = codegen::compile(&compiler.analyze(source).unwrap()).unwrap();
+    let default = scratch.compile(source, &[]);
     for (flag, level) in [
         ("-O0", was_compiler::OptimizationLevel::None),
         ("-O1", was_compiler::OptimizationLevel::Basic),
@@ -1815,14 +1813,7 @@ fn integer_specialization_cli_bytes_and_wat_match_library_at_every_level() {
                 expected, baseline,
                 "{flag} must specialize literal addition/subtraction"
             );
-            if let Some(previous) = &enabled {
-                assert_eq!(
-                    &expected, previous,
-                    "enabled presets use the same initial pass"
-                );
-            } else {
-                enabled = Some(expected.clone());
-            }
+            assert_eq!(expected, default, "{flag} must match the default");
         }
         assert_eq!(scratch.compile(source, &[flag]), expected, "{flag}");
         let wat = success(scratch.cli(&["program.was", flag, "--emit", "wat"], None));
@@ -1875,9 +1866,8 @@ fn integer_specialization_local_cli_bytes_and_wat_match_library_at_every_level()
     for (name, source) in cases {
         let scratch = Scratch::new(name);
         let mut compiler = Compiler::new();
-        let baseline = compiler.compile_source(source).unwrap();
-        assert_eq!(scratch.compile(source, &[]), baseline, "{name}: default");
-        let mut enabled = None;
+        let baseline = codegen::compile(&compiler.analyze(source).unwrap()).unwrap();
+        let default = scratch.compile(source, &[]);
 
         for (flag, level) in [
             ("-O0", was_compiler::OptimizationLevel::None),
@@ -1888,12 +1878,10 @@ fn integer_specialization_local_cli_bytes_and_wat_match_library_at_every_level()
             compiler.set_optimization_level(level);
             let expected = compiler.compile_source(source).unwrap();
             decode(&expected);
-            if level != was_compiler::OptimizationLevel::None {
-                if let Some(previous) = &enabled {
-                    assert_eq!(&expected, previous, "{name}: enabled preset parity");
-                } else {
-                    enabled = Some(expected.clone());
-                }
+            if level == was_compiler::OptimizationLevel::None {
+                assert_eq!(expected, baseline, "{name}: baseline");
+            } else {
+                assert_eq!(expected, default, "{name}: {flag} must match the default");
             }
             assert_eq!(scratch.compile(source, &[flag]), expected, "{name}: {flag}");
             let wat = success(scratch.cli(&["program.was", flag, "--emit", "wat"], None));
@@ -1943,9 +1931,8 @@ fn integer_specialization_comparisons_and_negation_cli_match_library_at_every_le
     ] {
         let scratch = Scratch::new(name);
         let mut compiler = Compiler::new();
-        let baseline = compiler.compile_source(source).unwrap();
-        assert_eq!(scratch.compile(source, &[]), baseline, "{name}: default");
-        let mut enabled = None;
+        let baseline = codegen::compile(&compiler.analyze(source).unwrap()).unwrap();
+        let default = scratch.compile(source, &[]);
 
         for (flag, level) in [
             ("-O0", was_compiler::OptimizationLevel::None),
@@ -1956,12 +1943,10 @@ fn integer_specialization_comparisons_and_negation_cli_match_library_at_every_le
             compiler.set_optimization_level(level);
             let expected = compiler.compile_source(source).unwrap();
             decode(&expected);
-            if level != was_compiler::OptimizationLevel::None {
-                if let Some(previous) = &enabled {
-                    assert_eq!(&expected, previous, "{name}: enabled preset parity");
-                } else {
-                    enabled = Some(expected.clone());
-                }
+            if level == was_compiler::OptimizationLevel::None {
+                assert_eq!(expected, baseline, "{name}: baseline");
+            } else {
+                assert_eq!(expected, default, "{name}: {flag} must match the default");
             }
             assert_eq!(scratch.compile(source, &[flag]), expected, "{name}: {flag}");
             let wat = success(scratch.cli(&["program.was", flag, "--emit", "wat"], None));
@@ -1981,9 +1966,8 @@ fn integer_specialization_composition_cli_matches_library_at_every_level() {
     for &(name, source, _, _) in integer_composition_cases::CASES {
         let scratch = Scratch::new(name);
         let mut compiler = Compiler::new();
-        let baseline = compiler.compile_source(source).unwrap();
-        assert_eq!(scratch.compile(source, &[]), baseline, "{name}: default");
-        let mut enabled = None;
+        let baseline = codegen::compile(&compiler.analyze(source).unwrap()).unwrap();
+        let default = scratch.compile(source, &[]);
 
         for (flag, level) in [
             ("-O0", was_compiler::OptimizationLevel::None),
@@ -1998,11 +1982,7 @@ fn integer_specialization_composition_cli_matches_library_at_every_level() {
                 assert_eq!(expected, baseline, "{name}: baseline");
             } else {
                 assert_ne!(expected, baseline, "{name}: eligible composition");
-                if let Some(previous) = &enabled {
-                    assert_eq!(&expected, previous, "{name}: enabled preset parity");
-                } else {
-                    enabled = Some(expected.clone());
-                }
+                assert_eq!(expected, default, "{name}: {flag} must match the default");
             }
             assert_eq!(scratch.compile(source, &[flag]), expected, "{name}: {flag}");
             let wat = success(scratch.cli(&["program.was", flag, "--emit", "wat"], None));

@@ -155,12 +155,26 @@ mod tests {
     }
 
     #[test]
-    fn default_compiler_disables_optimization() {
+    fn default_compiler_matches_basic_and_explicit_none_matches_direct_codegen() {
+        let source = "fn main() -> number { return 1.5 * 2; }";
+        let mut compiler = Compiler::new();
+        assert_eq!(compiler.options(), &CompilerOptions::default());
         assert_eq!(
-            Compiler::new().options().optimization_level,
-            OptimizationLevel::None
+            compiler.options().optimization_level,
+            OptimizationLevel::Basic
         );
-        assert_eq!(Compiler::default().options(), &CompilerOptions::default());
+        let default = compiler.compile_source(source).unwrap();
+
+        compiler.set_optimization_level(OptimizationLevel::Basic);
+        assert_eq!(compiler.compile_source(source).unwrap(), default);
+
+        compiler.set_optimization_level(OptimizationLevel::None);
+        let baseline = compiler.compile_source(source).unwrap();
+        assert_ne!(baseline, default);
+        assert_eq!(
+            baseline,
+            codegen::compile(&compiler.analyze(source).unwrap()).unwrap()
+        );
     }
 
     #[test]
@@ -225,8 +239,8 @@ mod tests {
         ";
         let program = compiler.analyze(source).unwrap();
         let original = program.clone();
-        let baseline = compiler.compile(&program).unwrap();
-        assert_eq!(baseline, codegen::compile(&program).unwrap());
+        let default = compiler.compile(&program).unwrap();
+        let baseline = codegen::compile(&program).unwrap();
 
         for level in [
             OptimizationLevel::None,
@@ -237,6 +251,11 @@ mod tests {
             compiler.set_optimization_level(level);
 
             let expected = compiler.compile(&program).unwrap();
+            match level {
+                OptimizationLevel::None => assert_eq!(expected, baseline),
+                OptimizationLevel::Basic => assert_eq!(expected, default),
+                OptimizationLevel::Standard | OptimizationLevel::Aggressive => {}
+            }
             assert_eq!(compiler.compile(&program).unwrap(), expected);
             assert_eq!(compiler.compile_source(source).unwrap(), expected);
             assert_eq!(compiler.analyze(source).unwrap(), original);

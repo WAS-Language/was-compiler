@@ -38,10 +38,14 @@ async function main() {
         try {
             if (selection === '') c.exportNone();
             else if (selection !== '*') c.setExports(selection.split(','));
-            for (let level = 0; level < 4; level++) {
-                const expectedBytes = field();
-                const expectedWat = field().toString();
-                if (level === 0) assert.deepEqual(Buffer.from(c.compile(source)), expectedBytes, 'default');
+            const presets = Array.from({length: 4}, () => [field(), field().toString()]);
+            const [defaultBytes, defaultWat] = presets[1];
+            const bytes = c.compile(source);
+            assert.deepEqual(Buffer.from(bytes), defaultBytes, `fixture ${fixture}, default`);
+            assert.equal(c.compileWat(source), defaultWat, `fixture ${fixture}, default WAT`);
+            checkModule(bytes, fixture);
+
+            for (const [level, [expectedBytes, expectedWat]] of presets.entries()) {
                 c.setOptimizationLevel(level);
                 const bytes = c.compile(source);
                 assert.deepEqual(Buffer.from(bytes), expectedBytes, `fixture ${fixture}, O${level}`);

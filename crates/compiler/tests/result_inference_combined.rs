@@ -579,6 +579,7 @@ fn nested_transfer_diamond_resolves_caller_results_and_validates_at_every_level(
             Type::Bool,
         ]
     );
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     decode(&baseline);
     for level in LEVELS {
@@ -734,6 +735,7 @@ fn trapping_default_diamond_is_concrete_and_matches_explicit_bytes_at_all_levels
             .iter()
             .all(|f| f.return_type == Type::Number)
     );
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     decode(&baseline);
     for level in LEVELS {

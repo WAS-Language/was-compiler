@@ -15,7 +15,9 @@ baseline; user-approved #39 implements experimental exact-i32 literal/add-sub
 subtrees, extended by user authorization via ticket #40 to eligible never-reassigned
 ordinary numeric local storage/read facts. User-authorized #41 reuses existing facts
 for six proven-integer numeric comparisons and safe unary negation excluding zero
-and `i32::MIN`. Enabled presets share the subset; `None` remains default/baseline.
+and `i32::MIN`. Enabled presets share the subset. `Basic` is the default under
+[the later preset decision](m8-release-readiness.md#default-preset-decision);
+explicit `None` preserves the baseline.
 Historical [#39 correctness gates](integer-specialization.md#correctness-validation-2026-10-17)
 and review against `09dcb5c` retain their #39-only scope. Final [#40 correctness
 gates passed](integer-specialization.md#correctness-validation-2026-10-20) and
@@ -1241,8 +1243,8 @@ duplicate validator or preliminary baseline compilation.
 record 1,261 workspace tests with zero failed/ignored, 25 current-source rebuilt-browser
 groups, workspace checking, native/browser Clippy and portable core build success.
 These correctness results do not validate #40/#41 or establish release acceptance.
-`None` remains default and preserves baseline bytes; `Basic`, `Standard`, and
-`Aggressive` share the same #39/#40/#41 policy and must produce identical bytes. Require semantic/diagnostic parity
+`None` preserves baseline bytes; `Basic`, `Standard`, and `Aggressive` share the
+same #39/#40/#41 policy and must produce identical bytes. Require semantic/diagnostic parity
 across levels and library/CLI/current-source browser byte parity within each level.
 Matched baseline-versus-enabled measurements must demonstrate size or guest-time
 benefit, report compilation trade-offs and obtain explicit user acceptance of

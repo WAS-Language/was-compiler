@@ -4,7 +4,7 @@ mod test_process;
 use std::{process::Command, time::Duration};
 
 use was_compiler::{
-    CodegenError, CompileError, Compiler, ExportOptions, OptimizationLevel, Type,
+    CodegenError, CompileError, Compiler, CompilerOptions, ExportOptions, OptimizationLevel, Type,
     semantic::SemanticError,
     tokens::Span,
     typed_ast::{ExprResult, TypedExpr, TypedExprKind, TypedStatementKind},
@@ -72,6 +72,7 @@ fn public_pipeline_is_owned_and_deterministic_at_each_optimization_level() {
     let mut compiler = compiler();
     let program = compiler.analyze(SOURCE).unwrap();
     let original = program.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let expected = compiler.compile(&program).unwrap();
     validate(&expected);
 
@@ -216,6 +217,7 @@ fn analyzed_value_and_never_joins_keep_concrete_storage_and_region_spans() {
             };
             assert!(source[region.span.start()..region.span.end()].starts_with('{'));
             assert!(source[region.span.start()..region.span.end()].ends_with('}'));
+            compiler.set_optimization_level(OptimizationLevel::None);
             let baseline = compiler.compile(&program).unwrap();
             validate(&baseline);
             for level in LEVELS {
@@ -265,7 +267,11 @@ fn source_regions_decode_mvp_results_discards_and_expression_local_slots() {
         { 2; };
         {};
     }";
-    let bytes = Compiler::new().compile_source(source).unwrap();
+    let bytes = Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    })
+    .compile_source(source)
+    .unwrap();
     validate(&bytes);
     let mut body_count = 0;
     for payload in Parser::new(0).parse_all(&bytes) {

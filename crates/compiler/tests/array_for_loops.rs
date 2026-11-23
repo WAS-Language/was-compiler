@@ -203,6 +203,7 @@ fn fixtures_validate_deterministically_with_owned_imports_at_each_optimization_l
         let mut compiler = compiler();
         let program = compiler.analyze(source).unwrap();
         let snapshot = program.clone();
+        compiler.set_optimization_level(OptimizationLevel::None);
         let baseline = compile(&compiler, source);
         assert_eq!(codegen::compile(&program).unwrap(), baseline);
         compiler

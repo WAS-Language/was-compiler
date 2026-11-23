@@ -436,6 +436,7 @@ fn selected_exports_and_analyzed_host_snapshot_preserve_contracts_at_all_levels(
     let mut compiler = compiler();
     compiler.set_exports(ExportOptions::Only(vec!["main".into()]));
     let program = compiler.analyze(source).unwrap();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     compiler
         .register_host_function("later", "later", "later", vec![], Type::Void)

@@ -94,10 +94,7 @@ pub fn core_matrix() -> [[Vec<u8>; 4]; CASES.len()] {
         core.set_exports(exports.clone());
         let default = core.compile_source(source).unwrap();
         let typed = core.analyze(source).unwrap();
-        assert_eq!(
-            default,
-            codegen::compile_with_exports(&typed, &exports).unwrap()
-        );
+        let baseline = codegen::compile_with_exports(&typed, &exports).unwrap();
 
         let bytes = LEVELS.map(|level| {
             core.set_optimization_level(level);
@@ -105,7 +102,8 @@ pub fn core_matrix() -> [[Vec<u8>; 4]; CASES.len()] {
             Validator::new().validate_all(&bytes).unwrap();
             bytes
         });
-        assert_eq!(bytes[0], default);
+        assert_eq!(bytes[0], baseline);
+        assert_eq!(bytes[1], default);
         assert_eq!(bytes[1], bytes[2]);
         assert_eq!(bytes[1], bytes[3]);
         if matches!(source, CONTROL | SCALAR) {

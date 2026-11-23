@@ -4,8 +4,8 @@ use crate::typed_ast::TypedProgram;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum OptimizationLevel {
-    #[default]
     None,
+    #[default]
     Basic,
     Standard,
     Aggressive,

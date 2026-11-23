@@ -773,6 +773,7 @@ fn inferred_results_have_explicit_annotation_bytes_and_abi_at_every_level() {
         ]
     );
     let snapshot = inferred.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&explicit).unwrap();
     let decoded = decode(&baseline);
     assert_eq!(

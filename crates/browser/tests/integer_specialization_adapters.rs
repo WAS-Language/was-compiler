@@ -5,7 +5,7 @@ mod test_process;
 mod integer_composition_cases;
 
 use std::{path::Path, process::Command, time::Duration};
-use was_compiler::{Compiler, OptimizationLevel};
+use was_compiler::{Compiler, OptimizationLevel, codegen};
 use wasmparser::Validator;
 
 #[test]
@@ -226,7 +226,7 @@ fn assert_rebuilt_browser_parity(
     trap_export: Option<&str>,
 ) {
     let mut compiler = Compiler::new();
-    let baseline = compiler.compile_source(source).unwrap();
+    let baseline = codegen::compile(&compiler.analyze(source).unwrap()).unwrap();
     let mut native = Vec::new();
     let mut native_wat = Vec::new();
     for level in [
@@ -277,7 +277,8 @@ fn assert_rebuilt_browser_parity(
             await init({ module_or_path: await fs.promises.readFile(path.join(directory, 'was_compiler_bg.wasm')) });
             const compiler = new Compiler();
             try {
-                assert.deepEqual(Array.from(compiler.compile(source)), native[0]);
+                assert.deepEqual(Array.from(compiler.compile(source)), native[1], 'default');
+                assert.equal(compiler.compileWat(source), nativeWat[1], 'default WAT');
                 for (const level of [0, 1, 2, 3, 0]) {
                     compiler.setOptimizationLevel(level);
                     const bytes = compiler.compile(source);

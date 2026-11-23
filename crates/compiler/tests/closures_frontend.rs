@@ -1313,6 +1313,7 @@ fn nested_iteration_convergence_dependency_only_helpers_do_not_recapture_shadowe
     "#;
     let mut compiler = Compiler::new();
     let expected = compiler.analyze(source).unwrap();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let expected_bytes = compiler.compile(&expected).unwrap();
     for level in [
         OptimizationLevel::None,

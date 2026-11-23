@@ -1,5 +1,13 @@
-use was_compiler::{CodegenError, Compiler, Type, tokens::Span, typed_ast::*};
+use was_compiler::{
+    CodegenError, Compiler, CompilerOptions, OptimizationLevel, Type, tokens::Span, typed_ast::*,
+};
 use wasmparser::{Operator, Parser, Payload, Validator};
+
+fn baseline_compiler() -> Compiler {
+    Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    })
+}
 
 fn span() -> Span {
     Span::new(31, 57)
@@ -414,7 +422,7 @@ fn checked_lifecycle_orders_layout_all_user_bodies_and_helpers_in_preorder() {
                 "stage {stage}: {error:?}"
             );
         } else {
-            let bytes = Compiler::new().compile(&typed).unwrap();
+            let bytes = baseline_compiler().compile(&typed).unwrap();
             Validator::new().validate_all(&bytes).unwrap();
             let bodies = Parser::new(0)
                 .parse_all(&bytes)
@@ -437,7 +445,7 @@ fn checked_lifecycle_orders_layout_all_user_bodies_and_helpers_in_preorder() {
 
 #[test]
 fn parent_helper_retains_child_capture_and_dependency_facts_after_scope_exit() {
-    let compiler = Compiler::new();
+    let compiler = baseline_compiler();
     let typed = compiler
         .analyze(
             "fn main() -> number {
@@ -710,7 +718,7 @@ fn nested_iteration_convergence_preserves_cells_contexts_and_full_module_order()
         }
         fn later() { let marker = () => 91; return marker(); }
     "#;
-    let compiler = Compiler::new();
+    let compiler = baseline_compiler();
     let bytes = compiler.compile_source(source).unwrap();
     assert_eq!(compiler.compile_source(source).unwrap(), bytes);
     assert_eq!(
@@ -2228,7 +2236,7 @@ fn closure_result_checks_returns_tails_fallthrough_and_never_only_bodies() {
 
 #[test]
 fn integrated_source_retains_named_calls_normalized_defaults_contracts_and_owner_local_loops() {
-    use was_compiler::{CompilerOptions, ExportOptions, OptimizationLevel};
+    use was_compiler::ExportOptions;
     for source in [
         "fn named(a: number, b: number = a + 1) -> number requires a >= 0 { return a + b; } fn main() -> number { let f = (x: number) => named(a: x); return f(3); }",
         "fn main() -> number { let f = (n: number) => { let a = [1, 2]; let sum = 0; for x in a { sum += x; } for x in 1..=n { if x == 2 { continue; } sum += x; } sum }; return f(3); }",
@@ -2237,8 +2245,9 @@ fn integrated_source_retains_named_calls_normalized_defaults_contracts_and_owner
         "fn main() -> number { let f = () => match true { true => { let g = () => 7; g() }, false => 9 }; return f(); }",
         "fn named(x: number) -> number { return x; } fn main() -> number { let f = (x: number) => x |> named; return f(3); }",
     ] {
-        let typed = Compiler::new().analyze(source).unwrap();
-        let baseline = Compiler::new().compile(&typed).unwrap();
+        let compiler = baseline_compiler();
+        let typed = compiler.analyze(source).unwrap();
+        let baseline = compiler.compile(&typed).unwrap();
         Validator::new().validate_all(&baseline).unwrap();
         for optimization in [
             OptimizationLevel::None,
@@ -2463,7 +2472,7 @@ fn helper_signatures_have_only_explicit_parameters_and_sparse_ids_are_owner_loca
             Type::Number,
         )))),
     ]);
-    let bytes = Compiler::new().compile(&p).unwrap();
+    let bytes = baseline_compiler().compile(&p).unwrap();
     let signatures: Vec<_> = Parser::new(0)
         .parse_all(&bytes)
         .filter_map(|p| match p.unwrap() {
@@ -2671,7 +2680,7 @@ fn public_typed_callable_compiles_to_unexported_direct_helper_without_memory() {
         )))),
     ]);
     let original = program.clone();
-    let bytes = Compiler::new().compile(&program).unwrap();
+    let bytes = baseline_compiler().compile(&program).unwrap();
     assert_eq!(program, original);
     assert!(
         operators(&bytes, 0)
@@ -3675,7 +3684,7 @@ fn make_compound(statement: &mut TypedStatement, op: was_compiler::ast::BinaryOp
 
 #[test]
 fn captured_scalar_compound_keeps_cell_and_old_value_below_mutating_rhs_without_scratch() {
-    let compiler = Compiler::new();
+    let compiler = baseline_compiler();
     let mut p = compiler.analyze("fn main() -> number { let n = 1; let f = () => { n = { n = 100; 2 }; 0 }; return f(); }").unwrap();
     make_compound(
         &mut helper_statements(&mut p)[0],
@@ -3971,7 +3980,7 @@ fn sparse_captured_compounds_distinguish_original_owner_from_same_id_helper_para
         )))),
     ]);
     p.functions[0].params.push(param);
-    let bytes = Compiler::new().compile(&p).unwrap();
+    let bytes = baseline_compiler().compile(&p).unwrap();
     let helper = operators(&bytes, 8);
     assert!(helper.windows(3).any(|w| matches!(
         w,

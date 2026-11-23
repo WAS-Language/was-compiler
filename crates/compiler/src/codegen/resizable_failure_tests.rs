@@ -1,6 +1,6 @@
 //! Bounded M4 failure injection; no production compilation path selects this transport.
 use super::*;
-use crate::{Compiler, exports::ExportOptions};
+use crate::{Compiler, CompilerOptions, OptimizationLevel, exports::ExportOptions};
 use std::{process::Command, time::Duration};
 use wasm_encoder::{ExportKind, ExportSection, Module, RawSection};
 use wasmparser::{Operator, Parser, Payload, Validator};
@@ -182,7 +182,10 @@ fn run(bytes: &[u8], script: &str) {
 #[test]
 fn test_transport_changes_only_requested_fixture_sections_and_never_ordinary_compilation() {
     let source = fixture_source("number", "11", "23");
-    let ordinary = Compiler::new().compile_source(&source).unwrap();
+    let compiler = Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    });
+    let ordinary = compiler.compile_source(&source).unwrap();
     let fixture = compile_fixture(&source, 0, None);
     let sections = |bytes: &[u8], omitted: &[u8]| {
         Parser::new(0)
@@ -217,7 +220,7 @@ fn test_transport_changes_only_requested_fixture_sections_and_never_ordinary_com
             }
         }
     }
-    assert_eq!(ordinary, Compiler::new().compile_source(&source).unwrap());
+    assert_eq!(ordinary, compiler.compile_source(&source).unwrap());
 }
 
 #[test]

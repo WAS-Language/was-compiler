@@ -104,7 +104,7 @@ fn optimization_syntax_maps_to_copyable_compiler_options_without_changing_artifa
         }
     }
 
-    assert_eq!(parsed(&["input.was"]).level, OptimizationLevel::None);
+    assert_eq!(parsed(&["input.was"]).level, OptimizationLevel::Basic);
 }
 
 #[test]

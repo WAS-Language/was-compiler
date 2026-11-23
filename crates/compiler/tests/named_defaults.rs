@@ -484,11 +484,8 @@ fn earlier_handle_reads_content_equality_and_builtin_len_are_allowed_and_remappe
         panic!("boolean negation")
     };
     assert_eq!(identifier_id(expr), sequence.bindings[4].id);
-    for formal in 2..9 {
-        assert_eq!(
-            sequence.bindings[formal].origin,
-            CallBindingOrigin::Default { formal }
-        );
+    for (formal, binding) in sequence.bindings.iter().enumerate().skip(2) {
+        assert_eq!(binding.origin, CallBindingOrigin::Default { formal });
     }
 }
 

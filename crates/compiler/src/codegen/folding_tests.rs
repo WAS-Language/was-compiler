@@ -29,6 +29,7 @@ fn pair_with_compiler(mut compiler: Compiler, source: &str) -> [Vec<u8>; 2] {
         Validator::new().validate_all(&bytes).unwrap();
         bytes
     });
+    compiler.set_optimization_level(OptimizationLevel::None);
     assert_eq!(
         compiler.compile(&program).unwrap(),
         super::compile(&program).unwrap()

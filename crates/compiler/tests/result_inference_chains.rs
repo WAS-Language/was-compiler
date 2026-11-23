@@ -218,6 +218,7 @@ fn scheduling_preserves_owned_source_order_call_ids_import_snapshot_and_layout()
     compiler
         .register_host_function("later", "later", "later", vec![], Type::Void)
         .unwrap();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     let decoded = decode(&baseline);
     assert_eq!(

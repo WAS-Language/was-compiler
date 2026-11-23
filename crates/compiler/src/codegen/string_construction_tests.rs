@@ -1,13 +1,19 @@
 //! Deterministic #79 construction evidence through the private paired-module seam.
-use crate::Compiler;
+use crate::{Compiler, CompilerOptions, OptimizationLevel};
 use std::{path::PathBuf, process::Command, time::Duration};
 use wasmparser::{Parser, Payload, Validator};
 
 const SOURCE: &str = include_str!("../../../../tests/support/m5_construction_corpus.was");
 
+fn baseline_compiler() -> Compiler {
+    Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    })
+}
+
 #[test]
 fn construction_corpus_is_valid_deterministic_and_observations_are_private() {
-    let compiler = Compiler::new();
+    let compiler = baseline_compiler();
     let [ordinary, observed] =
         super::resizable::construction_observations::modules(&compiler, SOURCE);
     assert_eq!(ordinary, compiler.compile_source(SOURCE).unwrap());
@@ -37,7 +43,7 @@ fn construction_corpus_is_valid_deterministic_and_observations_are_private() {
 #[ignore = "requires Node.js; writes deterministic #79 accounting evidence"]
 fn paired_fragment_construction_is_linear() {
     let [ordinary, observed] =
-        super::resizable::construction_observations::modules(&Compiler::new(), SOURCE);
+        super::resizable::construction_observations::modules(&baseline_compiler(), SOURCE);
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let directory = root.join("target/m5-construction");
     std::fs::create_dir_all(&directory).unwrap();

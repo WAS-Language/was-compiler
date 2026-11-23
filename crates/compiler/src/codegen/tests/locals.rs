@@ -185,7 +185,7 @@ fn bool_literals_variables_and_returns_preserve_mixed_local_order_and_reset_func
 fn scalar_expression_statements_drop_values_even_after_return() {
     use DecodedInstruction::*;
 
-    let bytes = Compiler::new()
+    let bytes = baseline_compiler()
         .compile_source(
             "fn discard(n: number, flag: bool) -> void {
                  n + 1;

@@ -462,6 +462,7 @@ fn run_typed(fixture: &str, script: &str) {
     let mut compiler = compiler();
     let program = typed_fixture(&compiler, fixture);
     let snapshot = program.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     compiler
         .register_host_function("later", "later", "later", vec![], Type::Void)
@@ -510,6 +511,7 @@ fn typed_sequences_preserve_import_snapshot_export_choices_and_determinism() {
     let fixture = format!("{EFFECTS}\n{TRANSFERS}");
     let program = typed_fixture(&compiler, &fixture);
     let snapshot = program.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     let imports: Vec<_> = Parser::new(0)
         .parse_all(&baseline)

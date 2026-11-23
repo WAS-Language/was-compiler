@@ -9,12 +9,18 @@ use std::{
 
 use corpus::{Boundary, CASES, PreparedCase, Workload};
 use divan::{Bencher, black_box, black_box_drop};
-use was_compiler::Compiler;
+use was_compiler::{Compiler, CompilerOptions, OptimizationLevel};
 use wasmparser::Validator;
+
+fn baseline_compiler() -> Compiler {
+    Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    })
+}
 
 fn validated_source(workload: Workload) -> String {
     let source = corpus::source(workload);
-    let bytes = Compiler::new().compile_source(&source).unwrap();
+    let bytes = baseline_compiler().compile_source(&source).unwrap();
     Validator::new().validate_all(&bytes).unwrap();
     source
 }
@@ -41,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("numeric_preset=None; native source-size corpus; workload,source_bytes,module_bytes");
     for workload in CASES {
         let source = validated_source(workload);
-        let bytes = Compiler::new().compile_source(&source).unwrap();
+        let bytes = baseline_compiler().compile_source(&source).unwrap();
         eprintln!("{workload},{},{}", source.len(), bytes.len());
     }
     divan::main();
@@ -52,13 +58,13 @@ fn compile_once(boundary: Boundary, case: &PreparedCase) {
     match boundary {
         Boundary::Source => {
             black_box_drop(
-                Compiler::new()
+                baseline_compiler()
                     .compile_source(black_box(&case.source))
                     .unwrap(),
             );
         }
         Boundary::Typed => {
-            black_box_drop(Compiler::new().compile(black_box(&case.typed)).unwrap());
+            black_box_drop(baseline_compiler().compile(black_box(&case.typed)).unwrap());
         }
     }
 }
@@ -109,17 +115,21 @@ fn source_compile(bencher: Bencher, workload: Workload) {
     let source = validated_source(workload);
     bencher.bench_local(|| {
         // Returning () keeps Wasm-buffer destruction inside the timed closure.
-        black_box_drop(Compiler::new().compile_source(black_box(&source)).unwrap());
+        black_box_drop(
+            baseline_compiler()
+                .compile_source(black_box(&source))
+                .unwrap(),
+        );
     });
 }
 
 #[divan::bench(args = CASES)]
 fn typed_compile(bencher: Bencher, workload: Workload) {
     let source = corpus::source(workload);
-    let typed = Compiler::new().analyze(&source).unwrap();
-    let bytes = Compiler::new().compile(&typed).unwrap();
+    let typed = baseline_compiler().analyze(&source).unwrap();
+    let bytes = baseline_compiler().compile(&typed).unwrap();
     Validator::new().validate_all(&bytes).unwrap();
     bencher.bench_local(|| {
-        black_box_drop(Compiler::new().compile(black_box(&typed)).unwrap());
+        black_box_drop(baseline_compiler().compile(black_box(&typed)).unwrap());
     });
 }

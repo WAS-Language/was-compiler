@@ -161,7 +161,7 @@ def main():
         # Cargo's artifact path respects target triples, target directories and profiles;
         # guessing target/release can silently execute a stale default-target compiler.
         cli = cargo_executable(build, "was-compiler", "bin")
-        run("compile-runtime", [cli, "tests/support/m5_string_timing.was", "--emit", "wasm", "-o", output / "runtime.wasm"], 30)
+        run("compile-runtime", [cli, "tests/support/m5_string_timing.was", "-O0", "--emit", "wasm", "-o", output / "runtime.wasm"], 30)
         shutil.copyfile(ROOT / "tests/support/m5_string_timing.was", output / "runtime.was")
         smoke = run("benchmark-smoke", [bench, "--test"], 600)
         if any(sum(line.endswith(case) for line in smoke.splitlines()) != 2 for case in NATIVE_CASES):

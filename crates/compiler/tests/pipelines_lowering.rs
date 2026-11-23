@@ -912,14 +912,15 @@ fn named_mixed_and_default_pipeline_sources_match_checked_normalization() {
                 "{declarations} fn main() -> number {{ return {pipeline}; }}"
             ))
             .unwrap();
-        let expected_bytes = Compiler::new().compile(&expected).unwrap();
+        let mut compiler = Compiler::new();
+        compiler.set_optimization_level(OptimizationLevel::None);
+        let expected_bytes = compiler.compile(&expected).unwrap();
         for level in [
             OptimizationLevel::None,
             OptimizationLevel::Basic,
             OptimizationLevel::Standard,
             OptimizationLevel::Aggressive,
         ] {
-            let mut compiler = Compiler::new();
             compiler.set_optimization_level(level);
             let bytes = compiler.compile(&program).unwrap();
             Validator::new().validate_all(&bytes).unwrap();

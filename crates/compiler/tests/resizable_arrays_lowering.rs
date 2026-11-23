@@ -1550,6 +1550,7 @@ fn m4_write_value_scratch_matches_each_element_type_but_no_m4_keeps_legacy_scrat
 #[test]
 fn no_m4_source_compilation_preserves_the_independent_emitter_golden() {
     let mut compiler = Compiler::new();
+    compiler.set_optimization_level(OptimizationLevel::None);
     compiler
         .register_host_function("marker", "env", "marker", vec![Type::Number], Type::Number)
         .unwrap();
@@ -2127,6 +2128,7 @@ fn never_skipped_nested_and_immediate_callable_constructors_are_planned() {
         "fn main(a: bool[]) -> bool[] { return a; resizable(a); }",
     ] {
         let mut compiler = Compiler::new();
+        compiler.set_optimization_level(OptimizationLevel::None);
         let baseline = compiler.compile_source(source).unwrap();
         Validator::new().validate_all(&baseline).unwrap();
         let mut enabled = None;

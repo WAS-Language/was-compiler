@@ -97,6 +97,7 @@ fn combined_features_preserve_snapshot_layout_helpers_and_export_independence() 
     let mut compiler = compiler();
     let program = compiler.analyze(SOURCE).unwrap();
     let snapshot = program.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     Validator::new().validate_all(&baseline).unwrap();
 
@@ -269,6 +270,7 @@ fn combined_features_execute_effects_aliases_transfers_and_traps_at_all_levels()
         assert.deepEqual(events, [300, 301, 302]);
     "#;
     let mut compiler = compiler();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile_source(SOURCE).unwrap();
     for level in LEVELS {
         compiler.set_optimization_level(level);

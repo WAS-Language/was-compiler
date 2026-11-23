@@ -317,6 +317,7 @@ fn owned_pipeline_snapshots_export_selection_and_optimization_preserve_all_bodie
         .unwrap();
     let program = compiler.analyze(INTERNAL_SOURCE).unwrap();
     let snapshot = program.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     let decoded = decode(&baseline);
     assert_eq!(
@@ -890,6 +891,7 @@ fn range_children_plan_nested_locals_memory_remainder_and_abrupt_flow() {
         }
     "#;
     let mut compiler = Compiler::new();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compile(&compiler, source);
     for level in LEVELS {
         compiler.set_optimization_level(level);
@@ -1033,6 +1035,7 @@ fn membership_lowers_to_exact_integer_congruence_without_floating_remainder() {
     let mut compiler = Compiler::new();
     let source =
         "fn main(n: number) -> bool { return n in -9007199254740991..=9007199254740991 by 3; }";
+    compiler.set_optimization_level(OptimizationLevel::None);
     let bytes = compile(&compiler, source);
     let decoded = decode(&bytes);
     assert_eq!(decoded.bodies.len(), 11); // user, seven memory, construct, validate, contains

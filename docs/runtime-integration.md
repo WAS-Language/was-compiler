@@ -78,7 +78,7 @@ was-compiler [OPTIONS] <SOURCE>
 | `--export NAME` | Export only these user-function names; repeat for more names. |
 | `--no-exports` | Export no user functions. Cannot be combined with `--export`. |
 | `--host DECL` | Declare a host import and its language signature; repeat for more imports. |
-| `-O0` … `-O3`, `-O LEVEL` | `-O0` is the default baseline; `-O1`–`-O3` share experimental #39 literal/add-sub specialization. |
+| `-O0` … `-O3`, `-O LEVEL` | `-O1` is the default; `-O0` preserves unoptimized baseline bytes. `-O1`–`-O3` share direct range-loop replacement, integer specialization, and closed scalar folding. |
 | `--` | Treat remaining arguments as source paths, including a source filename beginning with `-`. |
 | `-h`, `--help` | Print usage and exit `0`. |
 

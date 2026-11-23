@@ -24,7 +24,7 @@ fn bare_void_returns_are_emitted_including_unreachable_returns() {
 
 #[test]
 fn all_numeric_returns_are_emitted_in_source_order_even_when_unreachable() {
-    let bytes = Compiler::new()
+    let bytes = baseline_compiler()
         .compile_source("fn value() -> number { return 42; return 0.25; return 0; }")
         .expect("compile multiple numeric returns");
 
@@ -44,7 +44,7 @@ fn all_numeric_returns_are_emitted_in_source_order_even_when_unreachable() {
 
 #[test]
 fn if_else_complete_returns_emit_unreachable_after_end_and_validate() {
-    let bytes = Compiler::new()
+    let bytes = baseline_compiler()
         .compile_source(
             "fn choose(flag: bool) -> number { if flag { return 1; } else { return 2; } }
          fn partial(flag: bool) -> number { if flag { return 1; } return 2; }
@@ -98,7 +98,7 @@ fn if_else_complete_returns_emit_unreachable_after_end_and_validate() {
 
 #[test]
 fn while_emits_empty_block_loop_exit_and_back_edge_with_body_locals() {
-    let bytes = Compiler::new()
+    let bytes = baseline_compiler()
         .compile_source(
             "fn countdown(n: number) -> number {
              while n > 0 { let step: number = 1; n = n - step; }

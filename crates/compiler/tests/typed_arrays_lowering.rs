@@ -40,6 +40,7 @@ fn typed_widths_and_helper_families_are_static_deterministic_and_lazy() {
             "fn main(a: {ty}[]) -> bool {{ let b = [{literal}]; b[0] = a[0]; for x in a {{ let y = x; }} return a == b; }}"
         );
         let mut c = Compiler::new();
+        c.set_optimization_level(OptimizationLevel::None);
         let baseline = c.compile_source(&source).unwrap();
         for level in [
             OptimizationLevel::None,

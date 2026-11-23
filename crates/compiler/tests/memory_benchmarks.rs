@@ -64,7 +64,9 @@ fn record_memory_guest_timing() {
 #[test]
 fn bounded_memory_workloads_compile_deterministically_at_the_public_seam() {
     for case in corpus::cases() {
-        let compiler = Compiler::new();
+        let compiler = Compiler::with_options(CompilerOptions {
+            optimization_level: OptimizationLevel::None,
+        });
         let typed = compiler.analyze(&case.source).unwrap();
         let bytes = compiler.compile(&typed).unwrap();
         Validator::new().validate_all(&bytes).unwrap();

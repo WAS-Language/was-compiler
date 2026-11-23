@@ -713,6 +713,7 @@ fn inferred_and_explicit_contract_calls_preserve_analyzed_and_source_bytes() {
             .all(|f| f.return_type == Type::Number)
     );
 
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile_source(annotated).unwrap();
     Validator::new().validate_all(&baseline).unwrap();
     for level in LEVELS {

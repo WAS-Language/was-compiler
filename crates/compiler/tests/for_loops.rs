@@ -4,7 +4,8 @@ mod test_process;
 use std::{process::Command, time::Duration};
 
 use was_compiler::{
-    ArrayElementType, CodegenError, Compiler, ExportOptions, OptimizationLevel, Type,
+    ArrayElementType, CodegenError, Compiler, CompilerOptions, ExportOptions, OptimizationLevel,
+    Type,
     typed_ast::{LoopId, TypedExpr, TypedExprKind, TypedStatementKind},
 };
 use wasmparser::{BlockType, ExternalKind, Operator, Parser, Payload, ValType, Validator};
@@ -350,6 +351,7 @@ fn public_fixtures_validate_and_are_deterministic_at_every_optimization_level() 
     ] {
         let program = compiler.analyze(source).unwrap();
         let original = program.clone();
+        compiler.set_optimization_level(OptimizationLevel::None);
         let baseline = compile(&compiler, source);
         for level in LEVELS {
             compiler.set_optimization_level(level);
@@ -462,7 +464,10 @@ fn decoded_for_uses_integer_induction_empty_regions_and_a_continue_latch() {
     let source = "fn main(flag: bool) -> void {
         for i in 0..3 { if flag { continue; } break; }
     }";
-    let bytes = compile(&Compiler::new(), source);
+    let compiler = Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    });
+    let bytes = compile(&compiler, source);
     let body = Parser::new(0)
         .parse_all(&bytes)
         .find_map(|payload| match payload.unwrap() {
@@ -529,7 +534,9 @@ fn nested_and_sibling_fors_reserve_distinct_scratch_without_new_helpers() {
         for i in 0..1 { for j in 0..1 {} }
         for k in 0..1 {}
     }";
-    let mut compiler = Compiler::new();
+    let mut compiler = Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    });
     let baseline = compile(&compiler, source);
     for level in LEVELS {
         compiler.set_optimization_level(level);

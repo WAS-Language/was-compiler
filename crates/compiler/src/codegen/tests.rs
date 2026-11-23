@@ -15,6 +15,12 @@ use wasmparser::{BlockType, ExternalKind, Operator, Parser, Payload, TypeRef, Va
 
 use super::{CodegenError, checked_u32, compile, locals::LocalLayout};
 
+fn baseline_compiler() -> Compiler {
+    Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum DecodedInstruction {
     F64Const(f64),

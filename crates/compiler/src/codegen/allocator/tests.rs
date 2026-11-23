@@ -1,5 +1,5 @@
 use super::{Config, Error, compile};
-use crate::{Compiler, exports::ExportOptions};
+use crate::{Compiler, CompilerOptions, OptimizationLevel, exports::ExportOptions};
 use wasmparser::{BlockType, ExternalKind, Operator, Parser, Payload, TypeRef, ValType, Validator};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -252,7 +252,9 @@ fn private_compilation_emits_valid_management_exports() {
 
 #[test]
 fn appended_management_preserves_existing_indices_bodies_and_ordinary_bytes() {
-    let mut compiler = Compiler::new();
+    let mut compiler = Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    });
     compiler
         .register_host_function(
             "host",

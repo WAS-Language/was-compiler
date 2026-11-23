@@ -1521,16 +1521,18 @@ async function main() {
         compiler.setExports(['main']);
         const source = 'fn main() -> number { return clock() + helper(); } fn helper() -> number { return 2 * 3; }';
         const integerSource = 'fn main() -> number { return (10 + 20) - 3; }';
+        const defaultBytes = compile(compiler, integerSource).bytes;
+        const defaultWat = compiler.compileWat(integerSource);
+        compiler.setOptimizationLevel(0);
         const baseline = compile(compiler, integerSource).bytes;
-        let enabled;
         for (const level of [0, 1, 2, 3, 0]) {
             compiler.setOptimizationLevel(level);
             const { bytes, module } = compile(compiler, integerSource);
             if (level === 0) assert.deepEqual(bytes, baseline);
             else {
                 assert.notDeepEqual(bytes, baseline);
-                if (enabled) assert.deepEqual(bytes, enabled);
-                else enabled = bytes;
+                assert.deepEqual(bytes, defaultBytes);
+                assert.equal(compiler.compileWat(integerSource), defaultWat);
             }
             assert.equal(new WebAssembly.Instance(module, { env: { now: () => 4 } }).exports.main(), 27);
             const expected = compile(compiler, source).bytes;

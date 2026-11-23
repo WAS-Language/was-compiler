@@ -1135,6 +1135,7 @@ fn join_arguments_are_once_in_order_and_helpers_append_deterministically_at_all_
 #[test]
 fn absent_m5_preserves_independent_golden_and_legacy_string_array_helper_order() {
     let mut compiler = Compiler::new();
+    compiler.set_optimization_level(OptimizationLevel::None);
     compiler
         .register_host_function("marker", "env", "marker", vec![Type::Number], Type::Number)
         .unwrap();
@@ -1150,7 +1151,8 @@ fn absent_m5_preserves_independent_golden_and_legacy_string_array_helper_order()
     );
     operations(&bytes);
 
-    let compiler = Compiler::new();
+    let mut compiler = Compiler::new();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let program = compiler
         .analyze("fn main(parts: string[]) -> string { return parts[0]; }")
         .unwrap();

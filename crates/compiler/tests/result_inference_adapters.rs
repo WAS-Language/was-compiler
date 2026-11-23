@@ -48,6 +48,7 @@ fn compiler() -> Compiler {
 fn inferred_defaulted_analysis_retains_the_host_snapshot_and_private_range_export_policy() {
     let mut compiler = compiler();
     let program = compiler.analyze(SOURCE).unwrap();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let expected = compiler.compile(&program).unwrap();
     compiler
         .register_host_function("later", "env", "later", vec![], Type::Void)

@@ -583,7 +583,7 @@ locals in declaration order. Reads use `local.get`; initialization and assignmen
 use `local.set`. Scalar expression statements end in `drop` to keep the stack
 balanced. Boolean literals use `i32.const 0` or `i32.const 1`.
 
-At the default `None` level, numeric literals become `f64.const`; arithmetic uses
+At the unoptimized `None` level, numeric literals become `f64.const`; arithmetic uses
 `f64.add`, `f64.sub`, `f64.mul`, `f64.div`, and `f64.neg`. Integers and decimals use the same `f64`
 representation. Invalid and overflowing literals return explicit errors;
 arithmetic follows IEEE-754 behavior, including infinity, NaN, and signed zero.
@@ -1074,8 +1074,9 @@ helper kind or optimization pass; all optimization levels retain parity.
 
 ## Optimization levels
 
-The compiler supports configuring `OptimizationLevel::None` (the default),
-`Basic`, `Standard`, or `Aggressive`, corresponding to the intended O0–O3 presets.
+The compiler defaults to `OptimizationLevel::Basic` (`-O1`). Rust, the CLI, and
+the browser share this default. Select `OptimizationLevel::None`, `-O0`, or
+`setOptimizationLevel(0)` to retain the previous unoptimized byte baseline.
 `Basic`, `Standard`, and `Aggressive` share **experimental #39/#40/#41 integer
 specialization**: exact parsed signed-i32 literals, proven add/sub subtrees and
 eligible never-reassigned ordinary numeric locals use private i32 lowering/storage.
@@ -1089,15 +1090,14 @@ are proven signed-i32 integers, using signed ordering, and for safe unary negati
 when operand bounds exclude both zero and `i32::MIN`. Multiplication, division,
 remainder and unknown f64 fallbacks remain outside integer specialization. No branch/contract/caller
 refinement is added. Public AST, source language, ABI and captures are unchanged.
-`None`/default bytes are preserved; enabled presets must match each other's
+Explicit `None` and direct codegen bytes are preserved; enabled presets match each other's
 bytes, with semantic/diagnostic parity across levels and adapter byte parity within
 each level.
 
 All three enabled presets also [eliminate the private record for direct range
 loops (#82)](docs/memory-abi.md#private-range-record), including grouped ranges
-and loops in local callables. Indirect ranges, default compilation and direct
-codegen keep allocated lowering. Memory exports and helper ordering are unchanged;
-this optimization does not establish integrated M6 release acceptance.
+and loops in local callables. Indirect ranges, explicit `None`, and direct
+codegen keep allocated lowering. Memory exports and helper ordering are unchanged.
 
 The enabled presets also [fold closed scalar expressions (#92–#93)](docs/adr/0012-fold-scalars-during-checked-lowering.md):
 numeric negation, addition, subtraction, multiplication, ordering, same-type
@@ -1106,8 +1106,8 @@ use binary64 semantics, including signed zero and subnormal rounding. Nonfinite
 intermediates prevent the parent from folding; eligible children can still fold.
 Folding preserves the original checks, selected representation, and surrounding
 constructs such as contract guards and short-circuit branches. `None` and direct
-codegen do not fold. No public option or ABI changes are introduced. M8 remains
-experimental; see the [#95 correctness and release record](docs/m8-release-readiness.md).
+codegen do not fold. The default change does not add an option or change the ABI.
+See the [default-preset decision and known performance trade-offs](docs/m8-release-readiness.md#default-preset-decision).
 
 [Integer specialization contracts and status](docs/integer-specialization.md) distinguish this subset from
 remaining #38 work. Authorization through #41 covers implementation, not release
@@ -1133,9 +1133,8 @@ with zero hard standards/spec findings and one deferred low-priority test-data s
 passed 1,296 workspace tests across 81 targets, none failed/ignored, plus 25
 rebuilt-browser groups. [Repeated matched measurements](docs/benchmarks/integer-integrated-42/README.md)
 confirm the same size benefit, but typed compilation medians rise in 25/27 cases
-in both repetitions; guest timing remains mixed. Material-regression and release
-acceptance remain pending: the decision is **keep experimental**, with no release
-or default change.
+in both repetitions; guest timing remains mixed. Those historical findings are
+part of the [later default-preset decision](docs/m8-release-readiness.md#default-preset-decision).
 
 ```rust
 use was_compiler::{Compiler, CompilerOptions, OptimizationLevel};

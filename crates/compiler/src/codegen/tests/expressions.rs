@@ -13,7 +13,7 @@ fn source_numeric_literals_emit_f64_const_return_and_end() {
         ("100000000000000000000", 1e20),
     ] {
         let source = format!("fn value() -> number {{ return {literal}; }}");
-        let bytes = Compiler::new()
+        let bytes = baseline_compiler()
             .compile_source(&source)
             .expect("compile numeric return");
         let module = decode(&bytes);
@@ -34,7 +34,7 @@ fn source_numeric_literals_emit_f64_const_return_and_end() {
             "literal {literal}",
         );
         assert_eq!(
-            Compiler::new().compile_source(&source).unwrap(),
+            baseline_compiler().compile_source(&source).unwrap(),
             bytes,
             "deterministic literal {literal}",
         );
@@ -53,7 +53,7 @@ fn source_arithmetic_emits_operands_before_each_opcode_or_helper_call() {
         ("8 % 2", Call(1)),
     ] {
         let source = format!("fn value() -> number {{ return {expression}; }}");
-        let bytes = Compiler::new()
+        let bytes = baseline_compiler()
             .compile_source(&source)
             .expect("compile arithmetic return");
         let module = decode(&bytes);
@@ -102,7 +102,7 @@ fn source_unary_negation_emits_f64_neg_without_folding() {
         ),
     ] {
         let source = format!("fn value() -> number {{ return {expression}; }}");
-        let bytes = Compiler::new()
+        let bytes = baseline_compiler()
             .compile_source(&source)
             .expect("compile unary negation");
         let mut expected = instructions;
@@ -198,7 +198,7 @@ fn nested_arithmetic_preserves_precedence_associativity_and_operand_order() {
         ),
     ] {
         let source = format!("fn value() -> number {{ return {expression}; }}");
-        let bytes = Compiler::new()
+        let bytes = baseline_compiler()
             .compile_source(&source)
             .expect("compile nested arithmetic");
         let mut expected = instructions;
@@ -346,7 +346,7 @@ fn source_returns_emit_remainder_helper_calls_after_literal_or_parameter_operand
         ("flag_number % 2", vec![LocalGet(0), F64Const(2.0)]),
     ] {
         let source = format!("fn value(flag_number: number) -> number {{ return {expression}; }}");
-        let compiler = Compiler::new();
+        let compiler = baseline_compiler();
         let program = compiler.analyze(&source).expect("analyze remainder");
         let original = program.clone();
         let bytes = compiler.compile(&program).expect("compile remainder");
@@ -378,7 +378,7 @@ fn valid_underflowing_literals_may_round_to_zero() {
 
     for bytes in [
         compile(&program).expect("compile underflowing typed literal"),
-        Compiler::new()
+        baseline_compiler()
             .compile_source(&source)
             .expect("compile underflowing source literal"),
     ] {
@@ -579,7 +579,7 @@ fn logical_operators_guard_rhs_calls_inside_i32_result_ifs() {
 fn logical_branches_preserve_live_equality_operands_and_call_arguments() {
     use DecodedInstruction::*;
 
-    let bytes = Compiler::new()
+    let bytes = baseline_compiler()
         .compile_source(
             "fn compare(a: bool, b: bool, c: bool) -> bool { return a == (b && c); }
              fn invoke(a: bool, b: bool) -> number { return take(7, a || b); }

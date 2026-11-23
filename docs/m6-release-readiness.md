@@ -1,12 +1,14 @@
 # M6 final-source release readiness — #87
 
-**Integrated release acceptance is pending.** The final-source native tests and
+**Historical #87 evidence.** See the [later default-preset decision](m8-release-readiness.md#default-preset-decision)
+for current activation and M6 performance disposition. At #87, integrated
+release acceptance was pending. The final-source native tests and
 range-record elimination evidence passed. Strict native Clippy failed on an
 unrelated existing lint; browser smoke, rebuilt-browser parity and the full
 ignored workspace run remain unverified. Performance disposition is also pending.
 The only implemented M6 optimization is the direct range-loop slice approved in
-[ADR 0011](adr/0011-bounded-m6-range-scalar-replacement.md). `None` remains the
-default, including after any future acceptance.
+[ADR 0011](adr/0011-bounded-m6-range-scalar-replacement.md). These measurements
+used `None` as the byte baseline.
 
 ## Final-source provenance
 

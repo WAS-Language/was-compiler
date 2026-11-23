@@ -121,6 +121,7 @@ fn public_membership_fixtures_validate_at_every_optimization_level() {
         (effects_compiler(), EFFECTS_SOURCE),
         (corruption_compiler(), CORRUPTION_SOURCE),
     ] {
+        compiler.set_optimization_level(OptimizationLevel::None);
         let baseline = compile(&compiler, source);
         for level in LEVELS {
             compiler.set_optimization_level(level);

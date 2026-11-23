@@ -22,8 +22,9 @@ safe-integer range semantics, operand evaluation before ordered numeric validati
 static checks of every child, enclosing transfer targets and per-yield captures.
 
 All enabled optimization presets select this optimization through a distinct
-internal policy. `None` remains default and byte-compatible, as do direct codegen
-entry points. Programs without eligible direct loops retain bytes; enabled presets
+internal policy. Explicit `None` and direct codegen preserve baseline bytes.
+See the [default-preset decision](../m8-release-readiness.md#default-preset-decision)
+for current activation. Programs without eligible direct loops retain bytes; enabled presets
 match each other and adapters match within each preset. Existing memory exports,
 helper discovery and helper ordering remain even when unused: this deliberately
 trades infrastructure/size opportunities for a bounded implementation and stable

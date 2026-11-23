@@ -81,7 +81,9 @@ fn bounded_typed_array_workloads_use_public_compile_and_normal_memory_exports() 
     let cases = corpus::cases();
     assert_eq!(cases.len(), 48);
     for case in cases {
-        let compiler = Compiler::new();
+        let compiler = Compiler::with_options(CompilerOptions {
+            optimization_level: OptimizationLevel::None,
+        });
         let typed = compiler.analyze(&case.source).unwrap();
         let bytes = compiler.compile(&typed).unwrap();
         Validator::new().validate_all(&bytes).unwrap();

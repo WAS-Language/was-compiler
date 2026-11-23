@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-use was_compiler::{Compiler, TypedProgram};
+use was_compiler::{Compiler, CompilerOptions, OptimizationLevel, TypedProgram};
 use wasmparser::Validator;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -189,7 +189,9 @@ pub fn export_corpus(directory: &Path) -> io::Result<Vec<PreparedCase>> {
     let mut prepared = Vec::with_capacity(CASES.len());
     for workload in CASES {
         let source = source(workload);
-        let compiler = Compiler::new();
+        let compiler = Compiler::with_options(CompilerOptions {
+            optimization_level: OptimizationLevel::None,
+        });
         let typed = compiler.analyze(&source).map_err(io::Error::other)?;
         let bytes = compiler.compile(&typed).map_err(io::Error::other)?;
         Validator::new()

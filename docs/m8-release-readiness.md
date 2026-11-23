@@ -1,12 +1,13 @@
 # M8 final-source correctness and release readiness (#95)
 
-**Keep M8 experimental; release acceptance is pending.** The focused checks,
-fresh browser execution and full ignored workspace suite passed with the local
-browser dependency configuration below. Strict native Clippy failed on an
-existing lint, and fresh browser execution against the committed lockfile is
-unverified. The measured size benefit does not resolve the performance decisions.
-`None` remains the default and byte baseline; direct codegen still does not fold.
-No production code, preset activation, public option, or ABI changed in #95.
+**M8 is enabled by default in the experimental compiler.** The
+[default-preset decision](#default-preset-decision) accepts the known performance
+trade-offs of the existing M6/M7/M8 bundle. `Basic` (`-O1`) is the public default;
+explicit `None` (`-O0`) and direct codegen preserve unoptimized bytes.
+
+The original #95 run and the [committed-lockfile follow-up](#committed-lockfile-follow-up)
+precede the change in default. They preserve the validation history and the
+performance signals that informed the decision.
 
 ## Correctness evidence
 
@@ -63,12 +64,39 @@ scratch copy with #95's test fixture and the **committed** browser dependencies,
 the same offline browser build compiled the Rust Wasm but exited 1 after 0.45 s
 (160 s limit): wasm-pack could not find the matching local `wasm-bindgen` CLI
 0.2.129. Browser smoke, same-preset browser parity and the full ignored
-workspace run are **unverified on that lockfile**. To clear the remaining gates,
-make the committed CLI version available offline (or separately approve the
-dependency update), rebuild before running browser checks and the full workspace
-suite, and clear and rerun strict native Clippy separately.
+workspace run were **unverified on that lockfile in the original #95 run**. The
+follow-up below verifies them without changing browser dependencies.
 
-## Performance disposition and release status
+## Committed-lockfile follow-up
+
+The existing test still checks every default binding's formal index, now using
+iteration rather than indexing with a range. The entire offline gate sequence
+was rerun against archived `627b50ab94c23aaf2fba3caa50f870036e91ce37` plus that
+lint-only test change. The committed lockfile SHA-256 above was verified before
+and after. No local manifest or lockfile changes were copied into the validation
+tree. The official Linux x86-64 `wasm-bindgen` CLI 0.2.129 was provisioned separately
+under ignored `target/`, with release archive SHA-256
+`82d12bb940e2d4e72e0d5605387fc1b8ca179044e012b620f0ce4e7440e8320e`.
+It was added to `PATH` only for validation. Cargo and wasm-pack ran offline, and
+browser checks used the fresh package built in the scratch tree.
+
+| Gate (same commands as above) | Timeout / elapsed / exit | Result |
+| --- | --- | --- |
+| Workspace all-target typecheck | 120 s / 3.37 s / 0 | Passed. |
+| Default native tests | 180 s / 42.07 s / 0 | 1,379 passed, 0 failed, 333 ignored. |
+| Strict native all-target Clippy | 120 s / 3.44 s / 0 | Passed. |
+| Portable core build | 120 s / 1.72 s / 0 | Passed. |
+| Workspace contract tests | 120 s / 1.95 s / 0 | 3 passed. |
+| Fresh offline browser build | 180 s / 2.89 s / 0 | Passed with the committed `wasm-bindgen` 0.2.129 dependency and matching CLI. |
+| Browser smoke | 120 s / 0.28 s / 0 | 25 groups passed. |
+| Browser adapter parity | 120 s / 2.19 s / 0 | 1 passed. |
+| CLI adapter parity and execution | 120 s / 1.09 s / 0 | 3 passed. |
+| Strict browser-target library Clippy | 120 s / 0.96 s / 0 | Passed. |
+| Full workspace including ignored tests | 300 s / 54.73 s / 0 | 1,733 passed, 0 failed, 0 ignored across 97 result targets. |
+
+This clears the M8 execution blockers, not the remaining performance decisions.
+
+## Performance signals recorded at #95
 
 - **M8 ([#94](benchmarks/m8-folding-94/README.md)):** Matched forward/reverse
   sessions with M6/M7 fixed reproduce **3,441 → 2,914 Wasm bytes (−527, −15.3%)**
@@ -91,5 +119,35 @@ suite, and clear and rerun strict native Clippy separately.
   bounded improvements is recorded.
 
 Closure of #87, #90 and #94 marked evidence work complete, not release acceptance.
-No new threshold was set. Resolve the outstanding correctness gates and obtain
-explicit dispositions for M6, M7 and M8 before a release acceptance decision.
+No new threshold was set. The committed-lockfile follow-up cleared the correctness
+gates; the later decision below supersedes the original performance hold.
+
+## Default-preset decision
+
+The maintainer authorized enabling the existing experimental passes by default
+because the language itself is experimental. This accepts their measured trade-offs
+for that scope; it does not establish that the regressions disappeared:
+
+- **M6:** accept the larger direct-loop module, compilation increases, and
+  longer-loop slowdown/variability in exchange for deterministic range-record
+  elimination and the measured short-loop benefit.
+- **M7:** accept the consistent compile-time cost and mixed guest timing in
+  exchange for the reproducible module-size benefit of the existing proof subset.
+- **M8:** accept the unresolved warmed slowdown signal on the synthetic
+  `wide_closed` workload in exchange for the 15.3% corpus size reduction. No guest
+  speedup, causal explanation, or stable performance budget is claimed.
+
+`Basic`, `Standard`, and `Aggressive` retain the same policies and bytes. The
+change affects Rust, the CLI, browser bindings and the playground. Users who need
+previous default bytes can explicitly select `None`, `-O0`, or browser level `0`.
+This decision does not resolve M4/M5 performance signals, activate M1–M3 private
+prototypes, broaden any proof, or change the language or ABI.
+
+Validation of the new default used the committed lockfile and a fresh offline
+browser build with CLI 0.2.129. Workspace all-target typecheck, strict native
+and browser-target Clippy, the portable core build, and 25 browser smoke groups
+passed. `cargo test --offline --workspace -- --include-ignored` passed in 57.27 s
+(280 s limit): 1,733 passed, none failed or ignored across 97 result targets.
+The adapter matrix checks that omitted presets match explicit O1 and that O0
+matches the independent direct-codegen baseline; the existing byte goldens
+remain unchanged.

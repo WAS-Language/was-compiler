@@ -93,7 +93,7 @@ constructing a compiler. The interface is synchronous after initialization:
 | `setExports(names)` | Export only the listed user functions; pass an array of strings. |
 | `exportAll()` | Export all user functions (the default). |
 | `exportNone()` | Export no user functions. Required memory ABI exports remain. |
-| `setOptimizationLevel(level)` | Select an integer from `0` through `3` (O0–O3); default is `0`. |
+| `setOptimizationLevel(level)` | Select an integer from `0` through `3` (O0–O3); default is `1`. |
 | `free()` | Release the compiler object. Do not use it afterward. |
 
 Host parameter/result spellings are `number`, `bool`, `string`, `number[]`,
@@ -116,18 +116,13 @@ descriptor handle; use the memory ABI explicitly in your application.
 
 Export selections refer to user functions, not host imports. Unknown or duplicate
 selected names are rejected during compilation. `exportNone()` is useful for
-embedding configurations, but the demo requires an exported `main`. Level `0`
-remains the default baseline. Levels `1`–`3` share experimental #39 exact-i32
-literal/proven add-sub subtree lowering, converting back to f64 at unspecialized
-consumers; all numeric locals, comparisons and unary operations retain existing
-lowering. Bytes may differ from level `0`; require semantic/diagnostic parity
-across levels and native/browser byte parity within each level. No API or ABI changes.
-See [the subset and broader #38 contract](integer-specialization.md): size benefits
-and noisy material timing regressions leave the release decision pending user
-acceptance. [#39 correctness gates passed](integer-specialization.md#correctness-validation-2026-10-17),
-including 25 browser groups after a current-source rebuild and 1,261 workspace tests
-with zero failed/ignored. Review against `09dcb5c` is complete.
-Earlier browser release records retain their historical scope. Rebuild `pkg/`
+embedding configurations, but the demo requires an exported `main`. Level `1` is
+also the demo's default. Levels `1`–`3` produce identical bytes and share direct
+range-loop replacement, integer specialization and closed scalar folding. Call
+`setOptimizationLevel(0)` for the previous unoptimized byte baseline. There is no
+API or ABI change; native and browser bytes match within each level. See the
+[default-preset decision](m8-release-readiness.md#default-preset-decision) for the
+performance trade-offs. Earlier release records are historical; rebuild `pkg/`
 before checking parity after further changes.
 `compileWat` runs the compilation pipeline again; asking for both bytes and WAT
 therefore compiles twice.

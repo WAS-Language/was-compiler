@@ -226,7 +226,8 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   The internal boundary is not a public checked-AST API or a guarantee that every
   arbitrary malformed tree produces a recoverable error.
 - Keep `CompilerOptions` small and `Copy`; owned `ExportOptions` stays separate.
-  `None` remains default and the byte baseline, as do direct codegen entry points.
+  `Basic` (`-O1`) is the public default; explicit `None` (`-O0`) and direct
+  codegen preserve baseline bytes. Pin `None` in baseline tests and measurements.
   `Basic`, `Standard`, and `Aggressive` share #39/#40/#41's experimental exact-i32
   literal/add-sub/negation lowering, proven numeric comparisons, and eligible
   never-reassigned ordinary numeric local storage/read-fact propagation;
@@ -257,13 +258,14 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   adds composition/adapter checks and records 1,296 workspace tests across 81 targets,
   none failed/ignored, plus 25 rebuilt-browser groups. Repeated matched measurements
   confirm size benefit with material compilation regressions and mixed guest timings;
-  keep experimental pending explicit regression/release acceptance. No release/default
-  change, broader proof scope or public type/ABI change is authorized.
+  the [default-preset decision](docs/m8-release-readiness.md#default-preset-decision)
+  accepts these trade-offs for the experimental compiler. Broader proof scope and
+  public type/ABI changes require separate authorization.
 - M8 #92–#93 fold closed scalar expressions in enabled presets. Before changing
   the whitelist, checked folding, or its test toggle, read
   [ADR 0012](docs/adr/0012-fold-scalars-during-checked-lowering.md). Fold after
   the original checks; preserve the selected representation and M6/M7 plans.
-  Further WP13 work and M8 release acceptance are separate decisions.
+  The default-preset change authorizes no further WP13 work or private prototype activation.
 
 ## Current language support
 

@@ -32,10 +32,11 @@ fn native_emitter_preserves_baseline_and_preset_determinism_without_mutating_typ
     assert_eq!(compiler.exports(), &ExportOptions::All);
     assert_eq!(
         compiler.options().optimization_level,
-        OptimizationLevel::None
+        OptimizationLevel::Basic
     );
     let program = compiler.analyze(SOURCE).expect("analyze control fixture");
     let original = program.clone();
+    let default_bytes = compiler.compile(&program).unwrap();
     Validator::new()
         .validate_all(GOLDEN)
         .expect("valid pre-refactor fixture");
@@ -45,6 +46,8 @@ fn native_emitter_preserves_baseline_and_preset_determinism_without_mutating_typ
         let expected = compiler.compile(&program).unwrap();
         if level == OptimizationLevel::None {
             assert_eq!(expected, GOLDEN, "baseline compilation");
+        } else if level == OptimizationLevel::Basic {
+            assert_eq!(expected, default_bytes, "default compilation");
         }
         for _ in 0..2 {
             let bytes = compiler.compile(&program).expect("emit typed fixture");

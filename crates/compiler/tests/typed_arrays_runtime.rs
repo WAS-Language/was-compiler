@@ -13,6 +13,7 @@ fn run(source: &str, script: &str) {
 }
 
 fn run_with_compiler(mut compiler: Compiler, source: &str, script: &str) {
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile_source(source).unwrap();
     for level in [
         OptimizationLevel::None,

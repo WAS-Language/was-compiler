@@ -60,6 +60,7 @@ fn compound_analysis_compilation_and_export_selection_preserve_owned_input_and_i
 
     let program = compiler.analyze(SOURCE).unwrap();
     let original = program.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     validate(&baseline);
 

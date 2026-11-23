@@ -1,6 +1,6 @@
 //! Private M4 observation transport; ordinary compilation never selects it.
 use super::*;
-use crate::{Compiler, exports::ExportOptions};
+use crate::{Compiler, CompilerOptions, OptimizationLevel, exports::ExportOptions};
 use wasm_encoder::{Encode, ExportKind, ExportSection, Module, RawSection};
 use wasmparser::{Operator, Parser, Payload, Validator};
 
@@ -12,8 +12,14 @@ const OBSERVATIONS: [(&str, u32); 4] = [
 ];
 const COUNTERS: [&str; 2] = ["__m4_allocator_comparisons", "__m4_authority_comparisons"];
 
+fn baseline_compiler() -> Compiler {
+    Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    })
+}
+
 fn modules(source: &str, comparisons: bool) -> [Vec<u8>; 2] {
-    let program = Compiler::new().analyze(source).unwrap();
+    let program = baseline_compiler().analyze(source).unwrap();
     assert!(
         program.host_functions.is_empty(),
         "fixture indices exclude imports"
@@ -216,7 +222,10 @@ fn exports(bytes: &[u8]) -> Vec<(String, wasmparser::ExternalKind, u32)> {
 fn observations_are_private_and_ordinary_compilation_is_unchanged() {
     let source = "fn make() -> number[] { return resizable([1]); }";
     let [ordinary, observed] = modules(source, false);
-    assert_eq!(ordinary, Compiler::new().compile_source(source).unwrap());
+    assert_eq!(
+        ordinary,
+        baseline_compiler().compile_source(source).unwrap()
+    );
     assert!(exports(&ordinary).iter().all(|(name, kind, _)| {
         !name.starts_with("__m4_") && *kind != wasmparser::ExternalKind::Global
     }));
@@ -366,7 +375,10 @@ fn counters_only_add_exact_increments_after_live_registry_guards() {
             )
         }));
         assert_eq!(exports(&observed), expected);
-        assert_eq!(ordinary, Compiler::new().compile_source(source).unwrap());
+        assert_eq!(
+            ordinary,
+            baseline_compiler().compile_source(source).unwrap()
+        );
         assert_eq!(modules(source, true), [ordinary, observed]);
     }
 }
@@ -375,11 +387,12 @@ fn counters_only_add_exact_increments_after_live_registry_guards() {
 fn observation_export_collisions_are_private_to_the_requested_variant() {
     for name in OBSERVATIONS.iter().map(|(name, _)| *name).chain(COUNTERS) {
         let source = format!("fn {name}() -> number[] {{ return resizable([1]); }}");
-        let program = Compiler::new().analyze(&source).unwrap();
+        let compiler = baseline_compiler();
+        let program = compiler.analyze(&source).unwrap();
         let validated =
             super::super::validation::ValidatedProgram::new(&program, &ExportOptions::All).unwrap();
         let ordinary = super::super::assemble(&validated);
-        assert_eq!(ordinary, Compiler::new().compile_source(&source).unwrap());
+        assert_eq!(ordinary, compiler.compile_source(&source).unwrap());
         let plan = validated.layout().resizable.as_ref().unwrap();
         assert!(matches!(observe(&ordinary, plan, true),
             Err(CodegenError::DuplicateExportName { name: duplicate }) if duplicate == name));

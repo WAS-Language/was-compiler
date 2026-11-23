@@ -173,6 +173,7 @@ fn assert_same_error(program: &TypedProgram, exports: &ExportOptions) -> Codegen
 #[test]
 fn validated_view_borrows_the_original_tree_and_owned_host_snapshot() {
     let mut compiler = compiler();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let program = compiler.analyze(SOURCE).unwrap();
     let original = program.clone();
     let validated = ValidatedProgram::new(&program, &ExportOptions::All).unwrap();

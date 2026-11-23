@@ -89,6 +89,7 @@ fn public_pipeline_preserves_owned_snapshots_exports_and_per_preset_bytes() {
     let mut compiler = compiler();
     let program = compiler.analyze(SOURCE).unwrap();
     let original = program.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     validate(&baseline);
 
@@ -216,6 +217,7 @@ fn all_four_source_results_decode_mvp_value_exits_and_empty_backedges() {
         assert!(
             matches!(&body[1].kind, TypedStatementKind::BreakValue { target, value } if target == id && value.ty == ty)
         );
+        compiler.set_optimization_level(OptimizationLevel::None);
         let baseline = compiler.compile(&program).unwrap();
         for level in LEVELS {
             compiler.set_optimization_level(level);
@@ -347,6 +349,7 @@ fn unreachable_valid_break_mismatches_do_not_join_but_their_children_are_checked
         assert!(
             matches!(&program.functions[0].body[0].kind, TypedStatementKind::Let { value, .. } if value.ty == ty)
         );
+        compiler.set_optimization_level(OptimizationLevel::None);
         let baseline = compiler.compile(&program).unwrap();
         for level in LEVELS {
             compiler.set_optimization_level(level);
@@ -416,6 +419,7 @@ fn nested_loop_result_types_and_targets_are_independent() {
     assert!(
         matches!(body.last().unwrap().kind, TypedStatementKind::BreakValue { target, .. } if target == *id)
     );
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     for level in LEVELS {
         compiler.set_optimization_level(level);
@@ -448,6 +452,7 @@ fn no_exit_is_never_with_concrete_annotated_storage_and_explicit_divergence_comp
         assert!(
             matches!(&program.functions[0].body[0].kind, TypedStatementKind::Let { ty: storage, value, .. } if *storage == ty && value.ty == ExprResult::Never)
         );
+        compiler.set_optimization_level(OptimizationLevel::None);
         let baseline = compiler.compile(&program).unwrap();
         for level in LEVELS {
             compiler.set_optimization_level(level);
@@ -782,6 +787,7 @@ fn node_value_loops_preserve_results_aliases_effects_and_abrupt_stack_prefixes()
         )
         .unwrap();
     let program = compiler.analyze(source).unwrap();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile_source(source).unwrap();
     for level in LEVELS {
         compiler.set_optimization_level(level);

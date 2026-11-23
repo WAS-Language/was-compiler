@@ -83,7 +83,7 @@ fn cli_bytes_and_wat_match_core_in_each_preset() {
     for ((case, source, selection), native) in CASES.into_iter().zip(cases::core_matrix()) {
         fs::write(scratch.0.join("input.was"), source).unwrap();
 
-        for (level, index) in presets.clone().chain([(None, 0)]) {
+        for (level, index) in presets.clone().chain([(None, 1)]) {
             let output = scratch.compile(level, selection, "output.wasm");
             assert!(output.stdout.is_empty());
             assert_eq!(

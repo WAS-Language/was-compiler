@@ -1,11 +1,15 @@
 use was_compiler::{
-    Compiler, ExportOptions, Type, codegen, lexer::Lexer, parser::Parser,
+    Compiler, ExportOptions, OptimizationLevel, Type, codegen, lexer::Lexer, parser::Parser,
     semantic::SemanticAnalyzer,
 };
 
 fn main() {
     let source = "fn main() -> number { return echo(21); }";
     let mut compiler = Compiler::new();
+    assert_eq!(
+        compiler.options().optimization_level,
+        OptimizationLevel::Basic
+    );
     compiler
         .register_host_function("echo", "env", "echo", vec![Type::Number], Type::Number)
         .unwrap();
@@ -18,7 +22,6 @@ fn main() {
         .register_host_function("later", "env", "later", vec![], Type::Void)
         .unwrap();
     assert_eq!(compiler.compile(&typed).unwrap(), expected);
-    assert_eq!(codegen::compile(&typed).unwrap(), expected);
 
     let tokens = Lexer::new(source).tokenize();
     let ast = Parser::new(&tokens).parse_program().unwrap();
@@ -27,7 +30,15 @@ fn main() {
         .unwrap();
     assert_eq!(compiler.compile(&analyzed).unwrap(), expected);
 
+    compiler.set_optimization_level(OptimizationLevel::Basic);
+    assert_eq!(compiler.compile(&typed).unwrap(), expected);
     compiler.set_exports(ExportOptions::None);
     assert_ne!(compiler.compile(&typed).unwrap(), expected);
+
+    compiler.set_exports(ExportOptions::All);
+    compiler.set_optimization_level(OptimizationLevel::None);
+    let baseline = codegen::compile(&typed).unwrap();
+    assert_eq!(compiler.compile(&typed).unwrap(), baseline);
+    assert_ne!(baseline, expected);
     println!("downstream compiler API and owned host snapshot passed");
 }

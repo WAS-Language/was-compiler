@@ -3,12 +3,21 @@ mod corpus;
 
 use corpus::{CASES, Workload};
 use divan::{Bencher, black_box, black_box_drop};
-use was_compiler::{Compiler, lexer::Lexer, parser::Parser, semantic::SemanticAnalyzer};
+use was_compiler::{
+    Compiler, CompilerOptions, OptimizationLevel, lexer::Lexer, parser::Parser,
+    semantic::SemanticAnalyzer,
+};
 use wasmparser::Validator;
+
+fn baseline_compiler() -> Compiler {
+    Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    })
+}
 
 fn validated_source(workload: Workload) -> String {
     let source = corpus::source(workload);
-    let bytes = Compiler::new().compile_source(&source).unwrap();
+    let bytes = baseline_compiler().compile_source(&source).unwrap();
     Validator::new().validate_all(&bytes).unwrap();
     source
 }
@@ -17,7 +26,7 @@ fn main() {
     eprintln!("workload,source_bytes,module_bytes");
     for workload in CASES {
         let source = validated_source(workload);
-        let bytes = Compiler::new().compile_source(&source).unwrap();
+        let bytes = baseline_compiler().compile_source(&source).unwrap();
         eprintln!("{workload},{},{}", source.len(), bytes.len());
     }
 
@@ -54,9 +63,9 @@ fn semantic(bencher: Bencher, workload: Workload) {
 #[divan::bench(args = CASES)]
 fn typed_compile(bencher: Bencher, workload: Workload) {
     let source = validated_source(workload);
-    let typed = Compiler::new().analyze(&source).unwrap();
+    let typed = baseline_compiler().analyze(&source).unwrap();
     bencher.bench_local(|| {
-        black_box_drop(Compiler::new().compile(black_box(&typed)).unwrap());
+        black_box_drop(baseline_compiler().compile(black_box(&typed)).unwrap());
     });
 }
 
@@ -64,6 +73,10 @@ fn typed_compile(bencher: Bencher, workload: Workload) {
 fn source_compile(bencher: Bencher, workload: Workload) {
     let source = validated_source(workload);
     bencher.bench_local(|| {
-        black_box_drop(Compiler::new().compile_source(black_box(&source)).unwrap());
+        black_box_drop(
+            baseline_compiler()
+                .compile_source(black_box(&source))
+                .unwrap(),
+        );
     });
 }

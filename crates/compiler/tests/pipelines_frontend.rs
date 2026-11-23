@@ -897,6 +897,7 @@ fn inferred_forward_nested_chains_and_diamonds_keep_source_order() {
             .collect::<Vec<_>>(),
         ["root", "left", "right", "leaf", "nested"]
     );
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&typed).unwrap();
     for level in [
         OptimizationLevel::None,
@@ -996,6 +997,7 @@ fn pipeline_compilation_uses_owned_import_snapshot_after_registry_changes() {
         .unwrap();
     let source = "fn wrap(x: number) { return effect(x); } fn main() { return 1 |> wrap; }";
     let typed = compiler.analyze(source).unwrap();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&typed).unwrap();
     compiler
         .register_host_function("later", "extra", "later", vec![], Type::Void)

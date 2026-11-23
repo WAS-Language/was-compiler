@@ -1,5 +1,5 @@
 use was_compiler::{
-    CodegenError, Compiler, ExportOptions, OptimizationLevel, Type,
+    CodegenError, Compiler, CompilerOptions, ExportOptions, OptimizationLevel, Type,
     ast::BinaryOp,
     codegen,
     typed_ast::{
@@ -114,7 +114,9 @@ fn enabled_presets_remove_only_the_direct_loop_record() {
                   fn indirect(a: number, b: number) -> void { for i in { a..=b } {} }";
     let program = analyze(source);
     let baseline = codegen::compile(&program).unwrap();
-    let mut compiler = Compiler::new();
+    let mut compiler = Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    });
     assert_eq!(compiler.compile(&program).unwrap(), baseline);
     let mut enabled = None;
 
@@ -267,7 +269,9 @@ fn direct_range_checks_later_operands_after_abrupt_completion_before_checking_bo
 
 #[test]
 fn iteration_binding_and_scratch_have_exact_types_and_order() {
-    let compiler = Compiler::new();
+    let compiler = Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    });
     let program = compiler
         .analyze("fn main() -> void { for i in 0..3 { i; } }")
         .unwrap();

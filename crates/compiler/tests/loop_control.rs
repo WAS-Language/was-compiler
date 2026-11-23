@@ -60,6 +60,7 @@ fn transfers_preserve_optimization_export_and_owned_import_snapshot_contracts() 
         .unwrap();
     let program = compiler.analyze(SOURCE).unwrap();
     let original = program.clone();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let baseline = compiler.compile(&program).unwrap();
     validate(&baseline);
 
@@ -95,6 +96,7 @@ fn transfers_preserve_optimization_export_and_owned_import_snapshot_contracts() 
 #[test]
 fn source_transfers_decode_expected_depths_without_adding_memory_or_helpers() {
     let mut compiler = Compiler::new();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let expected = compiler.compile_source(SOURCE).unwrap();
 
     for level in LEVELS {

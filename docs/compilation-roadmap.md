@@ -63,8 +63,8 @@ unchanged.
 
 `Basic`, `Standard`, and `Aggressive` share this subset and must be byte-identical
 to each other, with semantic/diagnostic parity across all levels and adapter byte
-parity within each level. `None` stays default and preserves baseline bytes; direct
-codegen APIs also retain baseline policy. This approved exception ahead of WP12
+parity within each level. `Basic` is the default. Explicit `None` and direct
+codegen APIs retain baseline policy and bytes. This approved exception ahead of WP12
 does not authorize general WP13 or remaining #38 implementation.
 
 The [#38 baseline](benchmarks/integer-specialization/summary.md) is historical.
@@ -245,8 +245,9 @@ These are concrete modules with narrow responsibilities, not a generic plugin or
 pass framework. Add modules when a milestone requires them.
 
 `CompilerOptions` selects `OptimizationLevel::None`, `Basic`, `Standard`, or
-`Aggressive`; the default is `None`. Enabled presets share experimental #39/#40/#41
-representation selection, not AST transformations. Preserve semantics/diagnostics
+`Aggressive`; the default is `Basic`. Enabled presets share direct range-loop
+replacement, integer representation selection, and closed scalar folding without
+rewriting the AST. Preserve semantics/diagnostics
 across levels, enabled-preset byte identity and adapter byte parity within each
 level. `Compiler::compile` and `compile_source` invoke the borrowed
 `Cow<TypedProgram>` boundary and select numeric policy; analysis is independent

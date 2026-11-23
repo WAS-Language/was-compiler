@@ -14,8 +14,11 @@ fn corpus_is_deterministic_valid_and_analysis_is_optimization_invariant() {
     for workload in corpus::CASES {
         let source = corpus::source(workload);
         assert_eq!(source, corpus::source(workload));
-        let baseline = Compiler::new().analyze(&source).unwrap();
-        let expected = Compiler::new().compile(&baseline).unwrap();
+        let unoptimized = Compiler::with_options(CompilerOptions {
+            optimization_level: OptimizationLevel::None,
+        });
+        let baseline = unoptimized.analyze(&source).unwrap();
+        let expected = unoptimized.compile(&baseline).unwrap();
         Validator::new().validate_all(&expected).unwrap();
 
         for optimization_level in [

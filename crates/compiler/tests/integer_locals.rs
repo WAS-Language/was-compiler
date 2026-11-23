@@ -136,9 +136,10 @@ fn sparse_ids_preserve_declaration_slots_proofs_abi_and_borrowed_input() {
     let source = "fn main() -> number { let a = 20; let b = a + 3; let c = b - a; return c + b; }";
     let program = sparse_chain();
     let snapshot = program.clone();
-    let baseline = Compiler::new().compile(&program).unwrap();
+    let unoptimized = compiler(OptimizationLevel::None);
+    let baseline = unoptimized.compile(&program).unwrap();
     assert_eq!(baseline, codegen::compile(&program).unwrap());
-    assert_eq!(baseline, Compiler::new().compile_source(source).unwrap());
+    assert_eq!(baseline, unoptimized.compile_source(source).unwrap());
     assert_eq!(decode(&baseline)[0].locals, [ValType::F64; 3]);
     let expected = compiler(OptimizationLevel::Basic)
         .compile(&program)

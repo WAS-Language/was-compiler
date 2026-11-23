@@ -1623,9 +1623,10 @@ The user confirmed the shared understanding after all three rounds, closing the
 M8 design interview. The separately authorized [#92 arithmetic slice](adr/0012-fold-scalars-during-checked-lowering.md#implemented-slice-92)
 is implemented after verification of WP12's correctness exit. [#93 completes the
 scalar whitelist](adr/0012-fold-scalars-during-checked-lowering.md#implemented-slice-93).
-[#95 records final-source correctness and the remaining release gates](m8-release-readiness.md).
-M8 remains experimental pending explicit performance dispositions and completion
-of those gates; `None` remains the default.
+[#95 and its follow-up record final-source correctness](m8-release-readiness.md).
+The [default-preset decision](m8-release-readiness.md#default-preset-decision)
+supersedes the interview-era activation decision: `Basic` is the default for the
+experimental compiler. Explicit `None` and direct codegen preserve baseline bytes.
 
 ### Original candidate list (not the M8 completion checklist)
 

@@ -245,7 +245,7 @@ fn memory_parameter_and_return_abis_use_i32_for_hosts_and_users() {
 
 #[test]
 fn numeric_returns_preserve_parameter_signatures_and_import_index_offsets() {
-    let mut compiler = Compiler::new();
+    let mut compiler = baseline_compiler();
 
     compiler
         .register_host_function(

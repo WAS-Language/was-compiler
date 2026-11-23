@@ -2,6 +2,11 @@
 
 ## Status and authorization
 
+The [later default-preset decision](m8-release-readiness.md#default-preset-decision)
+accepts the measured M7 trade-offs for the experimental compiler. `Basic` is the
+current default; explicit `None` preserves baseline bytes. The issue-specific
+results and recommendations below retain their historical scope.
+
 Issue #38 established bounded workloads, reproducible unoptimized measurements,
 and the broader proof contract below. User-approved issue #39 implemented exact
 parsed signed-i32 literals and proven addition/subtraction subtrees. User authorization

@@ -228,6 +228,7 @@ fn full_positional_default_declarations_preserve_bytes_import_snapshot_and_selec
     let mut compiler = compiler();
     compiler.set_exports(ExportOptions::Only(vec!["main".into()]));
     let program = compiler.analyze(&defaulted).unwrap();
+    compiler.set_optimization_level(OptimizationLevel::None);
     let before = compiler.compile(&program).unwrap();
     compiler
         .register_host_function("later", "later", "later", vec![], Type::Void)
@@ -245,6 +246,7 @@ fn full_positional_default_declarations_preserve_bytes_import_snapshot_and_selec
         assert_eq!(compiler.compile(&program).unwrap(), before);
     }
     let mut legacy = self::compiler();
+    legacy.set_optimization_level(OptimizationLevel::None);
     legacy.set_exports(ExportOptions::Only(vec!["main".into()]));
     assert_eq!(legacy.compile_source(original).unwrap(), before);
     let exports: Vec<_> = Parser::new(0)

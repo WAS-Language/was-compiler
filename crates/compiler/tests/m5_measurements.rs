@@ -9,7 +9,11 @@ const SOURCE: &str = include_str!("../../../tests/support/m5_string_timing.was")
 
 #[test]
 fn runtime_corpus_is_ordinary_deterministic_and_preset_compatible() {
-    let baseline = Compiler::new().compile_source(SOURCE).unwrap();
+    let baseline = Compiler::with_options(CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+    })
+    .compile_source(SOURCE)
+    .unwrap();
     let mut enabled = None;
     for optimization_level in [
         OptimizationLevel::None,

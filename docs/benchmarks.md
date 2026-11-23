@@ -51,8 +51,8 @@ The timed closures return `()` and explicitly `black_box_drop` their outputs so
 Divan does not move output destruction outside the timed region. Inputs cross a
 black-box boundary too. Setup and validation are outside the measured loop; each
 invocation recreates the stateful processor. There are no registered hosts or
-production API changes. These native compiler measurements use default compiler
-options (`None`) and optimized Cargo bench builds. Enabled numeric presets retain
+production API changes. These native compiler measurements explicitly select
+`None` and use optimized Cargo bench builds. Enabled numeric presets retain
 byte identity with one another, not necessarily with `None`.
 Stage medians do not necessarily sum to the end-to-end median: setup, intermediate
 lifetimes, cache state, and scheduling differ.
@@ -418,7 +418,7 @@ helper pruning or unchecked consumed-value fast path is authorized here.
 No production specialization is implemented by #38. See
 [proof, preset and release contracts](integer-specialization.md)
 and [the scheduling exception](was_language_extensions_plan.md#issue-38--proven-integer-specialization-baseline-exception).
-All levels currently remain identical no-ops; `None` is the default byte baseline.
+At #38, all levels were identical no-ops. `None` remains the explicit byte baseline.
 
 ### Separate harness and timing boundaries
 
