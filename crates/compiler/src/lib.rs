@@ -1,3 +1,6 @@
+#[cfg(test)]
+extern crate self as was_compiler;
+
 pub mod ast;
 
 pub mod codegen;

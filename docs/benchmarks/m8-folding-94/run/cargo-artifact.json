@@ -1,0 +1,32 @@
+{
+  "executable": "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-folding-94/build/release/build/was-compiler/6dce618db7c61352/out/was_compiler-6dce618db7c61352",
+  "features": [],
+  "filenames": [
+    "/home/luanroger/Projects/personal/rust/was-compiler/target/m8-folding-94/build/release/build/was-compiler/6dce618db7c61352/out/was_compiler-6dce618db7c61352"
+  ],
+  "fresh": false,
+  "manifest_path": "/home/luanroger/Projects/personal/rust/was-compiler/crates/compiler/Cargo.toml",
+  "package_id": "path+file:///home/luanroger/Projects/personal/rust/was-compiler/crates/compiler#was-compiler@0.1.0",
+  "profile": {
+    "debug_assertions": false,
+    "debuginfo": 0,
+    "opt_level": "3",
+    "overflow_checks": false,
+    "test": true
+  },
+  "reason": "compiler-artifact",
+  "target": {
+    "crate_types": [
+      "lib"
+    ],
+    "doc": true,
+    "doctest": true,
+    "edition": "2024",
+    "kind": [
+      "lib"
+    ],
+    "name": "was_compiler",
+    "src_path": "/home/luanroger/Projects/personal/rust/was-compiler/crates/compiler/src/lib.rs",
+    "test": true
+  }
+}

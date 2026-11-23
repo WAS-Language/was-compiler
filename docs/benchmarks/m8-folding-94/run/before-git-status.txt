@@ -1,0 +1,11 @@
+ M Cargo.lock
+ M crates/browser/Cargo.toml
+ M crates/compiler/benches/m8_scalars.rs
+ M crates/compiler/benches/support/m8_corpus.rs
+ M crates/compiler/src/compiler.rs
+ M crates/compiler/src/lib.rs
+ M crates/compiler/tests/m8_benchmarks.rs
+ M tests/support/m8_scalar_timing.cjs
+ M tests/support/record_m8_baseline.py
+?? crates/compiler/benches/support/m8_native.rs
+?? crates/compiler/src/compiler/m8_measurement.rs

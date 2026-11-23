@@ -1,0 +1,6 @@
+{
+  "before-git-diff-staged.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "before-git-diff-unstaged.stdout.log": "366d37987d390c5773357097278253f0d0c47f779d33a2dad3efc0aa4f8fefbd",
+  "after-git-diff-staged.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "after-git-diff-unstaged.stdout.log": "366d37987d390c5773357097278253f0d0c47f779d33a2dad3efc0aa4f8fefbd"
+}

@@ -102,6 +102,14 @@ impl Compiler {
     }
 
     pub fn compile(&self, program: &TypedProgram) -> Result<Vec<u8>, CodegenError> {
+        self.compile_with_folding(program, self.options.optimization_level.folding_policy())
+    }
+
+    fn compile_with_folding(
+        &self,
+        program: &TypedProgram,
+        folding: codegen::FoldingPolicy,
+    ) -> Result<Vec<u8>, CodegenError> {
         let optimized = optimization::optimize(program, self.options.optimization_level);
 
         codegen::compile_with_policies(
@@ -109,7 +117,7 @@ impl Compiler {
             &self.exports,
             self.options.optimization_level.numeric_policy(),
             self.options.optimization_level.range_policy(),
-            self.options.optimization_level.folding_policy(),
+            folding,
         )
     }
 
@@ -120,6 +128,9 @@ impl Compiler {
         Ok(wasm)
     }
 }
+
+#[cfg(test)]
+mod m8_measurement;
 
 #[cfg(test)]
 mod tests {

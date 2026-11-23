@@ -4,7 +4,7 @@ use was_compiler::{
 };
 use wasmparser::Validator;
 
-const LEVELS: [OptimizationLevel; 4] = [
+pub const LEVELS: [OptimizationLevel; 4] = [
     OptimizationLevel::None,
     OptimizationLevel::Basic,
     OptimizationLevel::Standard,
@@ -94,16 +94,20 @@ pub fn prepare(source: &str) -> (TypedProgram, [Vec<u8>; 4]) {
     (typed, modules)
 }
 
-pub fn export(directory: &Path) -> io::Result<()> {
+pub fn export<V: std::fmt::Debug, const N: usize>(
+    directory: &Path,
+    variants: [V; N],
+    prepare: impl Fn(&str, &str) -> [Vec<u8>; N],
+) -> io::Result<()> {
     use std::io::Write;
 
     fs::create_dir(directory)?;
     let mut sizes = fs::File::create_new(directory.join("sizes.csv"))?;
     writeln!(sizes, "workload,preset,source_bytes,module_bytes")?;
     for (name, source) in cases() {
-        let (_, modules) = prepare(&source);
+        let modules = prepare(name, &source);
         fs::write(directory.join(format!("{name}.was")), &source)?;
-        for (level, module) in LEVELS.into_iter().zip(modules) {
+        for (level, module) in variants.iter().zip(modules) {
             fs::write(directory.join(format!("{name}-{level:?}.wasm")), &module)?;
             writeln!(sizes, "{name},{level:?},{},{}", source.len(), module.len())?;
         }

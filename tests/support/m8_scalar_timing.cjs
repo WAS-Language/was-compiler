@@ -26,11 +26,12 @@ const warmupCalls = 2048;
 const warmedCalls = 4096;
 const checkpoints = [0, 1, warmupCalls, warmupCalls + warmedCalls, 8192];
 
-function loadSchedule(directory, mode) {
+function loadSchedule(directory, mode, isolated) {
+    const variants = isolated ? ['FoldOff', 'FoldOn'] : mode === 'verify' ? presets : presets.slice(0, 2);
     const schedule = [];
     for (const {input = 1.5, ...workload} of workloads) {
         if (mode !== 'verify' && workload.verifyOnly) continue;
-        for (const preset of mode === 'verify' ? presets : presets.slice(0, 2)) {
+        for (const preset of variants) {
             const file = `${workload.name}-${preset}.wasm`;
             const module = new WebAssembly.Module(fs.readFileSync(path.join(directory, file)));
             assert.deepEqual(WebAssembly.Module.imports(module), [], file);
@@ -114,11 +115,12 @@ function timeGuests(schedule, rows) {
     }
 }
 
-const [directory, mode] = process.argv.slice(2);
-assert(process.argv.length === 4 && ['verify', 'forward', 'reverse'].includes(mode),
-    'usage: node tests/support/m8_scalar_timing.cjs DIRECTORY verify|forward|reverse');
+const [directory, mode, experiment, ...extra] = process.argv.slice(2);
+assert(extra.length === 0 && (experiment === undefined || experiment === 'isolated') &&
+    ['verify', 'forward', 'reverse'].includes(mode),
+    'usage: node tests/support/m8_scalar_timing.cjs DIRECTORY verify|forward|reverse [isolated]');
 
-const schedule = loadSchedule(directory, mode);
+const schedule = loadSchedule(directory, mode, experiment === 'isolated');
 const verifying = mode === 'verify';
 const rows = [verifying ? 'workload,preset,calls,memory_bytes'
     : 'workload,preset,boundary,sample,calls,elapsed_ns'];

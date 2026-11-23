@@ -28,12 +28,14 @@ baseline and all enabled presets on direct and indirect range loops. See the
 [reproduction steps, raw samples and pending performance disposition](benchmarks/m6-ranges-86/README.md).
 This evidence is separate from the private #84 allocation proof.
 
-## M8 pre-folding baseline (#91)
+## M8 scalar folding measurements (#91, #94)
 
 The [pre-folding baseline](benchmarks/m8-pre-folding-91.md) records two sessions
 of native compilation, Wasm size, guest timing and memory growth on closed scalar
 workloads and no-fold controls. It is measurement evidence, not an authorization
-to implement folding or a release decision.
+to implement folding or a release decision. The [final-source isolated comparison](benchmarks/m8-folding-94/README.md)
+holds M6/M7 fixed and reports Wasm size savings, a warmed guest regression signal,
+and timing uncertainty separately.
 
 ## Timing contract
 

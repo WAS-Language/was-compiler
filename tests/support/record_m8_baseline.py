@@ -1,4 +1,4 @@
-"""Build and record the #91 pre-folding baseline offline from the repo root."""
+"""Record the M8 baseline protocol or its isolated final-source comparison offline."""
 
 import argparse
 import csv
@@ -25,6 +25,9 @@ GUEST_WORKLOADS = tuple(name for name in WORKLOADS if name not in {
     "negative_zero", "subnormal_tie", "nonfinite_root",
 })
 PRESETS = ("None", "Basic", "Standard", "Aggressive")
+FOLDING = ("FoldOff", "FoldOn")
+MEASUREMENT = "compiler::m8_measurement::record"
+PREFLIGHT = "compiler::m8_measurement::baseline_corpus_isolates_m8_with_m6_and_m7_enabled"
 ORDERS = ("forward", "reverse")
 
 
@@ -99,28 +102,28 @@ def checked_rows(path, header, key_columns, expected):
     return rows
 
 
-def artifacts(directory):
+def artifacts(directory, variants=PRESETS):
     sizes = checked_rows(directory / "sizes.csv", "workload,preset,source_bytes,module_bytes",
-                         2, set(product(WORKLOADS, PRESETS)))
+                         2, set(product(WORKLOADS, variants)))
     manifest = {}
     for name in WORKLOADS:
         source = f"{name}.was"
-        modules = [f"{name}-{preset}.wasm" for preset in PRESETS]
+        modules = [f"{name}-{preset}.wasm" for preset in variants]
         for filename in (source, *modules):
             path = directory / filename
             manifest[filename] = {"bytes": path.stat().st_size, "sha256": sha256(path)}
-        for preset, module in zip(PRESETS, modules):
+        for preset, module in zip(variants, modules):
             actual = [manifest[source]["bytes"], manifest[module]["bytes"]]
             if min(actual) <= 0 or actual != list(map(int, sizes[name, preset])):
                 raise ValueError(f"{directory}: size mismatch for {name}/{preset}")
-        if len({manifest[module]["sha256"] for module in modules[1:]}) != 1:
+        if variants == PRESETS and len({manifest[module]["sha256"] for module in modules[1:]}) != 1:
             raise ValueError(f"{directory}: enabled presets differ for {name}")
     return manifest
 
 
-def growth(directory):
+def growth(directory, variants=PRESETS):
     path = directory / "growth.csv"
-    expected = set(product(WORKLOADS, PRESETS, ("0", "1", "2048", "6144", "8192")))
+    expected = set(product(WORKLOADS, variants, ("0", "1", "2048", "6144", "8192")))
     rows = checked_rows(path, "workload,preset,calls,memory_bytes", 3, expected)
     observed = {}
     for key, (value,) in rows.items():
@@ -151,11 +154,11 @@ def timing(path, schedule, calls_by_boundary, sample_count):
         raise ValueError(f"{path}: unexpected trailing measurements")
 
 
-def timing_summary(directory, order):
+def timing_summary(directory, order, variants=PRESETS[:2]):
     native_calls = {"source": 128, "typed": 128}
     guest_calls = {"instantiation": 1, "first_call": 1, "warmed": 4096}
-    native = list(product(WORKLOADS, PRESETS[:2], native_calls))
-    guest_cases = list(product(GUEST_WORKLOADS, PRESETS[:2]))
+    native = list(product(WORKLOADS, variants, native_calls))
+    guest_cases = list(product(GUEST_WORKLOADS, variants))
     if order == "reverse":
         native.reverse()
         guest_cases.reverse()
@@ -164,7 +167,8 @@ def timing_summary(directory, order):
     yield from timing(directory / "guest.csv", guest, guest_calls, 20)
 
 
-def collect(output, node):
+def collect(output, node, isolated):
+    variants = FOLDING if isolated else PRESETS
     env = dict(os.environ, CARGO_NET_OFFLINE="true", RUSTUP_AUTO_INSTALL="0")
     provenance = {
         "argv": sys.argv, "cwd": str(ROOT), "started_utc": utc_now(), "python": sys.version,
@@ -182,16 +186,18 @@ def collect(output, node):
     def save():
         write_json(output / "environment.json", provenance)
 
-    def run(label, argv, deadline):
+    def run(label, argv, deadline, **extra_env):
         entry = {"label": label, "argv": list(map(str, argv)), "timeout_seconds": deadline,
                  "started_utc": utc_now()}
+        if extra_env:
+            entry["environment"] = extra_env
         provenance["commands"].append(entry)
         save()
         stdout = output / f"{label}.stdout.log"
         stderr = output / f"{label}.stderr.log"
         try:
             with stdout.open("wb") as out, stderr.open("wb") as err:
-                result = subprocess.run(entry["argv"], cwd=ROOT, env=env, stdout=out, stderr=err,
+                result = subprocess.run(entry["argv"], cwd=ROOT, env=env | extra_env, stdout=out, stderr=err,
                                         stdin=subprocess.DEVNULL, timeout=deadline, check=False)
             entry["exit_code"] = result.returncode
             if result.returncode:
@@ -224,14 +230,17 @@ def collect(output, node):
         if int(versions["node"].split(".")[0]) < 24:
             raise ValueError("Node.js 24 or newer is required")
 
-        build_log = run("bench-build", ["cargo", "bench", "--offline", "-p", "was-compiler",
-                                      "--bench", "m8_scalars", "--no-run", "--message-format=json",
-                                      "--target-dir", output / "build"], 600)
+        build = (["test", "--profile", "bench", "--lib"] if isolated
+                 else ["bench", "--bench", "m8_scalars"])
+        target = "was_compiler" if isolated else "m8_scalars"
+        build_log = run("bench-build", ["cargo", *build, "--offline", "-p", "was-compiler",
+                                      "--no-run", "--message-format=json", "--target-dir",
+                                      output / "build"], 600)
         records = map(json.loads, build_log.read_text(encoding="utf-8").splitlines())
         artifacts_built = [record for record in records if record.get("reason") == "compiler-artifact"
-                           and record["target"]["name"] == "m8_scalars" and record.get("executable")]
+                           and record["target"]["name"] == target and record.get("executable")]
         if len(artifacts_built) != 1 or artifacts_built[0]["fresh"]:
-            raise ValueError("expected exactly one newly built m8_scalars executable")
+            raise ValueError(f"expected exactly one newly built {target} executable")
         artifact = artifacts_built[0]
         bench = Path(artifact["executable"]).resolve(strict=True)
         write_json(output / "cargo-artifact.json", artifact)
@@ -239,23 +248,40 @@ def collect(output, node):
             raise ValueError("Measured inputs changed during bench build")
         before["bench"] = {"path": str(bench), "sha256": sha256(bench)}
         write_json(output / "inputs-before.json", before)
-        run("bench-smoke", [bench, "--test"], 120)
+        preflight = [bench, "--exact", PREFLIGHT] if isolated else [bench, "--test"]
+        run("bench-smoke", preflight, 120)
+
+        def private_run(label, directory, mode, deadline):
+            run(label, [bench, "--exact", "--ignored", MEASUREMENT], deadline,
+                WAS_M8_DIRECTORY=str(directory), WAS_M8_MODE=mode)
+
+        host_flags = ["isolated"] if isolated else []
 
         sessions = {}
         summary = []
         for order in ORDERS:
             directory = output / order
-            run(f"{order}-prepare", [bench, "--prepare", directory], 120)
-            manifest = artifacts(directory)
+            if isolated:
+                private_run(f"{order}-prepare", directory, "prepare", 120)
+            else:
+                run(f"{order}-prepare", [bench, "--prepare", directory], 120)
+            manifest = artifacts(directory, variants)
             write_json(directory / "artifacts.json", manifest)
-            run(f"{order}-verify", [node, HOST, directory, "verify"], 120)
-            observations = growth(directory)
+            run(f"{order}-verify", [node, HOST, directory, "verify", *host_flags], 120)
+            observations = growth(directory, variants)
+            if isolated and any(size != observations[name, "FoldOn", calls]
+                                for (name, variant, calls), size in observations.items()
+                                if variant == "FoldOff"):
+                raise ValueError(f"{order}: memory checkpoints differ across the folding toggle")
             if order == "reverse" and sessions["forward"] != (manifest, observations):
                 raise ValueError("Forward and reverse artifact identities, sizes or growth differ")
             sessions[order] = manifest, observations
-            run(f"{order}-native", [bench, "--record-samples", directory, order], 600)
-            run(f"{order}-guest", [node, HOST, directory, order], 120)
-            summary.extend((order, *row) for row in timing_summary(directory, order))
+            if isolated:
+                private_run(f"{order}-native", directory, order, 600)
+            else:
+                run(f"{order}-native", [bench, "--record-samples", directory, order], 600)
+            run(f"{order}-guest", [node, HOST, directory, order, *host_flags], 120)
+            summary.extend((order, *row) for row in timing_summary(directory, order, variants[:2]))
 
         after = input_hashes(node)
         after["bench"] = {"path": str(bench), "sha256": sha256(bench)}
@@ -265,7 +291,7 @@ def collect(output, node):
                                  if key != "git-status"):
             raise ValueError("Measured inputs, bench executable or tracked Git state changed; discard timing")
         for order, recorded in sessions.items():
-            if (artifacts(output / order), growth(output / order)) != recorded:
+            if (artifacts(output / order, variants), growth(output / order, variants)) != recorded:
                 raise ValueError(f"{order}: prepared artifacts or oracle growth changed during collection")
 
         with (output / "summary.csv").open("x", newline="", encoding="utf-8") as stream:
@@ -282,6 +308,7 @@ def collect(output, node):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="new output directory (prefer target/)")
+    parser.add_argument("--isolated", action="store_true", help="hold M6/M7 on and vary only M8")
 
     args = parser.parse_args()
     if Path.cwd().resolve() != ROOT:
@@ -293,7 +320,7 @@ def main():
             raise ValueError(f"Node.js and {HOST} are required")
         output = args.output.resolve()
         output.mkdir(parents=True, exist_ok=False)
-        collect(output, Path(node).resolve(strict=True))
+        collect(output, Path(node).resolve(strict=True), args.isolated)
     except (OSError, ValueError, csv.Error) as error:
         parser.exit(1, f"M8 baseline: {error}\n")
 

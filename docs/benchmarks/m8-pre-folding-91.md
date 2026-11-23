@@ -5,7 +5,8 @@ compiler source, output, defaults, presets, or public options changed. This
 record does not authorize M8 implementation or establish release acceptance.
 The [confirmed M8 design](../was_compiler_memory_and_optimization_roadmap.md#m8-interview-decisions-round-1-confirmed)
 and [ADR 0012](../adr/0012-fold-scalars-during-checked-lowering.md) govern what can
-fold. Use the frozen corpus and sampling settings for a matched final-source run.
+fold. The [#94 final-source run](m8-folding-94/README.md) reuses the frozen corpus and
+sampling settings with M6 and M7 held fixed.
 
 ## Corpus and independent expectations
 
