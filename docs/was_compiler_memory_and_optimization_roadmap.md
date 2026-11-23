@@ -1621,8 +1621,9 @@ Until then, the subset remains experimental.
 
 The user confirmed the shared understanding after all three rounds, closing the
 M8 design interview. The separately authorized [#92 arithmetic slice](adr/0012-fold-scalars-during-checked-lowering.md#implemented-slice-92)
-is implemented after verification of WP12's correctness exit. The rest of the
-whitelist and M8 release acceptance are beyond this slice.
+is implemented after verification of WP12's correctness exit. [#93 completes the
+scalar whitelist](adr/0012-fold-scalars-during-checked-lowering.md#implemented-slice-93).
+M8 release acceptance remains separate.
 
 ### Original candidate list (not the M8 completion checklist)
 

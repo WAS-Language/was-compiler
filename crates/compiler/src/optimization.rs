@@ -25,7 +25,7 @@ impl OptimizationLevel {
         match self {
             Self::None => crate::codegen::FoldingPolicy::Disabled,
             Self::Basic | Self::Standard | Self::Aggressive => {
-                crate::codegen::FoldingPolicy::FiniteArithmetic
+                crate::codegen::FoldingPolicy::ClosedScalars
             }
         }
     }

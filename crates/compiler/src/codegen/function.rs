@@ -358,7 +358,7 @@ impl<'a> BodyEmitter<'a> {
     pub(super) fn folding_checkpoint(&self) -> Option<usize> {
         match self.context.module.folding_policy {
             expression::FoldingPolicy::Disabled => None,
-            expression::FoldingPolicy::FiniteArithmetic => Some(self.body.len()),
+            expression::FoldingPolicy::ClosedScalars => Some(self.body.len()),
         }
     }
 
@@ -795,7 +795,7 @@ impl<'a> BodyEmitter<'a> {
         expr: &TypedExpr,
         span: Span,
         representation: Representation,
-    ) -> Result<(Flow, Option<f64>), CodegenError> {
+    ) -> Result<(Flow, Option<expression::FoldedScalar>), CodegenError> {
         self.structured(|emitter| expression::emit_as(expr, emitter, span, representation))
     }
 

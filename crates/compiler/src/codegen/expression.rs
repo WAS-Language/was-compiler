@@ -49,7 +49,57 @@ pub(super) fn block_type(result: ExprResult) -> BlockType {
 #[derive(Clone, Copy)]
 pub(crate) enum FoldingPolicy {
     Disabled,
-    FiniteArithmetic,
+    ClosedScalars,
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum FoldedScalar {
+    Number(f64),
+    Bool(bool),
+}
+
+impl FoldedScalar {
+    fn unary(self, op: UnaryOp) -> Option<Self> {
+        match (self, op) {
+            (Self::Number(value), UnaryOp::Negate) => Some(Self::Number(-value)),
+            (Self::Bool(value), UnaryOp::Not) => Some(Self::Bool(!value)),
+            _ => None,
+        }
+    }
+
+    fn binary(self, op: BinaryOp, right: Self) -> Option<Self> {
+        match (self, right) {
+            (Self::Number(left), Self::Number(right)) => {
+                let value = match op {
+                    BinaryOp::Add => left + right,
+                    BinaryOp::Subtract => left - right,
+                    BinaryOp::Multiply => left * right,
+                    BinaryOp::LessThan => return Some(Self::Bool(left < right)),
+                    BinaryOp::LessThanOrEqual => return Some(Self::Bool(left <= right)),
+                    BinaryOp::GreaterThan => return Some(Self::Bool(left > right)),
+                    BinaryOp::GreaterThanOrEqual => return Some(Self::Bool(left >= right)),
+                    BinaryOp::Equal => return Some(Self::Bool(left == right)),
+                    BinaryOp::NotEqual => return Some(Self::Bool(left != right)),
+                    _ => return None,
+                };
+                value.is_finite().then_some(Self::Number(value))
+            }
+            (Self::Bool(left), Self::Bool(right)) => match op {
+                BinaryOp::Equal => Some(Self::Bool(left == right)),
+                BinaryOp::NotEqual => Some(Self::Bool(left != right)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn instruction(self, representation: Representation) -> Instruction<'static> {
+        match (self, representation) {
+            (Self::Number(value), Representation::I32) => Instruction::I32Const(value as i32),
+            (Self::Number(value), Representation::F64) => Instruction::F64Const(value.into()),
+            (Self::Bool(value), _) => Instruction::I32Const(i32::from(value)),
+        }
+    }
 }
 
 pub(super) fn emit_as(
@@ -57,7 +107,7 @@ pub(super) fn emit_as(
     body: &mut BodyEmitter<'_>,
     span: Span,
     output: Representation,
-) -> Result<(Flow, Option<f64>), CodegenError> {
+) -> Result<(Flow, Option<FoldedScalar>), CodegenError> {
     let function = body.name();
     let representation = body.numeric_representation(expr);
     let checkpoint = body.folding_checkpoint();
@@ -68,7 +118,7 @@ pub(super) fn emit_as(
             expect_result(function, Type::Number.into(), expr.ty, span)?;
 
             let value = number(literal, function, span)?;
-            constant = checkpoint.map(|_| value);
+            constant = checkpoint.map(|_| FoldedScalar::Number(value));
 
             if representation == Representation::I32 {
                 // The private proof checked parsed-value integrality and i32 bounds.
@@ -83,6 +133,7 @@ pub(super) fn emit_as(
         TypedExprKind::Bool(value) => {
             expect_result(function, Type::Bool.into(), expr.ty, span)?;
 
+            constant = checkpoint.map(|_| FoldedScalar::Bool(*value));
             body.instruction(&Instruction::I32Const(i32::from(*value)));
 
             (Flow::FALLTHROUGH, Type::Bool.into())
@@ -118,9 +169,7 @@ pub(super) fn emit_as(
                 body.instruction(&instruction);
                 outcome
             };
-            if *op == UnaryOp::Negate {
-                constant = value.map(|value| -value);
-            }
+            constant = value.and_then(|value| value.unary(*op));
 
             (flow, result(flow, ty))
         }
@@ -252,15 +301,9 @@ pub(super) fn emit_as(
                         })?;
                     body.instruction(&instruction);
                 }
-                constant = left_value.zip(right_value).and_then(|(left, right)| {
-                    let value = match op {
-                        BinaryOp::Add => left + right,
-                        BinaryOp::Subtract => left - right,
-                        BinaryOp::Multiply => left * right,
-                        _ => return None,
-                    };
-                    value.is_finite().then_some(value)
-                });
+                constant = left_value
+                    .zip(right_value)
+                    .and_then(|(left, right)| left.binary(*op, right));
                 left_flow.then(right_flow)
             };
             (flow, result(flow, result_type))
@@ -486,15 +529,13 @@ pub(super) fn emit_as(
 
     expect_result(function, actual, expr.ty, span)?;
     if let (Some(start), Some(value)) = (checkpoint, constant)
-        && !matches!(expr.kind, TypedExprKind::Number(_))
+        && matches!(
+            expr.kind,
+            TypedExprKind::Unary { .. } | TypedExprKind::Binary { .. }
+        )
     {
-        // A finite value can only come from checked literals and eager arithmetic.
-        // Replace their instructions, not the site's representation or widening.
-        let instruction = match representation {
-            Representation::I32 => Instruction::I32Const(value as i32),
-            Representation::F64 => Instruction::F64Const(value.into()),
-        };
-        body.replace_instructions(start, &instruction);
+        // Replace only the checked subtree, preserving the site's representation and widening.
+        body.replace_instructions(start, &value.instruction(representation));
     }
     if representation == Representation::I32 && output == Representation::F64 {
         body.instruction(&Instruction::F64ConvertI32S);

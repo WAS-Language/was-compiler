@@ -77,7 +77,7 @@ fn proven_numeric_comparisons_use_signed_integer_operands_without_result_convers
         ("!=", "I32Ne", "F64Ne"),
     ] {
         let source = format!(
-            "fn main() -> bool {{ return (0 - 2147483647 - 1) {operator} (2147483646 + 1); }}"
+            "fn main() -> bool {{ let min = 0 - 2147483647 - 1; let max = 2147483646 + 1; return min {operator} max; }}"
         );
         let baseline = Compiler::new().compile_source(&source).unwrap();
         assert!(instructions(&baseline).contains(&floating.into()));
@@ -91,7 +91,11 @@ fn proven_numeric_comparisons_use_signed_integer_operands_without_result_convers
                 instructions(&bytes),
                 [
                     "I32Const { value: -2147483648 }",
+                    "LocalSet { local_index: 0 }",
                     "I32Const { value: 2147483647 }",
+                    "LocalSet { local_index: 1 }",
+                    "LocalGet { local_index: 0 }",
+                    "LocalGet { local_index: 1 }",
                     integer,
                     "Return",
                     "End",
@@ -383,14 +387,9 @@ fn insufficient_comparison_proofs_keep_floating_consumers_and_independent_childr
     ] {
         for unknown in [
             "x",
-            "-0",
-            "1.5",
-            "2147483648",
-            "-2147483649",
             "0 / 0",
             "1 / 0",
             "-1 / 0",
-            "2 * 3",
             "9 % 4",
             "a[0]",
             "len(a)",
@@ -453,11 +452,11 @@ fn negation_without_an_integer_proof_keeps_float_representation() {
 }
 
 #[test]
-fn nonnumeric_comparisons_and_unaffected_unknown_programs_preserve_baseline_bytes() {
+fn excluded_comparisons_and_unaffected_unknown_programs_preserve_baseline_bytes() {
     for source in [
-        "fn main() -> bool { return true == false; }",
-        "fn main() -> bool { return true != false; }",
-        "fn main() -> bool { return !true; }",
+        "fn main(flag: bool) -> bool { return flag == false; }",
+        "fn main(flag: bool) -> bool { return flag != false; }",
+        "fn main(flag: bool) -> bool { return !flag; }",
         "fn main() -> bool { return \"a\" == \"b\"; }",
         "fn main() -> bool { return \"a\" != \"b\"; }",
         "fn main() -> bool { return [true] == [false]; }",

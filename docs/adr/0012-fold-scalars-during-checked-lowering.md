@@ -27,4 +27,16 @@ suffix with a constant in the selected representation, before any required
 widening. Only the private byte buffer changes, not the original typed tree,
 local slots, helper discovery, or allocation plans. A private policy isolates
 M8 in tests with M6 and M7 held fixed; `None` and direct codegen disable folding.
+
+## Implemented slice: #93
+
+The same pass now folds numeric ordering, same-type numeric or boolean equality
+and inequality, and boolean negation. Finite numeric facts use binary64 semantics
+(including equal signed zeros); boolean facts emit canonical `i32` values.
+Nonfinite intermediates block ancestor folds, not independent eligible children.
+Binding reads, short circuit, division, remainder, calls, strings, collections,
+ranges, and control flow do not supply folding facts. Apply the same whitelist
+in contracts, normalized defaults, and local callables without rewriting their
+surrounding guards, evaluation order, or planning.
+
 No broader WP13 authorization or M8 release decision follows.

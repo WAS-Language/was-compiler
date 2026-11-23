@@ -1,5 +1,18 @@
 pub const CASES: &[(&str, &str, f64, Option<&str>)] = &[
     (
+        "closed_scalar_defaults_contracts_and_callables",
+        r#"
+fn stage(flag: bool = !(2 >= 3)) -> number requires !(0 != -0) {
+    let enabled = () => (3.5 > 2) == !false;
+    return if flag == enabled() { 42 } else { 0 };
+}
+fn main() -> number { return stage(); }
+fn reject() -> number requires !true { return stage(); }
+"#,
+        42.0,
+        Some("reject"),
+    ),
+    (
         "finite_arithmetic_defaults_contracts_and_range",
         r#"
 fn stage(x: number = (1.5 + 2.25) * 2) -> number requires x > (1.5 - 1.5) {
@@ -85,6 +98,10 @@ fn main() -> number {
 ];
 
 pub const DIAGNOSTICS: &[(&str, &str)] = &[
+    (
+        "fn main() -> bool { return false && !(1 + 2); }",
+        "Type mismatch: expected Bool, found Number",
+    ),
     (
         r#"
 fn stage(x: number, step: number = x + 2) -> number requires x > 0 {

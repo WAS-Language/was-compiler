@@ -259,11 +259,11 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   confirm size benefit with material compilation regressions and mixed guest timings;
   keep experimental pending explicit regression/release acceptance. No release/default
   change, broader proof scope or public type/ABI change is authorized.
-- M8 #92 folds finite closed numeric negation/add/subtract/multiply in enabled
-  presets. Before extending folding or changing its test toggle, read
+- M8 #92–#93 fold closed scalar expressions in enabled presets. Before changing
+  the whitelist, checked folding, or its test toggle, read
   [ADR 0012](docs/adr/0012-fold-scalars-during-checked-lowering.md). Fold after
-  the original checks and preserve the selected representation and M6/M7 plans.
-  #92 authorizes only this slice, not further WP13 work or release acceptance.
+  the original checks; preserve the selected representation and M6/M7 plans.
+  Further WP13 work and M8 release acceptance are separate decisions.
 
 ## Current language support
 
@@ -300,7 +300,7 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
   known lexical callable stages. [#49's integrated WP12 correctness gates passed](docs/wp12-release-validation-2026-10-25.md).
   Before changing immediate-stage ownership, inference or allocation order, read
   [the #48 milestone](docs/wp12-placeholder-development.md#implemented-immediate-stage-milestone-48).
-  WP13 work beyond #92 requires separate authorization.
+  WP13 work beyond #92–#93 requires separate authorization.
   Preserve `target/wp7-inference` when cleaning generated output. Before changing defaults, call binding, or
   normalized lowering, read [the handoff](docs/wp6-wp7-development.md) and
   [named-call interface](docs/named-call-interface.md) for origins, ownership,

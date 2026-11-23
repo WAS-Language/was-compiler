@@ -1099,12 +1099,14 @@ and loops in local callables. Indirect ranges, default compilation and direct
 codegen keep allocated lowering. Memory exports and helper ordering are unchanged;
 this optimization does not establish integrated M6 release acceptance.
 
-The enabled presets also [fold closed finite arithmetic (#92)](docs/adr/0012-fold-scalars-during-checked-lowering.md):
-negation, addition, subtraction, and multiplication. Every intermediate result
-uses binary64 semantics, including signed zero and subnormal rounding. Nonfinite
+The enabled presets also [fold closed scalar expressions (#92–#93)](docs/adr/0012-fold-scalars-during-checked-lowering.md):
+numeric negation, addition, subtraction, multiplication, ordering, same-type
+number or bool equality and inequality, and boolean negation. Numeric operations
+use binary64 semantics, including signed zero and subnormal rounding. Nonfinite
 intermediates prevent the parent from folding; eligible children can still fold.
-Folding preserves the original checks and selected representation. `None` and
-direct codegen do not fold. No public option or ABI changes are introduced.
+Folding preserves the original checks, selected representation, and surrounding
+constructs such as contract guards and short-circuit branches. `None` and direct
+codegen do not fold. No public option or ABI changes are introduced.
 
 [Integer specialization contracts and status](docs/integer-specialization.md) distinguish this subset from
 remaining #38 work. Authorization through #41 covers implementation, not release
