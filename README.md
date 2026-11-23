@@ -1106,7 +1106,8 @@ use binary64 semantics, including signed zero and subnormal rounding. Nonfinite
 intermediates prevent the parent from folding; eligible children can still fold.
 Folding preserves the original checks, selected representation, and surrounding
 constructs such as contract guards and short-circuit branches. `None` and direct
-codegen do not fold. No public option or ABI changes are introduced.
+codegen do not fold. No public option or ABI changes are introduced. M8 remains
+experimental; see the [#95 correctness and release record](docs/m8-release-readiness.md).
 
 [Integer specialization contracts and status](docs/integer-specialization.md) distinguish this subset from
 remaining #38 work. Authorization through #41 covers implementation, not release

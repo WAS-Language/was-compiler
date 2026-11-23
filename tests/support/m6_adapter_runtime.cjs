@@ -13,6 +13,7 @@ const surfaces = {
     internal: {functions: [], memory: true},
     indirect: {functions: ['main'], memory: true},
     scalar: {functions: ['main'], memory: false},
+    composed: {functions: ['main'], memory: true},
     direct: {functions: ['main'], memory: true},
 };
 
@@ -46,6 +47,11 @@ function checkModule(bytes, fixture) {
     }
     if (fixture === 'scalar') {
         assert.equal(guest.main(10), 4);
+        return;
+    }
+    if (fixture === 'composed') {
+        assert.equal(guest.main(), 25);
+        assert.deepEqual(effects, [3, 4, 5]);
         return;
     }
 

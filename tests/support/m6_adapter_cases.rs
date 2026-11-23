@@ -18,6 +18,17 @@ pub const EXPORTS: [&str; 5] = [
 pub const CONTROL: &str = "fn main(a: number, b: number) -> number { let r = a..b; let sum = a; for i in r { sum += i; } return sum; }";
 pub const SCALAR: &str = "fn main(n: number) -> number { return n / 2.5; }";
 const DIRECT_ONLY: &str = "fn main(a: number, b: number) -> number { let sum = a; for i in a..b { sum += i; } return sum; }";
+const COMPOSED: &str = r#"
+fn main() -> number {
+    let base = 6 + 3;
+    let sum = base + 1;
+    for i in (1 + 2)..(2 * 3) {
+        checkpoint(i);
+        sum += i;
+    }
+    return sum + (1.5 * 2);
+}
+"#;
 const INVALID: [&str; 2] = [
     "// λ🙂\r\nfn main() { for i in 0.. by 1 {} }",
     "// λ🙂\r\nfn main() { return; for i in 0..2 by false {} }",
@@ -31,11 +42,12 @@ pub enum Selection {
     All,
 }
 
-pub const CASES: [(&str, &str, Selection); 5] = [
+pub const CASES: [(&str, &str, Selection); 6] = [
     ("selected", SOURCE, Selection::Selected),
     ("internal", SOURCE, Selection::None),
     ("indirect", CONTROL, Selection::All),
     ("scalar", SCALAR, Selection::All),
+    ("composed", COMPOSED, Selection::All),
     ("direct", DIRECT_ONLY, Selection::All),
 ];
 
@@ -101,7 +113,7 @@ pub fn core_matrix() -> [[Vec<u8>; 4]; CASES.len()] {
         } else {
             assert_ne!(
                 bytes[0], bytes[1],
-                "direct-loop fixture must exercise optimization"
+                "eligible fixture must produce different O0 and O1 bytes"
             );
         }
         bytes
