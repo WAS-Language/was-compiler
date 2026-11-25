@@ -1725,8 +1725,10 @@ likewise downloads and runs that module.
    confirms a matched Binaryen v116 pair but shows all three stock levels remove
    the unused registered import in both bindings. The separate
    [local-peephole-v1 probe](probes/binaryen-96/local-peephole-v1/README.md)
-   preserved the interface in both bindings at all three levels. Adapter work
-   awaits a decision on adopting this narrower, non-stock profile.
+   preserved the interface in both bindings at all three levels. The
+   [#97 playground implementation](browser.md#optional-binaryen-post-processing)
+   uses this narrower profile. Native CLI integration (#98) and the integrated
+   release decision (#99) remain separate.
 2. **Native slice.** Add the opt-in CLI feature and activation flag without
    changing feature-disabled or inactive artifacts. Verify publication and
    failure handling before using native output as the cross-environment reference.

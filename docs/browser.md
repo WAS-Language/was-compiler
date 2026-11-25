@@ -61,6 +61,47 @@ plain WAT, and enables a download of raw `program.wasm`. Downloaded output is
 not JSON or a serialized runtime artifact; it can be instantiated with standard
 `WebAssembly.instantiate` and the required imports.
 
+## Optional Binaryen post-processing
+
+Check **Post-process with Binaryen** to apply [`local-peephole-v1`](probes/binaryen-96/local-peephole-v1/README.md)
+inside the playground worker. The existing selector controls both the compiler
+preset and the Binaryen optimize level (default 1). O0 or an unchecked box
+never requests the optional assets. Source diagnostics come first. The worker
+runs only `optimize-instructions`, with MVP features, shrink level 0 and debug info
+off; it does not use the stock pipeline, which drops unused imports.
+
+To enable it, keep the ordinary `pkg/` build above. From the project root,
+using cached dependencies and an already installed wasm-bindgen matching `Cargo.lock`:
+
+```sh
+npm ci --prefix docs/probes/binaryen-96 --offline --ignore-scripts --no-audit --no-fund
+cp docs/probes/binaryen-96/node_modules/binaryen/index.js examples/browser/binaryen-116.mjs
+wasm-pack build crates/browser --target web --out-dir ../../examples/browser/binaryen-check --out-name was_compiler --mode no-install --no-opt --offline --features playground-binaryen
+```
+
+The probe lockfile pins npm `binaryen@116.0.0`. The SHA-256 of its `index.js`
+is `fedab834a56e921e7c77296fdf87f28531fc550b6f7417f22ce7d72667107d7e`.
+Serve the copied ES module (with embedded Binaryen Wasm) and the guard package
+beside `worker.js` on the same origin. The guard is built separately so the
+ordinary package and `Compiler` class remain unchanged. It independently checks
+both binaries as MVP, rejects start functions and compares ordered, typed imports
+and exports. Only then does it print WAT from the optimized bytes that the
+worker downloads and executes. Missing assets, optimizer errors and guard
+failures stop the run: no CDN, no fallback module and no download.
+
+To exercise the worker without fetching dependencies, after the builds above:
+
+```sh
+cargo test --offline -p was-compiler-browser --features playground-binaryen --lib
+node tests/playground-worker.mjs docs/probes/binaryen-96/node_modules/binaryen/index.js examples/browser/binaryen-check
+node tests/playground-http.mjs docs/probes/binaryen-96/node_modules/binaryen/index.js examples/browser/binaryen-check
+```
+
+The last command uses local headless Chromium on Linux and a temporary loopback
+HTTP server. It observes the actual requests and download behavior of the page
+and its module worker, including a deliberately missing asset. Without the two
+optional paths the Node worker test runs its asset-free cases only.
+
 ## JavaScript API
 
 ```js
@@ -570,7 +611,8 @@ Artifacts arrive before execution, so a trap or execution timeout still leaves
 Wasm/WAT available. Downloads always correspond to that compiled source
 snapshot, not later edits. Logs are delivered when execution finishes or throws;
 logs from a terminated run are not delivered. A compilation timeout leaves no
-artifact. Disabling WAT avoids the second compilation and its output cost.
+artifact. Without Binaryen, disabling WAT avoids the existing second compilation;
+with Binaryen it skips printing the validated final bytes.
 
 A worker and a timeout are **not a security sandbox** or a memory quota. Generated
 Wasm has access to the JavaScript imports you explicitly supply; those callbacks

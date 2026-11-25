@@ -2,6 +2,7 @@ const form = document.getElementById("playground");
 const source = document.getElementById("source");
 const hostPrint = document.getElementById("host-print");
 const showWat = document.getElementById("show-wat");
+const binaryen = document.getElementById("binaryen");
 const optimization = document.getElementById("optimization");
 const run = document.getElementById("run");
 const stop = document.getElementById("stop");
@@ -73,6 +74,7 @@ form.addEventListener("submit", (event) => {
             } else if (data.type === "error") {
                 const logs = data.logs.length ? `\n\nHost log before failure:\n${data.logs.join("\n")}${data.logsTruncated ? "\n(log limit reached)" : ""}` : "";
                 output.textContent = `${data.phase}: ${data.message}${logs}`;
+                if (download.disabled) wat.textContent = "No compiled artifact.";
                 status.textContent = "Failed. See diagnostics below.";
                 finish();
             }
@@ -102,6 +104,7 @@ form.addEventListener("submit", (event) => {
             source: source.value,
             hostPrint: hostPrint.checked,
             showWat: showWat.checked,
+            binaryen: binaryen.checked,
             optimization: Number(optimization.value),
         });
     } catch (error) {

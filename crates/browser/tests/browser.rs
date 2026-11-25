@@ -14,6 +14,23 @@ fn node_output(command: &mut Command) -> Output {
 }
 
 #[test]
+#[ignore = "requires Node.js 24+ and a built browser package in pkg"]
+fn playground_without_optional_assets() {
+    let root = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+    let output = node_output(
+        Command::new("node")
+            .arg("tests/playground-worker.mjs")
+            .current_dir(root),
+    );
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 #[ignore = "requires Node.js with ESM support and a built browser package in pkg"]
 fn node_browser_compiler() {
     let root = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));

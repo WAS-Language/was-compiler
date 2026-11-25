@@ -415,6 +415,7 @@ dependencies = [
  "js-sys",
  "was-compiler",
  "wasm-bindgen",
+ "wasm-encoder",
  "wasmparser",
  "wasmprinter",
 ]

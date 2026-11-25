@@ -137,6 +137,9 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 pipeline and is not authoritative for the Rust compiler's language behavior.
 `target/` and `pkg/` are generated output, not implementation sources.
 
+Before changing the playground optimizer, its guard or asset-loading tests, read
+[the #97 browser contract and offline validation](docs/browser.md#optional-binaryen-post-processing).
+
 ### Preserve the internal boundaries
 
 - M1 is classification only. Ordinary compilation, numeric presets and adapters

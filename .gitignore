@@ -1,2 +1,4 @@
 /target
 /pkg
+/examples/browser/binaryen-116.mjs
+/examples/browser/binaryen-check/

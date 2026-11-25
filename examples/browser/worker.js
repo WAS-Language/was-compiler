@@ -1,5 +1,32 @@
 import init, { Compiler } from "../../pkg/was_compiler.js";
 
+async function postProcess(input, level, showWat) {
+    let binaryen, guard;
+    try {
+        ({ default: binaryen } = await import("./binaryen-116.mjs"));
+        guard = await import("./binaryen-check/was_compiler.js");
+        await guard.default();
+    } catch (error) {
+        throw new Error(`Could not load the optional Binaryen 116 assets. See docs/browser.md for setup, or uncheck Binaryen. ${error}`);
+    }
+
+    const module = binaryen.readBinary(input);
+    try {
+        module.setFeatures(binaryen.Features.MVP);
+        binaryen.setOptimizeLevel(level);
+        binaryen.setShrinkLevel(0);
+        binaryen.setDebugInfo(false);
+        if (!module.validate()) throw new Error("Binaryen rejected the compiler output.");
+        module.runPasses(["optimize-instructions"]);
+        if (!module.validate()) throw new Error("Binaryen produced an invalid module.");
+        const bytes = module.emitBinary();
+        const wat = guard.checkBinaryenOutput(input, bytes, showWat) ?? null;
+        return { bytes, wat };
+    } finally {
+        module.dispose();
+    }
+}
+
 self.addEventListener("message", async ({ data }) => {
     const logs = [];
     let logsTruncated = false;
@@ -8,22 +35,29 @@ self.addEventListener("message", async ({ data }) => {
     try {
         await init();
         phase = "Compilation";
+        const level = data.optimization ?? 1;
+        const optimize = data.binaryen === true && level !== 0;
         const compiler = new Compiler();
         let bytes;
         let wat = null;
 
         try {
             compiler.setExports(["main"]);
-            compiler.setOptimizationLevel(data.optimization);
+            compiler.setOptimizationLevel(level);
             if (data.hostPrint) {
                 compiler.registerHostFunction("print", "env", "log_number", ["number"], "void");
             }
             bytes = compiler.compile(data.source).slice();
-            if (data.showWat) {
+            if (!optimize && data.showWat) {
                 wat = compiler.compileWat(data.source);
             }
         } finally {
             compiler.free();
+        }
+
+        if (optimize) {
+            phase = "Binaryen post-processing";
+            ({ bytes, wat } = await postProcess(bytes, level, data.showWat));
         }
 
         const downloadable = bytes.slice();

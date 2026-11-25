@@ -51,8 +51,10 @@ The Node harness uses built-in modules only and requires no npm installation.
 ## Compile in the browser
 
 The dedicated `crates/browser/` workspace crate (`was-compiler-browser`) builds the
-compiler library as WebAssembly. Compile and execute source locally in the
-dependency-free [browser playground](examples/browser/index.html):
+compiler library as WebAssembly. The [browser playground](examples/browser/index.html)
+compiles and runs source locally without an external optimizer by default.
+[Optional Binaryen post-processing](docs/browser.md#optional-binaryen-post-processing)
+uses separately supplied same-origin assets. To build the ordinary playground:
 
 ```text
 rustup target add wasm32-unknown-unknown

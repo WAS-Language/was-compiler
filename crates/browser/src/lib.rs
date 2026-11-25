@@ -6,6 +6,24 @@ use was_compiler::{
     Type, diagnostic,
 };
 
+#[cfg(feature = "playground-binaryen")]
+mod binaryen_guard;
+
+/// Reject invalid or non-MVP modules, start functions, and ordered ABI changes.
+#[cfg(feature = "playground-binaryen")]
+#[wasm_bindgen(js_name = checkBinaryenOutput)]
+pub fn check_binaryen_output(
+    input: &[u8],
+    output: &[u8],
+    show_wat: bool,
+) -> Result<Option<String>, JsValue> {
+    binaryen_guard::check(input, output).map_err(|error| js_error(&error.to_string()))?;
+    show_wat
+        .then(|| wasmprinter::print_bytes(output))
+        .transpose()
+        .map_err(|error| js_error(&format!("WAT serialization error: {error}")))
+}
+
 #[wasm_bindgen(js_name = Compiler)]
 pub struct BrowserCompiler {
     compiler: Compiler,
