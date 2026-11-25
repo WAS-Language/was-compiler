@@ -1662,39 +1662,79 @@ separate decisions.
 
 M9 consumes valid Core Wasm emitted by the **existing Typed AST backend**. Do not make M9 depend on M10 effects/aliasing, M11 host ownership or M12 SSA IR. Preserve before/after Binaryen artifacts and differential test cases as a baseline for the later IR migration.
 
-### Proposed integration
+### Confirmed design
 
-```text
-WAS source
-  -> WAS frontend / semantic passes
-  -> wasm-encoder
-  -> valid module.wasm
-  -> [optional: wasm-opt -O2 / -O3 / -Os / -Oz]
-  -> optimized module.wasm
-```
+[ADR 0013](adr/0013-opt-in-binaryen-post-processing.md) records the adapter and
+activation decisions. The portable core emits valid Wasm as before. Native
+post-processing uses the in-process `wasm-opt` binding behind an opt-in `binaryen`
+Cargo feature; the browser playground worker loads `binaryen.js` on request.
+Neither ordinary builds nor the generated `BrowserCompiler` API gains a Binaryen
+requirement. Native can land first; M9 is not complete without the browser path.
 
-### Implementation approach
+The native `--binaryen` flag and browser equivalent explicitly request
+post-processing. Levels 1–3 select matching compiler presets and Binaryen
+profiles when requested; level 0 bypasses Binaryen without checking availability.
+The default level remains 1, and without a request all existing non-Binaryen
+byte baselines remain unchanged. Defer level 4, size profiles, and custom passes.
 
-- Start with **invoking the external `wasm-opt` CLI** from the native compiler CLI as an optional post-processing step.
-- Keep the compiler library capable of emitting valid Wasm without Binaryen installed.
-- Make tool discovery, version reporting, subprocess failure and fallback behavior explicit.
-- Do not presume `-O4` or `-O3` always outperforms `-O2`: benchmark runtime and binary size separately.
-- For the browser-hosted compiler, consider a separately loaded `binaryen.js` adaptation later, not as a prerequisite for the native implementation.
-- Run `wasm-tools validate` or equivalent validation as part of the test pipeline when available.
-- Preserve sufficient artifacts to debug miscompilations: original Wasm, optimized Wasm, compiler settings and Binaryen version.
+Compile source successfully before checking optimizer availability or running it.
+A feature-disabled CLI still recognizes the flag and reports exit 1 for an active
+request once source compilation succeeds. The browser loads a pinned same-origin
+distribution only for an active request, with no remote fallback. Report
+unavailability, optimization failure or output-check failure without publishing
+or silently substituting an artifact; native errors leave existing destinations
+untouched.
 
-### CLI shape (illustrative)
+Validate the output and compare ordered imports and exports by name, kind and
+resolved external type, including memory limits and global mutability. Preserve
+unused registered imports and reject a new start function, without freezing
+private indices or helper layout. Use the same Wasm feature policy in both
+adapters: optimized output must validate within the existing runtime target's
+feature envelope, not merely within features accepted by Binaryen or the test
+engine. WAT and binary output describe the same selected module; the playground
+likewise downloads and runs that module.
 
-```text
-was-compiler input.was --opt-level 0
-was-compiler input.was --opt-level 2
-was-compiler input.was --opt-level 3
-was-compiler input.was --opt-size
-```
+### Release evidence
 
-The exact CLI flags should follow the project's established conventions. **Binaryen is an optimizer, not the runtime and not a replacement for the project's Rust frontend.**
+- Pin both adapters to the same upstream Binaryen release or revision and
+  equivalent settings. Record both package versions and the upstream identity.
+- Run explicit Binaryen-enabled checks for the unavailable, inactive, bypassed
+  and active paths, without downloads during ordinary tests or automatic tooling
+  installation. Preserve original and optimized Wasm, compiler settings, Binaryen
+  provenance, and optimizer-on/off differential cases as release evidence rather
+  than adding a public save-intermediates option. Semantic and revision-1 ABI
+  equivalence are required in both environments.
+- Test repeated outputs within each environment and native/browser optimized-byte
+  parity on identical inputs at each supported level. A byte difference blocks
+  release until explained and explicitly accepted; ABI and semantic mismatches do
+  not qualify for that exception.
+- Run a real playground-worker check for on-demand loading, missing-asset
+  failure, and agreement among WAT, download, and execution. The automated
+  differential harness does not replace this check.
+- Report module size, post-processing time, and guest runtime separately. Do not
+  assume a higher level is faster or promise a universal speedup.
 
-**Exit gate:** A reproducible build can enable/disable Binaryen; missing Binaryen behaves as documented; optimizer-on/off differential tests pass across the current supported features.
+### Implementation handoff
+
+1. **Feasibility.** Verify the shared upstream version behind the two packages
+   and test stock O1–O3 on identical input modules before building out the
+   adapters. Include an unused registered import, the memory and allocator
+   exports, and a module with no selected user exports. Bring any incompatibility
+   back for a decision with a reproducer; do not adjust a stock profile, remove a
+   level, or weaken the guard to make it pass.
+2. **Native slice.** Add the opt-in CLI feature and activation flag without
+   changing feature-disabled or inactive artifacts. Verify publication and
+   failure handling before using native output as the cross-environment reference.
+3. **Browser slice.** Add the optional same-origin optimizer to the playground
+   worker without changing ordinary browser builds or the `BrowserCompiler` API.
+   Confirm that the worker uses one final module for all output paths.
+4. **Integrated gate.** Run the ordinary compiler and adapter regressions plus
+   the M9-specific release checks above. For optimizer-on/off comparisons, hold
+   the compiler preset fixed; for native/browser optimized byte comparisons,
+   start from identical pre-Binaryen bytes.
+
+The design interview is closed. This handoff does not authorize dependency
+acquisition, implementation, or release acceptance.
 
 ---
 
@@ -1881,7 +1921,7 @@ milestone-specific status.
 8. **String API (M5 design resolved):** immutable transformation builtins plus fragment accumulation in `string[]` and one final `string_join`; no new mutable builder type. See §9.
 9. **Unicode indexing (M5 design resolved):** explicit byte lengths/offsets with strict scalar-boundary slicing; scalar/grapheme indexing and normalization deferred. See §9.
 10. **ABI numeric boundaries (M7 design resolved):** retain `f64` for all `number` signatures and numeric array elements. ABI changes are outside M7; see §11.
-11. **Optimization failure behavior:** should a missing/failing Binaryen installation be an error only for explicitly requested optimization, or always fall back to unoptimized Wasm?
+11. **Optimization failure behavior (M9 design):** report a requested optimization's failure without publishing an artifact or silently falling back. See §13.
 12. **Memory diagnostics:** M0/M2 establish test-only instrumentation boundaries; which additional counters and opt-in reports are worthwhile for M14 without shipping a debugging runtime in release builds?
 13. **M10 effect granularity:** which calls, memory effects and alias classes merit precise modeling after M9 versus unknown conservative fallback?
 14. **M11 managed host protocol:** what opt-in provenance and lifecycle mechanism enables reclaiming enrolled handles without changing revision-1 raw retention?

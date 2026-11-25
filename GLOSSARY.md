@@ -1,7 +1,7 @@
 # WAS language
 
-Terms for the language's collections, defaults, contracts, numeric patterns, pipelines,
-and local closures. Proposed extensions remain distinct from implemented language support.
+Terms for the WAS language and its compiler. Proposed extensions remain distinct
+from implemented language and compiler support.
 
 ## Language
 
@@ -117,3 +117,13 @@ _Avoid_: Partial application, implicit first-class function
 A parenthesized unary typed lambda or placeholder region invoked directly with
 the preceding pipeline input, without producing a callable value. A placeholder
 stage's sole parameter type is determined within its region, never by that input.
+
+## Optimization
+
+**Compiler preset**:
+A selection of language-aware optimization policies that applies before or during
+Wasm emission. It is distinct from a Binaryen profile, even when the CLI selects both together.
+
+**Binaryen profile**:
+A selection of optimizations applied to emitted Wasm. It is distinct from the
+compiler preset that produced the input module.
