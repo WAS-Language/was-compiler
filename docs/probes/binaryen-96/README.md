@@ -4,7 +4,8 @@
 stock O1, O2, and O3 all remove the unused registered import. This violates the
 [M9 external-interface contract](../../was_compiler_memory_and_optimization_roadmap.md#13-milestone-m9--optional-binaryen-integration).
 No profiles or guards were changed to make the probe pass. Neither adapter was
-implemented.
+implemented. The [separate import-preserving profile probe](local-peephole-v1/README.md)
+uses the same guard and does not change these stock results.
 
 ## Versions and settings
 

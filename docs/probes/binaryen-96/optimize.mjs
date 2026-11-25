@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import binaryen from 'binaryen';
 
-const [level, input, output] = process.argv.slice(2);
+const [level, input, output, profile] = process.argv.slice(2);
 const module = binaryen.readBinary(readFileSync(input));
 
 try {
@@ -11,7 +11,9 @@ try {
   binaryen.setDebugInfo(false);
 
   if (!module.validate()) throw new Error('Binaryen rejected the input');
-  module.optimize();
+  if (profile === undefined) module.optimize();
+  else if (profile === 'local-peephole-v1') module.runPasses(['optimize-instructions']);
+  else throw new Error(`Unknown profile: ${profile}`);
   if (!module.validate()) throw new Error('Binaryen rejected the output');
 
   writeFileSync(output, module.emitBinary());

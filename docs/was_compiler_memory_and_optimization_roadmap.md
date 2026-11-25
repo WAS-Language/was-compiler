@@ -1723,8 +1723,10 @@ likewise downloads and runs that module.
    back for a decision with a reproducer; do not adjust a stock profile, remove a
    level, or weaken the guard to make it pass. [#96 probe evidence](probes/binaryen-96/README.md)
    confirms a matched Binaryen v116 pair but shows all three stock levels remove
-   the unused registered import in both bindings. Adapter work remains blocked
-   pending a decision on that incompatibility.
+   the unused registered import in both bindings. The separate
+   [local-peephole-v1 probe](probes/binaryen-96/local-peephole-v1/README.md)
+   preserved the interface in both bindings at all three levels. Adapter work
+   awaits a decision on adopting this narrower, non-stock profile.
 2. **Native slice.** Add the opt-in CLI feature and activation flag without
    changing feature-disabled or inactive artifacts. Verify publication and
    failure handling before using native output as the cross-environment reference.

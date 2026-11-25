@@ -1,0 +1,36 @@
+unused-import O1: input 61 bytes; Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: PASS (61 bytes)
+  JS: PASS (61 bytes)
+  optimized bytes identical (61 bytes)
+memory-only O1: input 721 bytes; Interface { imports: [], exports: [("memory", Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: Some(65535), page_size_log2: None })), ("__alloc", Func(FuncType { params: [I32], results: [I32] }))] }
+  Rust: PASS (701 bytes)
+  JS: PASS (701 bytes)
+  optimized bytes identical (701 bytes)
+ordered-imports O1: input 73 bytes; Interface { imports: [("z", "unused", Func(FuncType { params: [I32], results: [] })), ("a", "used", Func(FuncType { params: [F64], results: [F64] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: PASS (73 bytes)
+  JS: PASS (73 bytes)
+  optimized bytes identical (73 bytes)
+unused-import O2: input 61 bytes; Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: PASS (61 bytes)
+  JS: PASS (61 bytes)
+  optimized bytes identical (61 bytes)
+memory-only O2: input 721 bytes; Interface { imports: [], exports: [("memory", Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: Some(65535), page_size_log2: None })), ("__alloc", Func(FuncType { params: [I32], results: [I32] }))] }
+  Rust: PASS (701 bytes)
+  JS: PASS (701 bytes)
+  optimized bytes identical (701 bytes)
+ordered-imports O2: input 73 bytes; Interface { imports: [("z", "unused", Func(FuncType { params: [I32], results: [] })), ("a", "used", Func(FuncType { params: [F64], results: [F64] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: PASS (73 bytes)
+  JS: PASS (73 bytes)
+  optimized bytes identical (73 bytes)
+unused-import O3: input 61 bytes; Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: PASS (61 bytes)
+  JS: PASS (61 bytes)
+  optimized bytes identical (61 bytes)
+memory-only O3: input 721 bytes; Interface { imports: [], exports: [("memory", Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: Some(65535), page_size_log2: None })), ("__alloc", Func(FuncType { params: [I32], results: [I32] }))] }
+  Rust: PASS (701 bytes)
+  JS: PASS (701 bytes)
+  optimized bytes identical (701 bytes)
+ordered-imports O3: input 73 bytes; Interface { imports: [("z", "unused", Func(FuncType { params: [I32], results: [] })), ("a", "used", Func(FuncType { params: [F64], results: [F64] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: PASS (73 bytes)
+  JS: PASS (73 bytes)
+  optimized bytes identical (73 bytes)

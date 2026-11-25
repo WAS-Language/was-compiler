@@ -5,7 +5,7 @@ use std::process::{Command, ExitCode};
 use std::time::Duration;
 
 use was_compiler::{Compiler, ExportOptions, OptimizationLevel, Type};
-use wasm_opt::OptimizationOptions;
+use wasm_opt::{OptimizationOptions, Pass};
 use wasmparser::types::{EntityType, TypesRef};
 use wasmparser::{
     FuncType, GlobalType, MemoryType, Parser, Payload, TableType, Validator, WasmFeatures,
@@ -14,9 +14,16 @@ use wasmparser::{
 #[path = "../../../tests/support/process.rs"]
 mod process;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Profile {
+    Stock,
+    LocalPeepholeV1,
+}
+
 enum Case {
     UnusedImport,
     MemoryOnly,
+    OrderedImports,
 }
 
 impl Case {
@@ -24,6 +31,7 @@ impl Case {
         match self {
             Self::UnusedImport => "unused-import",
             Self::MemoryOnly => "memory-only",
+            Self::OrderedImports => "ordered-imports",
         }
     }
 
@@ -41,6 +49,23 @@ impl Case {
                     Type::Bool,
                 )?;
                 "fn main() -> number { return 1; }"
+            }
+            Self::OrderedImports => {
+                compiler.register_host_function(
+                    "unused",
+                    "z",
+                    "unused",
+                    vec![Type::Bool],
+                    Type::Void,
+                )?;
+                compiler.register_host_function(
+                    "used",
+                    "a",
+                    "used",
+                    vec![Type::Number],
+                    Type::Number,
+                )?;
+                "fn main() -> number { return used(42); }"
             }
             Self::MemoryOnly => {
                 compiler.set_exports(ExportOptions::None);
@@ -132,7 +157,7 @@ fn check_output(bytes: &[u8], expected: &Interface<'_>) -> Result<(), Box<dyn Er
     Ok(())
 }
 
-fn run_js(level: u8, input: &Path, output: &Path) -> Result<(), Box<dyn Error>> {
+fn run_js(profile: Profile, level: u8, input: &Path, output: &Path) -> Result<(), Box<dyn Error>> {
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("optimize.mjs");
     let mut command = Command::new("node");
     command
@@ -140,6 +165,9 @@ fn run_js(level: u8, input: &Path, output: &Path) -> Result<(), Box<dyn Error>> 
         .arg(level.to_string())
         .arg(input)
         .arg(output);
+    if profile == Profile::LocalPeepholeV1 {
+        command.arg("local-peephole-v1");
+    }
     let result = process::output(&mut command, None, Duration::from_secs(15));
 
     if !result.status.success() {
@@ -173,6 +201,7 @@ fn report_parity(rust: &[u8], js: &[u8]) {
 
 fn run_case(
     case: Case,
+    profile: Profile,
     level: u8,
     preset: OptimizationLevel,
     native: &OptimizationOptions,
@@ -188,7 +217,7 @@ fn run_case(
     println!("{name} O{level}: input {} bytes; {expected:?}", bytes.len());
 
     native.run(&input, &rust_output)?;
-    run_js(level, &input, &js_output)?;
+    run_js(profile, level, &input, &js_output)?;
     let rust = fs::read(rust_output)?;
     let js = fs::read(js_output)?;
     let mut rejected = 0;
@@ -204,6 +233,9 @@ fn run_case(
     }
     report_parity(&rust, &js);
 
+    if profile == Profile::LocalPeepholeV1 && rust != js {
+        rejected += 1;
+    }
     Ok(rejected)
 }
 
@@ -213,9 +245,15 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
         args.next()
             .ok_or("usage: binaryen-96-probe NEW_OUTPUT_DIRECTORY")?,
     );
-    if args.next().is_some() {
-        return Err("usage: binaryen-96-probe NEW_OUTPUT_DIRECTORY".into());
-    }
+    let profile = match args.next() {
+        None => Profile::Stock,
+        Some(name) if name == "local-peephole-v1" && args.next().is_none() => {
+            Profile::LocalPeepholeV1
+        }
+        _ => {
+            return Err("usage: binaryen-96-probe NEW_OUTPUT_DIRECTORY [local-peephole-v1]".into());
+        }
+    };
 
     fs::create_dir(&output_dir)?;
     let mut rejected = 0;
@@ -239,8 +277,15 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
     ] {
         native.mvp_features_only();
 
-        for case in [Case::UnusedImport, Case::MemoryOnly] {
-            rejected += run_case(case, level, preset, &native, &output_dir)?;
+        let mut cases = vec![Case::UnusedImport, Case::MemoryOnly];
+        if profile == Profile::LocalPeepholeV1 {
+            native
+                .add_default_passes(false)
+                .add_pass(Pass::OptimizeInstructions);
+            cases.push(Case::OrderedImports);
+        }
+        for case in cases {
+            rejected += run_case(case, profile, level, preset, &native, &output_dir)?;
         }
     }
 
