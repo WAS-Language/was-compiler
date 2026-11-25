@@ -1721,7 +1721,10 @@ likewise downloads and runs that module.
    adapters. Include an unused registered import, the memory and allocator
    exports, and a module with no selected user exports. Bring any incompatibility
    back for a decision with a reproducer; do not adjust a stock profile, remove a
-   level, or weaken the guard to make it pass.
+   level, or weaken the guard to make it pass. [#96 probe evidence](probes/binaryen-96/README.md)
+   confirms a matched Binaryen v116 pair but shows all three stock levels remove
+   the unused registered import in both bindings. Adapter work remains blocked
+   pending a decision on that incompatibility.
 2. **Native slice.** Add the opt-in CLI feature and activation flag without
    changing feature-disabled or inactive artifacts. Verify publication and
    failure handling before using native output as the cross-environment reference.

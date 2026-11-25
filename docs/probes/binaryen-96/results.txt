@@ -1,0 +1,25 @@
+unused-import O1: input 61 bytes; Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: FAIL: external interface changed: expected Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }; got Interface { imports: [], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  JS: FAIL: external interface changed: expected Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }; got Interface { imports: [], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  optimized bytes identical (44 bytes)
+memory-only O1: input 721 bytes; Interface { imports: [], exports: [("memory", Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: Some(65535), page_size_log2: None })), ("__alloc", Func(FuncType { params: [I32], results: [I32] }))] }
+  Rust: PASS (166 bytes)
+  JS: PASS (166 bytes)
+  optimized bytes identical (166 bytes)
+unused-import O2: input 61 bytes; Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: FAIL: external interface changed: expected Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }; got Interface { imports: [], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  JS: FAIL: external interface changed: expected Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }; got Interface { imports: [], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  optimized bytes identical (44 bytes)
+memory-only O2: input 721 bytes; Interface { imports: [], exports: [("memory", Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: Some(65535), page_size_log2: None })), ("__alloc", Func(FuncType { params: [I32], results: [I32] }))] }
+  Rust: PASS (166 bytes)
+  JS: PASS (166 bytes)
+  optimized bytes identical (166 bytes)
+unused-import O3: input 61 bytes; Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  Rust: FAIL: external interface changed: expected Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }; got Interface { imports: [], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  JS: FAIL: external interface changed: expected Interface { imports: [("host", "unused", Func(FuncType { params: [F64], results: [I32] }))], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }; got Interface { imports: [], exports: [("main", Func(FuncType { params: [], results: [F64] }))] }
+  optimized bytes identical (44 bytes)
+memory-only O3: input 721 bytes; Interface { imports: [], exports: [("memory", Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: Some(65535), page_size_log2: None })), ("__alloc", Func(FuncType { params: [I32], results: [I32] }))] }
+  Rust: PASS (166 bytes)
+  JS: PASS (166 bytes)
+  optimized bytes identical (166 bytes)
+6 binding outputs failed the feasibility contract

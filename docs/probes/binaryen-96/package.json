@@ -1,0 +1,7 @@
+{
+  "name": "binaryen-96-probe",
+  "private": true,
+  "dependencies": {
+    "binaryen": "116.0.0"
+  }
+}

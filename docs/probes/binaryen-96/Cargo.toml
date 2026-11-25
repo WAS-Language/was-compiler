@@ -1,0 +1,17 @@
+[workspace]
+
+[package]
+name = "binaryen-96-probe"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[dependencies]
+was-compiler = { path = "../../../crates/compiler" }
+wasm-opt = { version = "=0.116.1", default-features = false }
+wasmparser = { version = "=0.261.0", default-features = false, features = ["std", "validate", "features"] }
+
+[[bin]]
+name = "binaryen-96-probe"
+path = "probe.rs"
