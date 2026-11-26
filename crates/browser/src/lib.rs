@@ -6,8 +6,13 @@ use was_compiler::{
     Type, diagnostic,
 };
 
+// The unpublished playground shares the CLI's guard source, not its native dependency graph.
 #[cfg(feature = "playground-binaryen")]
+#[path = "../../cli/src/binaryen_guard.rs"]
 mod binaryen_guard;
+
+#[cfg(all(test, feature = "playground-binaryen"))]
+mod binaryen_guard_tests;
 
 /// Reject invalid or non-MVP modules, start functions, and ordered ABI changes.
 #[cfg(feature = "playground-binaryen")]

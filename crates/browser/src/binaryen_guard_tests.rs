@@ -1,4 +1,4 @@
-use super::{GuardError, InspectError, check};
+use super::binaryen_guard::{GuardError, InspectError, check};
 use wasm_encoder::{
     CodeSection, EntityType, ExportKind, ExportSection, Function, FunctionSection, ImportSection,
     Instruction, MemorySection, MemoryType, Module, StartSection, TypeSection, ValType,

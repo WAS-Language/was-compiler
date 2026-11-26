@@ -19,6 +19,7 @@ const PROCESS_TIMEOUT: Duration = Duration::from_secs(15);
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
 const SIMPLE_SOURCE: &str = "fn main() -> number { return 7; }";
+
 const EXAMPLE_SOURCE: &str = r#"
 fn main() -> number {
     let values: number[] = [10, 20, 30];
@@ -404,6 +405,7 @@ fn help_flags_print_usage_without_compiling_or_writing() {
             "--export",
             "--no-exports",
             "--host",
+            "--binaryen",
             "-O0",
             "-O3",
             "--help",
@@ -2128,6 +2130,227 @@ fn unspecialized_program_preserves_bytes_at_every_optimization_level() {
         assert_eq!(assert_plain_wat(&bytes), raw_wat(MEMORY_SOURCE));
     }
     scratch.assert_entries(&["program.was", "program.wasm"]);
+}
+
+#[test]
+fn binaryen_inactive_preserves_core_bytes_and_o0_bypasses_availability() {
+    use was_compiler::OptimizationLevel;
+
+    let scratch = Scratch::new("binaryen-inactive");
+    let mut compiler = Compiler::new();
+    for (flag, level) in [
+        ("-O0", OptimizationLevel::None),
+        ("-O1", OptimizationLevel::Basic),
+        ("-O2", OptimizationLevel::Standard),
+        ("-O3", OptimizationLevel::Aggressive),
+    ] {
+        compiler.set_optimization_level(level);
+        let expected = compiler.compile_source(EXAMPLE_SOURCE).unwrap();
+        assert_eq!(scratch.compile(EXAMPLE_SOURCE, &[flag]), expected, "{flag}");
+        if level == OptimizationLevel::None {
+            assert_eq!(
+                scratch.compile(EXAMPLE_SOURCE, &["--binaryen", flag]),
+                expected
+            );
+        }
+    }
+    scratch.assert_entries(&["program.was", "program.wasm"]);
+}
+
+#[test]
+fn binaryen_request_does_not_override_source_diagnostics_or_publish() {
+    let scratch = Scratch::new("binaryen-diagnostics");
+    scratch.write("program.was", "fn main() -> number { return missing; }");
+    let artifact = scratch.write("program.wasm", b"existing artifact");
+    let baseline = failure(scratch.cli(&["program.was"], None), 1, &["semantic error:"]);
+    let requested = failure(
+        scratch.cli(&["program.was", "--binaryen", "-o", "program.wasm"], None),
+        1,
+        &["semantic error:"],
+    );
+    assert_eq!(requested, baseline);
+    assert_eq!(fs::read(artifact).unwrap(), b"existing artifact");
+    scratch.assert_entries(&["program.was", "program.wasm"]);
+}
+
+#[cfg(not(feature = "binaryen"))]
+#[test]
+fn binaryen_unavailable_is_an_actionable_failure_after_compilation() {
+    let scratch = Scratch::new("binaryen-unavailable");
+    scratch.write("program.was", SIMPLE_SOURCE);
+    let artifact = scratch.write("program.wasm", b"existing artifact");
+    failure(
+        scratch.cli(&["program.was", "--binaryen", "-o", "program.wasm"], None),
+        1,
+        &["Binaryen is unavailable", "--features binaryen"],
+    );
+    assert_eq!(fs::read(artifact).unwrap(), b"existing artifact");
+    scratch.assert_entries(&["program.was", "program.wasm"]);
+}
+
+#[cfg(feature = "binaryen")]
+#[test]
+fn binaryen_rejects_environment_settings_that_can_abort_or_dump_modules() {
+    let scratch = Scratch::new("binaryen-environment");
+    scratch.write("program.was", SIMPLE_SOURCE);
+    let artifact = scratch.write("program.wasm", b"existing artifact");
+
+    for (name, value) in [("BINARYEN_PASS_DEBUG", "3"), ("BINARYEN_CORES", "invalid")] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_was-compiler"));
+        command
+            .current_dir(&scratch.0)
+            .env_remove("BINARYEN_PASS_DEBUG")
+            .env_remove("BINARYEN_CORES")
+            .env(name, value)
+            .args(["program.was", "--binaryen", "-o", "program.wasm"]);
+        failure(
+            process_output(&mut command, None),
+            1,
+            &["Binaryen optimization error:", name],
+        );
+        assert_eq!(fs::read(&artifact).unwrap(), b"existing artifact");
+        scratch.assert_entries(&["program.was", "program.wasm"]);
+    }
+}
+
+#[cfg(all(feature = "binaryen", unix))]
+#[test]
+fn binaryen_scratch_failure_never_falls_back_or_publishes() {
+    let scratch = Scratch::new("binaryen-failure");
+    scratch.write("program.was", SIMPLE_SOURCE);
+    let artifact = scratch.write("program.wasm", b"existing artifact");
+
+    for output in [&["-o", "program.wasm"][..], &[]] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_was-compiler"));
+        command
+            .current_dir(&scratch.0)
+            .env("TMPDIR", &artifact)
+            .args(["program.was", "--binaryen"])
+            .args(output);
+        failure(
+            process_output(&mut command, None),
+            1,
+            &["Binaryen optimization error:"],
+        );
+    }
+    let non_utf8 = scratch.0.join({
+        use std::os::unix::ffi::OsStrExt;
+        std::ffi::OsStr::from_bytes(b"temporary-\xff")
+    });
+    fs::create_dir(&non_utf8).unwrap();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_was-compiler"));
+    command
+        .current_dir(&scratch.0)
+        .env("TMPDIR", &non_utf8)
+        .args(["program.was", "--binaryen", "-o", "program.wasm"]);
+    failure(
+        process_output(&mut command, None),
+        1,
+        &["Binaryen optimization error:", "not UTF-8"],
+    );
+    fs::remove_dir(non_utf8).expect("no leaked optimizer scratch files");
+    assert_eq!(fs::read(artifact).unwrap(), b"existing artifact");
+    scratch.assert_entries(&["program.was", "program.wasm"]);
+}
+
+#[cfg(feature = "binaryen")]
+#[test]
+fn binaryen_publishes_the_optimized_module_as_wasm_and_wat() {
+    let scratch = Scratch::new("binaryen-output");
+    let source = "fn hidden() -> number[] { return [1, 2]; }";
+    let common = [
+        "--no-exports",
+        "--host=z=z.unused(number)->bool",
+        "--host=a=a.unused()->void",
+    ];
+    let default = scratch.compile(source, &[common.as_slice(), &["--binaryen"]].concat());
+
+    for level in ["-O1", "-O2", "-O3"] {
+        let baseline = scratch.compile(source, &[common.as_slice(), &[level]].concat());
+        let flags = [common.as_slice(), &["--binaryen", level]].concat();
+        let optimized = scratch.compile(source, &flags);
+        assert_ne!(
+            optimized, baseline,
+            "{level}: active request must run the optimizer"
+        );
+        let module = decode(&optimized);
+        assert_eq!(
+            module.imports,
+            [("z".into(), "unused".into()), ("a".into(), "unused".into())]
+        );
+        assert_eq!(
+            module
+                .exports
+                .iter()
+                .map(|(name, kind, _)| (name.as_str(), *kind))
+                .collect::<Vec<_>>(),
+            [
+                ("memory", ExternalKind::Memory),
+                ("__alloc", ExternalKind::Func)
+            ]
+        );
+        let wat = success(scratch.cli(&[&["program.was"][..], &flags].concat(), None));
+        assert_eq!(
+            wat,
+            wasmprinter::print_bytes(&optimized).unwrap().as_bytes()
+        );
+        if level == "-O1" {
+            assert_eq!(optimized, default);
+        }
+    }
+    scratch.assert_entries(&["program.was", "program.wasm"]);
+}
+
+#[cfg(feature = "binaryen")]
+#[test]
+#[ignore = "requires Node.js"]
+fn binaryen_preserves_host_effects_memory_traps_and_floating_results() {
+    let scratch = Scratch::new("binaryen-runtime");
+    let source = r#"
+        fn main(value: number, divisor: number) -> number {
+            let xs = [record(value), record(divisor)];
+            return xs[0] % xs[1];
+        }
+        fn fail() -> void {
+            let xs = [record(4)];
+            xs[1] = record(9);
+        }
+    "#;
+    for level in ["-O1", "-O2", "-O3"] {
+        let baseline =
+            scratch.compile(source, &[level, "--host=record=env.record(number)->number"]);
+        scratch.write("baseline.wasm", baseline);
+        scratch.compile(
+            source,
+            &[
+                level,
+                "--binaryen",
+                "--host=record=env.record(number)->number",
+            ],
+        );
+
+        success(scratch.node_script(
+            r#"
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            for (const path of ['baseline.wasm', 'program.wasm']) {
+                const seen = [];
+                const module = new WebAssembly.Module(fs.readFileSync(path));
+                const { exports } = new WebAssembly.Instance(module, {
+                    env: { record(value) { seen.push(value); return value; } },
+                });
+                assert.ok(exports.memory instanceof WebAssembly.Memory);
+                assert.equal(exports.memory.buffer.byteLength, 65536);
+                assert.equal(exports.__alloc(8) % 8, 0);
+                assert.equal(exports.main(5.5, 2), 1.5);
+                assert.ok(Object.is(exports.main(-0, 2), -0));
+                assert.ok(Number.isNaN(exports.main(Infinity, 2)));
+                assert.throws(() => exports.fail(), WebAssembly.RuntimeError);
+                assert.deepEqual(seen, [5.5, 2, -0, 2, Infinity, 2, 4]);
+            }
+        "#,
+        ));
+    }
 }
 
 #[test]

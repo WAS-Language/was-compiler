@@ -1726,9 +1726,10 @@ likewise downloads and runs that module.
    the unused registered import in both bindings. The separate
    [local-peephole-v1 probe](probes/binaryen-96/local-peephole-v1/README.md)
    preserved the interface in both bindings at all three levels. The
-   [#97 playground implementation](browser.md#optional-binaryen-post-processing)
-   uses this narrower profile. Native CLI integration (#98) and the integrated
-   release decision (#99) remain separate.
+   [#97 playground](browser.md#optional-binaryen-post-processing) and
+   [#98 native CLI](runtime-integration.md#optional-binaryen-post-processing)
+   use this narrower profile and share the MVP/ABI guard. The integrated
+   release decision (#99) remains separate.
 2. **Native slice.** Add the opt-in CLI feature and activation flag without
    changing feature-disabled or inactive artifacts. Verify publication and
    failure handling before using native output as the cross-environment reference.

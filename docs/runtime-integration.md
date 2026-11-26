@@ -79,6 +79,7 @@ was-compiler [OPTIONS] <SOURCE>
 | `--no-exports` | Export no user functions. Cannot be combined with `--export`. |
 | `--host DECL` | Declare a host import and its language signature; repeat for more imports. |
 | `-O0` … `-O3`, `-O LEVEL` | `-O1` is the default; `-O0` preserves unoptimized baseline bytes. `-O1`–`-O3` share direct range-loop replacement, integer specialization, and closed scalar folding. |
+| `--binaryen` | Request optional Wasm post-processing. `-O0` bypasses it in every build. |
 | `--` | Treat remaining arguments as source paths, including a source filename beginning with `-`. |
 | `-h`, `--help` | Print usage and exit `0`. |
 
@@ -130,6 +131,41 @@ failed writes clean up that temporary file. Output resolving to the source's
 canonical path is refused. This preserves existing artifacts on compilation errors
 and avoids publishing a partially written file. It does not promise directory-sync
 crash durability or race-proof source-file identity checks.
+
+### Optional Binaryen post-processing
+
+```sh
+cargo run --offline -p was-compiler-cli --features binaryen -- \
+  examples/array-sum.was --binaryen -O2 --export main -o target/array-sum.wasm
+```
+
+The opt-in build requires cached Rust dependencies and a C++17 toolchain; no
+external `wasm-opt` executable is needed. The CLI links `wasm-opt` 0.116.1
+(sys bindings 0.116.0 in the workspace lockfile), matching the playground's
+[Binaryen v116](probes/binaryen-96/README.md#versions-and-settings). Both use
+[`local-peephole-v1`](probes/binaryen-96/local-peephole-v1/README.md): only
+`optimize-instructions`, MVP features, shrink level 0, and no fast math or debug
+info. Stock profiles would remove unused imports. The same `-O1`–`-O3` selector
+sets the compiler preset and Binaryen optimize level; omission means `-O1`.
+Without `--binaryen`, output bytes are unchanged even in a feature-enabled build.
+
+Source diagnostics take precedence. An active request on a feature-disabled
+build exits `1` with rebuild guidance. Optimization runs using private temporary
+files; failures never fall back to the original module or touch the destination.
+For active requests, leave `BINARYEN_PASS_DEBUG` unset or `0` to prevent
+unchecked dumps. If `BINARYEN_CORES` is set, it must be a positive integer.
+Before publishing, the CLI validates MVP output, rejects start functions, and
+checks ordered import/export names, kinds, and resolved external types (including
+unused imports, memory limits and global mutability). Private indices may change.
+WAT is rendered from the same final Wasm bytes used for binary output.
+
+Run the native checks from the repository root with cached dependencies. The
+feature-enabled runtime comparison uses Node.js and is ignored by default:
+
+```sh
+cargo test --offline --locked -p was-compiler-cli --test cli binaryen
+cargo test --offline --locked -p was-compiler-cli --features binaryen --test cli binaryen -- --include-ignored
+```
 
 ## Function-result inference and raw calls
 

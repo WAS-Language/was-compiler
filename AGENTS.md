@@ -137,8 +137,10 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 pipeline and is not authoritative for the Rust compiler's language behavior.
 `target/` and `pkg/` are generated output, not implementation sources.
 
-Before changing the playground optimizer, its guard or asset-loading tests, read
-[the #97 browser contract and offline validation](docs/browser.md#optional-binaryen-post-processing).
+Before changing Binaryen activation, profiles or the shared guard (`crates/cli/src/binaryen_guard.rs`),
+read [the #98 CLI contract](docs/runtime-integration.md#optional-binaryen-post-processing)
+and [the #97 playground contract](docs/browser.md#optional-binaryen-post-processing).
+Use the playground contract for asset loading and worker validation.
 
 ### Preserve the internal boundaries
 

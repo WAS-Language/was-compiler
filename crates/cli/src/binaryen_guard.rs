@@ -127,7 +127,3 @@ fn inspect(bytes: &[u8]) -> Result<Interface<'_>, InspectError> {
 
     Ok(interface)
 }
-
-#[cfg(test)]
-#[path = "binaryen_guard_tests.rs"]
-mod tests;

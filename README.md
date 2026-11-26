@@ -44,6 +44,8 @@ The Node harness uses built-in modules only and requires no npm installation.
 
 - [Runtime integration](docs/runtime-integration.md): CLI usage, host providers,
   export selection, raw Wasm calls, explicit marshaling, and diagnostic stages.
+- [Optional Binaryen post-processing](docs/runtime-integration.md#optional-binaryen-post-processing):
+  build the native CLI with `--features binaryen` and request it with `--binaryen`.
 - [Limitations and alternatives](docs/limitations.md): current restrictions,
   available workarounds, and possible future solutions with tradeoffs.
 
@@ -823,8 +825,8 @@ general free or garbage collection. Scalar-only modules omit the memory runtime.
 
 All user functions are exported by default. `ExportOptions` or CLI `--export` /
 `--no-exports` select the public user-function surface without removing bodies or
-imports. Required memory ABI exports remain. M0–M9 are implemented; those milestones
-added no optimization passes. See the experimental #39/#40/#41 subset below.
+imports. Required memory ABI exports remain. See the experimental #39/#40/#41
+subset below for compiler-side numeric optimization.
 
 ```rust
 use was_compiler::{Compiler, Type};
@@ -869,7 +871,8 @@ compiler.set_exports(ExportOptions::Only(vec!["main".into()]));
 ```
 
 Library and CLI binary output are the same raw Wasm bytes for the same source,
-host declarations, and compiler/export options. The Node runtime's
+host declarations, and compiler/export options unless Binaryen post-processing
+is explicitly activated. The Node runtime's
 `instantiate(bytes, imports)` returns `{ instance, call }`; `call` passes raw
 argument values and returns raw results. Numbers use `f64`; booleans and
 string/array descriptor handles use `i32`. Native strings/arrays are not marshaled

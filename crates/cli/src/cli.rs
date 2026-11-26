@@ -18,6 +18,9 @@ use was_compiler::{
 
 use was_compiler::diagnostic;
 
+#[cfg(feature = "binaryen")]
+use crate::binaryen;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum Format {
     Wasm,
@@ -32,6 +35,7 @@ struct Options {
     exports: ExportOptions,
     hosts: Vec<String>,
     level: OptimizationLevel,
+    binaryen: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -94,9 +98,15 @@ struct Arguments {
         short = 'O',
         value_name = "LEVEL",
         value_parser = clap::value_parser!(u8).range(0..=3),
-        help = "Optimization preset (-O1 default; -O0 disables optimization; -O1/-O2/-O3 use the same optimizations)"
+        help = "Compiler preset and requested Binaryen level (-O0 through -O3; default -O1; -O0 disables both)"
     )]
     level: Option<u8>,
+
+    #[arg(
+        long,
+        help = "Post-process with Binaryen (requires the binaryen Cargo feature)"
+    )]
+    binaryen: bool,
 }
 
 fn path_parser() -> impl TypedValueParser<Value = PathBuf> {
@@ -150,6 +160,7 @@ fn parse(args: impl Iterator<Item = OsString>) -> Result<Options, clap::Error> {
         format: args.format,
         exports,
         hosts: args.hosts,
+        binaryen: args.binaryen,
         level: match args.level {
             None => OptimizationLevel::default(),
             Some(0) => OptimizationLevel::None,
@@ -212,6 +223,21 @@ fn compile(options: Options) -> Result<(), String> {
 
             message
         })?;
+    let wasm = if options.binaryen && options.level != OptimizationLevel::None {
+        #[cfg(feature = "binaryen")]
+        {
+            binaryen::optimize(&wasm, options.level).map_err(|error| format!("{label}: {error}"))?
+        }
+        #[cfg(not(feature = "binaryen"))]
+        {
+            return Err(format!(
+                "{label}: Binaryen is unavailable; rebuild the CLI with --features binaryen"
+            ));
+        }
+    } else {
+        wasm
+    };
+
     let bytes = match format {
         Format::Wasm => wasm,
         Format::Wat => wasmprinter::print_bytes(&wasm)
