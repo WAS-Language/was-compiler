@@ -5,7 +5,7 @@ export async function postProcess(input, level, showWat) {
         guard = await import("./binaryen-check/was_compiler.js");
         await guard.default();
     } catch (error) {
-        throw new Error(`Could not load the optional Binaryen 116 assets. See docs/browser.md for setup, or uncheck Binaryen. ${error}`);
+        throw new Error(`Could not load the optional Binaryen 116 assets. See docs/browser.md for setup. ${error}`);
     }
 
     const module = binaryen.readBinary(input);

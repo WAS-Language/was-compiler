@@ -6,6 +6,9 @@ use wasm_opt::{FileType, OptimizationError, OptimizationOptions, Pass, ShrinkLev
 
 use crate::binaryen_guard;
 
+pub(super) const CORES: &str = "BINARYEN_CORES";
+pub(super) const SINGLE_CORE: &str = "1";
+
 #[derive(Debug, Error)]
 pub(super) enum Error {
     #[error("Binaryen optimization error: {0}")]
@@ -14,6 +17,8 @@ pub(super) enum Error {
     NonUtf8Scratch,
     #[error("Binaryen optimization error: unset {0} or {1}")]
     Environment(&'static str, &'static str),
+    #[error("Binaryen optimization error: set BINARYEN_CORES=1 before starting the CLI")]
+    RequiredCoreSetting,
     #[error("Binaryen optimization error: {0}")]
     Optimize(#[from] OptimizationError),
     #[error("Binaryen output check failed: {0}")]
@@ -78,15 +83,28 @@ fn check_environment() -> Result<(), Error> {
         return Err(Error::Environment(PASS_DEBUG, "set it to 0"));
     }
 
-    // The native thread pool parses this with std::stoi outside the binding's error handling.
-    const CORES: &str = "BINARYEN_CORES";
-    if let Some(value) = env::var_os(CORES)
-        && !value
+    // v116 can deadlock when pool initialization fails after starting a worker.
+    if env::var_os(CORES).as_deref() != Some(std::ffi::OsStr::new(SINGLE_CORE)) {
+        if cfg!(windows) {
+            // The Windows process environment and the C runtime's getenv may diverge
+            // after startup. Require an inherited setting rather than mutating it.
+            return Err(Error::RequiredCoreSetting);
+        }
+        return Err(Error::Environment(CORES, "set it to 1"));
+    }
+
+    // The validator's diagnostic printer uses std::stoi outside the binding's error handling.
+    const PRINT_FULL: &str = "BINARYEN_PRINT_FULL";
+    if let Some(value) = env::var_os(PRINT_FULL)
+        && value
             .to_str()
             .and_then(|value| value.parse::<i32>().ok())
-            .is_some_and(|count| count > 0)
+            .is_none()
     {
-        return Err(Error::Environment(CORES, "set it to a positive integer"));
+        return Err(Error::Environment(
+            PRINT_FULL,
+            "set it to a signed 32-bit integer",
+        ));
     }
 
     Ok(())

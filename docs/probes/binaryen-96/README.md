@@ -26,8 +26,9 @@ optional DWARF build support disabled; JS uses `module.optimize()` with explicit
 levels because the JS defaults are not the stock O2 tuple. JS runs under Node
 using the package's compiled Binaryen binding, not the bundled CLI executable.
 
-The existing backend emits the Core Wasm MVP subset, including private mutable
-globals and memory32. Both optimizers are limited to MVP (`mvp_features_only()` /
+The fixtures in this probe emit Core Wasm in the MVP subset, including private
+mutable globals and memory32. This does not characterize all compiler output;
+[#99 found a multi-value requirement in resizable arrays](../../m9-binaryen/README.md#blocker-the-resizable-allocator-requires-multi-value). Both optimizers are limited to MVP (`mvp_features_only()` /
 `Features.MVP`). Independently, `wasmparser` validates every input and output
 with `WasmFeatures::MVP`, rejects a start section, and compares ordered import
 and export names, kinds, and resolved external types (not local indices). This

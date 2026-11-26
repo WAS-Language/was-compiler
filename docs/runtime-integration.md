@@ -153,7 +153,11 @@ Source diagnostics take precedence. An active request on a feature-disabled
 build exits `1` with rebuild guidance. Optimization runs using private temporary
 files; failures never fall back to the original module or touch the destination.
 For active requests, leave `BINARYEN_PASS_DEBUG` unset or `0` to prevent
-unchecked dumps. If `BINARYEN_CORES` is set, it must be a positive integer.
+unchecked dumps. Only `BINARYEN_CORES=1` is accepted because the pinned
+Binaryen can deadlock on partial thread-pool startup. The CLI supplies that
+default except on Windows, where you must set `BINARYEN_CORES=1` before
+launching the CLI for an active request. Leave `BINARYEN_PRINT_FULL` unset or use a signed 32-bit integer
+so Binaryen can print validation diagnostics without aborting.
 Before publishing, the CLI validates MVP output, rejects start functions, and
 checks ordered import/export names, kinds, and resolved external types (including
 unused imports, memory limits and global mutability). Private indices may change.

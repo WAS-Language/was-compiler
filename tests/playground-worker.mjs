@@ -139,6 +139,7 @@ test('real guard prevents publication when valid optimized Wasm changes the unus
     const messages = await send({ binaryen: true, optimization: 1 });
     onlyError(messages, phase);
     assert.match(messages[0].message, /interface/i);
+    assert.match(messages[0].message, /uncheck Binaryen/i);
 });
 
 test('default and explicit O1–O3 publish and run the import-preserving profile output', {

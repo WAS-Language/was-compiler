@@ -6,13 +6,18 @@ export function guestSamples(bytes) {
     function batch() {
         let sum = 0;
         for (let i = 0; i < 2000; i++) sum += hot(i);
+        return sum;
+    }
+    function validate(sum) {
         if (sum !== 3399000) throw new Error(`unexpected hot result: ${sum}`);
     }
-    batch();
+    validate(batch());
     return Array.from({ length: 7 }, () => {
         const start = performance.now();
-        batch();
-        return performance.now() - start;
+        const sum = batch();
+        const elapsed = performance.now() - start;
+        validate(sum);
+        return elapsed;
     });
 }
 

@@ -98,6 +98,11 @@ impl Scratch {
     fn cli(&self, args: &[&str], stdin: Option<&[u8]>) -> Output {
         let mut command = Command::new(env!("CARGO_BIN_EXE_was-compiler"));
         command.current_dir(&self.0).args(args);
+        #[cfg(feature = "binaryen")]
+        command
+            .env("BINARYEN_CORES", "1")
+            .env_remove("BINARYEN_PASS_DEBUG")
+            .env_remove("BINARYEN_PRINT_FULL");
         process_output(&mut command, stdin)
     }
 
@@ -2192,15 +2197,25 @@ fn binaryen_unavailable_is_an_actionable_failure_after_compilation() {
 #[test]
 fn binaryen_rejects_environment_settings_that_can_abort_or_dump_modules() {
     let scratch = Scratch::new("binaryen-environment");
-    scratch.write("program.was", SIMPLE_SOURCE);
     let artifact = scratch.write("program.wasm", b"existing artifact");
 
-    for (name, value) in [("BINARYEN_PASS_DEBUG", "3"), ("BINARYEN_CORES", "invalid")] {
+    for (name, value, source) in [
+        ("BINARYEN_PASS_DEBUG", "3", SIMPLE_SOURCE),
+        ("BINARYEN_CORES", "invalid", SIMPLE_SOURCE),
+        (
+            "BINARYEN_PRINT_FULL",
+            "invalid",
+            "fn main() -> number[] { return resizable([42]); }",
+        ),
+        ("BINARYEN_CORES", "2", SIMPLE_SOURCE),
+    ] {
+        scratch.write("program.was", source);
         let mut command = Command::new(env!("CARGO_BIN_EXE_was-compiler"));
         command
             .current_dir(&scratch.0)
             .env_remove("BINARYEN_PASS_DEBUG")
-            .env_remove("BINARYEN_CORES")
+            .env("BINARYEN_CORES", "1")
+            .env_remove("BINARYEN_PRINT_FULL")
             .env(name, value)
             .args(["program.was", "--binaryen", "-o", "program.wasm"]);
         failure(
@@ -2209,6 +2224,30 @@ fn binaryen_rejects_environment_settings_that_can_abort_or_dump_modules() {
             &["Binaryen optimization error:", name],
         );
         assert_eq!(fs::read(&artifact).unwrap(), b"existing artifact");
+        scratch.assert_entries(&["program.was", "program.wasm"]);
+    }
+}
+
+#[cfg(feature = "binaryen")]
+#[test]
+fn binaryen_handles_an_unset_core_count() {
+    let scratch = Scratch::new("binaryen-default-cores");
+    scratch.write("program.was", SIMPLE_SOURCE);
+    let mut command = Command::new(env!("CARGO_BIN_EXE_was-compiler"));
+    command
+        .current_dir(&scratch.0)
+        .env_remove("BINARYEN_CORES")
+        .env_remove("BINARYEN_PASS_DEBUG")
+        .env_remove("BINARYEN_PRINT_FULL")
+        .args(["program.was", "--binaryen", "-o", "program.wasm"]);
+    let output = process_output(&mut command, None);
+
+    if cfg!(windows) {
+        failure(output, 1, &["set BINARYEN_CORES=1 before starting the CLI"]);
+        scratch.assert_entries(&["program.was"]);
+    } else {
+        assert!(success(output).is_empty());
+        decode(&fs::read(scratch.0.join("program.wasm")).unwrap());
         scratch.assert_entries(&["program.was", "program.wasm"]);
     }
 }
@@ -2225,6 +2264,9 @@ fn binaryen_scratch_failure_never_falls_back_or_publishes() {
         command
             .current_dir(&scratch.0)
             .env("TMPDIR", &artifact)
+            .env("BINARYEN_CORES", "1")
+            .env_remove("BINARYEN_PASS_DEBUG")
+            .env_remove("BINARYEN_PRINT_FULL")
             .args(["program.was", "--binaryen"])
             .args(output);
         failure(
@@ -2242,6 +2284,9 @@ fn binaryen_scratch_failure_never_falls_back_or_publishes() {
     command
         .current_dir(&scratch.0)
         .env("TMPDIR", &non_utf8)
+        .env("BINARYEN_CORES", "1")
+        .env_remove("BINARYEN_PASS_DEBUG")
+        .env_remove("BINARYEN_PRINT_FULL")
         .args(["program.was", "--binaryen", "-o", "program.wasm"]);
     failure(
         process_output(&mut command, None),

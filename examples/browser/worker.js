@@ -63,10 +63,14 @@ self.addEventListener("message", async ({ data }) => {
         }
         self.postMessage({ type: "result", result: String(result), logs, logsTruncated });
     } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        const message = phase === "Binaryen post-processing"
+            ? `${detail} To retry without post-processing, uncheck Binaryen or select O0.`
+            : detail;
         self.postMessage({
             type: "error",
             phase,
-            message: error instanceof Error ? error.message : String(error),
+            message,
             logs,
             logsTruncated,
         });

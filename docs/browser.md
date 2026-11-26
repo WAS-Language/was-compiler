@@ -87,7 +87,8 @@ ordinary package and `Compiler` class remain unchanged. It independently checks
 both binaries as MVP, rejects start functions and compares ordered, typed imports
 and exports. Only then does it print WAT from the optimized bytes that the
 worker downloads and executes. Missing assets, optimizer errors and guard
-failures stop the run: no CDN, no fallback module and no download.
+failures stop the run: no CDN, no fallback module and no download. The failure
+includes the underlying reason and tells you how to retry without Binaryen.
 
 The [#99 integrated gates](m9-binaryen/README.md) found that active Binaryen
 rejects modules using `resizable(...)` because a private allocator helper needs

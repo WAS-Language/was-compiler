@@ -8,7 +8,11 @@ import { corpus, exercise, levels } from './m9-corpus.mjs';
 assert.equal(process.argv.length, 5, 'usage: node tests/m9-native.mjs <ordinary-cli> <binaryen-cli> <fresh-artifact-dir>');
 const [ordinary, enabled, out] = process.argv.slice(2);
 mkdirSync(out);
-const options = { timeout: 20_000, killSignal: 'SIGKILL', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, BINARYEN_CORES: '1', BINARYEN_PASS_DEBUG: '0' } };
+const inheritedSettings = new Set(['BINARYEN_CORES', 'BINARYEN_PASS_DEBUG', 'BINARYEN_PRINT_FULL']);
+const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !inheritedSettings.has(name.toUpperCase())));
+env.BINARYEN_CORES = '1';
+env.BINARYEN_PASS_DEBUG = '0';
+const options = { timeout: 20_000, killSignal: 'SIGKILL', stdio: ['ignore', 'pipe', 'pipe'], env };
 const status = {};
 for (const [name, { exports, hosts }] of Object.entries(corpus)) {
     const flags = hosts.map(([name, module, field, params, result]) => `--host=${name}=${module}.${field}(${params.join(',')})->${result}`);

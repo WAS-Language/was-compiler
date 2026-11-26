@@ -39,13 +39,43 @@ both adapters' gates, including resizable mutation, trap, and host reentry
 comparisons. Until then, leave Binaryen off or use O0 for programs that need
 resizable arrays.
 
+## Review follow-up
+
+The native CLI now requires one Binaryen core on active requests. It supplies
+that default except on Windows, where the CLI requires `BINARYEN_CORES=1`
+in the launch environment rather than relying on a runtime update reaching
+C `getenv`. The Windows path was not executed in this Linux run. During review, a local Linux fault probe
+returned `EAGAIN` from the second `pthread_create` after the first worker had
+started. The old CLI timed out after three seconds: Binaryen v116's pool holds
+its readiness mutex while joining workers on partial startup failure. The
+one-core path completed without creating workers. With the fix, both the
+unset and explicit `BINARYEN_CORES=1` runs succeeded under the probe; an
+explicit `2` exited 1 before reaching pool startup and preserved the existing
+destination. This is a native adapter restriction, not a change to the profile.
+The fault probe is not a permanent test: it relies on Linux `LD_PRELOAD` and
+thread scheduling. The portable CLI regression instead covers the unset and
+explicit multi-core environment boundaries.
+
+Malformed `BINARYEN_PRINT_FULL` previously let the native validation printer
+abort while reporting an invalid module. The CLI now rejects it with exit 1,
+before creating optimizer scratch files. The playground worker also retains the
+optimizer's failure detail and explains how to retry without post-processing;
+it does not automatically fall back. The focused CLI and worker regressions
+cover these error paths. All 38 retained Wasm hashes reproduced in the
+follow-up and the resizable rows remain blocked. The optional suggestion to
+rename the fixture-only export selectors was deferred to avoid unrelated churn
+in the two replay harnesses.
+
 ## Activation, parity, and contracts
 
 | Gate | Result |
 | --- | --- |
 | Ordinary offline workspace, including ignored tests | Pass: 1,737 tests across 97 result summaries, 0 failed or ignored, fresh native target directory and rebuilt browser `pkg/` |
 | Browser compiler smoke | Pass: 25 groups |
-| Native activation/publication | Pass: 3 feature-disabled tests (including unavailable, source diagnostics, and O0); 6 enabled tests (including inactive, O0, active WAT/Wasm, failure without fallback, and differential runtime) |
+| Native Clippy | Pass: default `--all-targets` and Binaryen-enabled CLI binary/tests, `-D warnings` |
+| Standalone core Wasm build | Pass: `was-compiler --lib --target wasm32-unknown-unknown` |
+| Browser-target Clippy | Pass: ordinary and `playground-binaryen` library configurations, `-D warnings` |
+| Native activation/publication | Pass: 3 feature-disabled tests (including unavailable, source diagnostics, and O0); 7 enabled tests (including inactive, O0, active WAT/Wasm, failure without fallback, and differential runtime) |
 | Shared browser guard | Pass: 4 tests; MVP validation, start section rejection, and ordered resolved external types |
 | Actual worker protocol and headless Chromium | Pass: 8 Node worker tests and all four real playground cases: off, O0, missing asset, active. HTTP requests confirm lazy loading; the missing asset publishes no download. In Chromium, displayed WAT is checked against the download, and an instantiation tap on the unmodified production worker confirms it instantiates those exact bytes. The Node worker protocol independently checks the same byte agreement. |
 | Matched release matrix | Blocked: 4 cases × O0–O3; all pre-Binaryen native/Chromium inputs match. All nine published active pairs match and pass differential checks; both adapters reject the three resizable active rows. |
@@ -80,13 +110,14 @@ Each of O1, O2 and O3 produced the same sizes in both environments:
 | Resizable constructor | 2,350 B | Rejected |
 
 The following medians are milliseconds, from seven samples per level for the
-**contracts** case only. Native post-processing measures the production
-`optimize` call including temporary files and the guard, not CLI startup or core
+**contracts** case only. Native post-processing uses an optimized release build
+and measures the production `optimize` call including temporary files and the guard, not CLI startup or core
 compilation. Chromium measures the worker's post-processing function with
 warm assets, including guards, excluding fetch/startup and WAT rendering. Both
 post-processing measurements exclude guest execution. Guest timings exclude
 instantiation; each sample calls `hot` 2,000 times against a warmed instance
-(a 200-iteration guest loop per call), checking a checksum. Timing is an
+(a 200-iteration guest loop per call), checking its checksum after each timed
+interval. Timing is an
 opt-in replay of retained modules, separate from correctness gates. These are fixed-order
 spot measurements, not comparative environment benchmarks or evidence of a
 speedup. Chromium timer resolution and run-to-run variability matter at this
@@ -94,9 +125,9 @@ scale.
 
 | Preset / profile level | Native post-process | Chromium post-process | Node guest off → on | Chromium guest off → on |
 | --- | ---: | ---: | ---: | ---: |
-| O1 | 11.673 | 4.3 | 2.492 → 2.504 | 2.6 → 2.5 |
-| O2 | 11.156 | 3.0 | 2.494 → 2.482 | 2.5 → 2.6 |
-| O3 | 11.156 | 2.4 | 2.482 → 2.488 | 2.5 → 2.5 |
+| O1 | 1.152 | 3.9 | 2.454 → 2.456 | 2.6 → 2.5 |
+| O2 | 1.127 | 2.8 | 2.460 → 2.451 | 2.5 → 2.6 |
+| O3 | 1.126 | 2.8 | 2.452 → 2.452 | 2.5 → 2.5 |
 
 See the [raw native post-processing CSV](artifacts/native-post.csv),
 [Node guest samples](artifacts/node-guest.json), and
@@ -106,9 +137,10 @@ See the [raw native post-processing CSV](artifacts/native-post.csv),
 
 Recorded 2026-11-26 on Linux x86-64 (AMD Ryzen 7 5700X), Rust 1.100.0,
 Clang 23.1.3, Node 26.13.1, npm 11.20.0, Chromium 158.0.8127.88, wasm-pack
-0.15.1, and wasm-bindgen 0.2.130. The production core and native optimizer are
-from `cc96557` (#98) unchanged; this change extracts the browser worker's same
-post-processor for reuse by the matrix. The native CLI uses workspace-locked
+0.15.1, and wasm-bindgen 0.2.130. The original matrix was recorded in
+`1577058` (#99). The follow-up reran it with the reviewed adapter changes and
+replaced the timing samples; the compiler core, guard, and profile are unchanged.
+The native CLI uses workspace-locked
 `wasm-opt` 0.116.1 (default features disabled) and `wasm-opt-sys` /
 `wasm-opt-cxx-sys` 0.116.0. Chromium uses npm `binaryen@116.0.0`. Both bundle
 Binaryen `version_116`, commit `11dba9b1c2ad988500b329727f39f4d8786918c5`;
@@ -116,7 +148,7 @@ see [the package gitlinks and identity check](../probes/binaryen-96/README.md#ve
 The profile is `local-peephole-v1`: only `optimize-instructions` (no default
 passes), optimize level 1, 2 or 3 as selected, MVP, shrink level 0, fast math
 off, debug info off. The native corpus and timing use `BINARYEN_CORES=1` and
-`BINARYEN_PASS_DEBUG=0`. See [build, corpus, and harness fingerprints](provenance.sha256),
+`BINARYEN_PASS_DEBUG=0`, with `BINARYEN_PRINT_FULL` unset during the recorded run. See [build, corpus, and harness fingerprints](provenance.sha256),
 [worktree status at measurement](worktree-status.txt), and
 [retained Wasm hashes](artifacts/SHA256SUMS). Fixture export selection and ordered
 host signatures are declared in [`m9-corpus.mjs`](../../tests/m9-corpus.mjs).
@@ -130,9 +162,14 @@ npm ci --prefix docs/probes/binaryen-96 --offline --ignore-scripts --no-audit --
 CARGO_TARGET_DIR=target/m9-browser wasm-pack build crates/browser --target web --out-dir ../../pkg --out-name was_compiler --mode no-install --no-opt --offline
 CARGO_TARGET_DIR=target/m9-browser wasm-pack build crates/browser --target web --out-dir ../../examples/browser/binaryen-check --out-name was_compiler --mode no-install --no-opt --offline --features playground-binaryen
 CARGO_TARGET_DIR=target/m9-workspace cargo test --locked --offline --workspace -- --include-ignored
+cargo clippy --locked --offline --all-targets -- -D warnings
+cargo build --locked --offline -p was-compiler --lib --target wasm32-unknown-unknown
+cargo clippy --locked --offline -p was-compiler-browser --target wasm32-unknown-unknown --lib -- -D warnings
+cargo clippy --locked --offline -p was-compiler-browser --features playground-binaryen --target wasm32-unknown-unknown --lib -- -D warnings
 cargo test --locked --offline -p was-compiler-cli --test cli binaryen
 CXX=clang++ CARGO_PROFILE_DEV_DEBUG=0 CARGO_TARGET_DIR=target/binaryen-96 cargo build --locked --offline -p was-compiler-cli --features binaryen
 CXX=clang++ CARGO_PROFILE_DEV_DEBUG=0 CARGO_TARGET_DIR=target/binaryen-96 cargo test --locked --offline -p was-compiler-cli --features binaryen --test cli binaryen -- --include-ignored
+CXX=clang++ CARGO_PROFILE_DEV_DEBUG=0 CARGO_TARGET_DIR=target/binaryen-96 cargo clippy --locked --offline -p was-compiler-cli --features binaryen --bin was-compiler --tests -- -D warnings
 cargo test --locked --offline -p was-compiler-browser --features playground-binaryen --lib
 node tests/playground-worker.mjs docs/probes/binaryen-96/node_modules/binaryen/index.js examples/browser/binaryen-check
 ```
@@ -153,7 +190,7 @@ Run measurements separately after generating the correctness artifacts:
 ```sh
 node tests/m9-guest-bench.mjs target/m9-replay
 node tests/playground-http.mjs docs/probes/binaryen-96/node_modules/binaryen/index.js examples/browser/binaryen-check target/m9-replay --measure
-BINARYEN_CORES=1 BINARYEN_PASS_DEBUG=0 M9_ARTIFACTS=target/m9-replay CXX=clang++ CARGO_PROFILE_DEV_DEBUG=0 CARGO_TARGET_DIR=target/binaryen-96 cargo test --locked --offline -p was-compiler-cli --features binaryen --bin was-compiler m9_post_processing_time -- --ignored --nocapture
+env -u BINARYEN_PRINT_FULL BINARYEN_CORES=1 BINARYEN_PASS_DEBUG=0 M9_ARTIFACTS=target/m9-replay CXX=clang++ CARGO_TARGET_DIR=target/m9-review-release cargo test --locked --offline --release -j 6 -p was-compiler-cli --features binaryen --bin was-compiler m9_post_processing_time -- --ignored --nocapture
 ```
 
 Compare bytes and gate outcomes on replay, not timing samples. Do not treat
