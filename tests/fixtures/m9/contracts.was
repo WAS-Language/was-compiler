@@ -1,0 +1,50 @@
+fn remainder(lhs: number, rhs: number) -> number {
+    return record(lhs) % record(rhs);
+}
+
+fn calculate(input: number, extra: number = input + 1) -> number
+requires input >= 0
+requires extra < 10
+{
+    return input + extra;
+}
+
+fn composition(input: number) -> number {
+    let sum = input |> calculate |> (_ + 2);
+    let add = (value: number) => { sum += value; };
+    for i in 1..=5 by 2 { add(i); }
+    let adjust = match input { 2 => 10, _ => 0 };
+    return loop { break sum + adjust; };
+}
+
+fn guarded(input: number) -> number {
+    return record(input) |> calculate(extra: record(12));
+}
+
+fn create() -> number[] { return [2, 4]; }
+fn overwrite(values: number[], item: number) -> void { values[0] = item; }
+fn update(values: number[]) -> number {
+    values[0] += change(values);
+    return values[0] + len(values);
+}
+fn invalid_index(values: number[]) -> void { values[100] = record(99); }
+fn read_bool(values: bool[], index: number) -> bool { return values[index]; }
+fn pass_bool(value: bool) -> bool { return from_host(value); }
+fn words() -> string[] {
+    let parts = ["α", "beta"];
+    let joined = string_join(parts, ":");
+    let replaced = string_replace_all(joined, "beta", "😀");
+    return [string_slice_bytes(replaced, 3, 7), string_concat("α", "!")];
+}
+
+fn membership(input: number) -> bool { return input in 1..=5 by 2; }
+fn short_circuit(input: number) -> bool {
+    return input > 0 && record(input) == input;
+}
+fn array_equal(value: number, other: number) -> bool { return [value] == [other]; }
+
+fn hot(input: number) -> number {
+    let result = input;
+    for i in 0..200 { result += (i * 3 + 2) % 8; }
+    return result;
+}

@@ -1,0 +1,18 @@
+{
+  "scalar-O0": "published",
+  "scalar-O1": "published",
+  "scalar-O2": "published",
+  "scalar-O3": "published",
+  "resizable-O0": "published",
+  "resizable-O1": "rejected",
+  "resizable-O2": "rejected",
+  "resizable-O3": "rejected",
+  "memory-only-O0": "published",
+  "memory-only-O1": "published",
+  "memory-only-O2": "published",
+  "memory-only-O3": "published",
+  "contracts-O0": "published",
+  "contracts-O1": "published",
+  "contracts-O2": "published",
+  "contracts-O3": "published"
+}

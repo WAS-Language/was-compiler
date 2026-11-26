@@ -1,0 +1,1 @@
+fn hidden() -> number { let values = [4, 9]; return values[1]; }

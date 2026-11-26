@@ -140,7 +140,9 @@ pipeline and is not authoritative for the Rust compiler's language behavior.
 Before changing Binaryen activation, profiles or the shared guard (`crates/cli/src/binaryen_guard.rs`),
 read [the #98 CLI contract](docs/runtime-integration.md#optional-binaryen-post-processing)
 and [the #97 playground contract](docs/browser.md#optional-binaryen-post-processing).
-Use the playground contract for asset loading and worker validation.
+Use the playground contract for asset loading and worker validation. Before
+changing the M9 Wasm feature envelope or interpreting release readiness, read
+[#99's integrated gates and blocker](docs/m9-binaryen/README.md).
 
 ### Preserve the internal boundaries
 
@@ -1028,10 +1030,11 @@ existing tests and add focused coverage for newly introduced boundaries when nee
   and optimization-level semantic/diagnostic parity. Require enabled-preset byte
     identity and adapter byte parity within each level, not blanket O0–O3 byte identity.
     Adapter changes need CLI/browser contract tests.
-- Use `tests/support/process.rs` for bounded subprocess tests: it drains pipes
-  concurrently, applies deadlines, and kills/reaps the direct child. It is not a
-  process-tree controller or guest fuel mechanism. Keep specialized decoders local;
-  avoid building a generic testing framework.
+- Use `tests/support/process.rs` for bounded Rust subprocess tests: it drains
+  pipes concurrently, applies deadlines, and kills/reaps the direct child. The
+  standalone M9 Node CLI replay uses a deadline with `SIGKILL` and reaps its
+  direct child. Neither provides process-tree cancellation or guest fuel. Keep
+  specialized decoders local; avoid building a generic testing framework.
 - Preserve the existing ignored-test policy for Node/browser dependencies. A passing
   default Cargo suite is not evidence that ignored runtime cases passed.
 - Golden fixtures under `tests/fixtures/abi`, `tests/fixtures/emitter`, and

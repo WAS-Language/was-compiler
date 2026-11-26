@@ -4,7 +4,8 @@ let ordinaryO1;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function check(condition, message) { if (!condition) throw new Error(message); }
 
-for (const [name, requested, level] of [['off', false, 1], ['o0', true, 0], ['missing', true, 1], ['active', true, 1]]) {
+const cases = [['off', false, 1], ['o0', true, 0], ['missing', true, 1], ['active', true, 1]];
+for (const [name, requested, level] of location.search === '?measure' ? [] : cases) {
     const frame = document.createElement('iframe');
     try {
         const loaded = new Promise(resolve => { frame.onload = resolve; });
@@ -23,6 +24,18 @@ for (const [name, requested, level] of [['off', false, 1], ['o0', true, 0], ['mi
         el('optimization').value = String(level);
         el('host-print').checked = el('show-wat').checked = true;
         el('source').value = 'fn main() -> number { let a = [40, 2]; return a[0] + a[1]; }';
+        let instantiated;
+        if (name === 'active') {
+            const win = frame.contentWindow;
+            win.Worker = class extends win.Worker {
+                constructor(url, options) {
+                    super(new URL('observed-worker.mjs', url), options);
+                    this.addEventListener('message', ({ data }) => {
+                        if (data.type === 'observed-instantiation') instantiated = data.bytes;
+                    });
+                }
+            };
+        }
         el('run').click();
         check(el('run').disabled, 'page did not start worker');
         while (el('run').disabled) await sleep(30);
@@ -55,6 +68,8 @@ for (const [name, requested, level] of [['off', false, 1], ['o0', true, 0], ['mi
                 await guard.default();
                 check(el('wat').textContent === guard.checkBinaryenOutput(bytes, bytes, true),
                     'displayed WAT differs from the downloaded Wasm');
+                check(instantiated?.length === bytes.length && bytes.every((b, i) => b === instantiated[i]),
+                    'guest instantiation bytes differ from the downloaded Wasm');
             }
         }
         results.push([name, null]);
@@ -64,4 +79,14 @@ for (const [name, requested, level] of [['off', false, 1], ['o0', true, 0], ['mi
         frame.remove();
     }
 }
-await fetch('/result', { method: 'POST', body: JSON.stringify(results) });
+const report = { workers: results };
+if (location.search !== '') {
+    report.matrixError = null;
+    try {
+        const { matrix, measure } = await import('/m9-chromium.mjs');
+        report.matrix = await (location.search === '?measure' ? measure() : matrix());
+    } catch (error) {
+        report.matrixError = error.message;
+    }
+}
+await fetch('/result', { method: 'POST', body: JSON.stringify(report) });

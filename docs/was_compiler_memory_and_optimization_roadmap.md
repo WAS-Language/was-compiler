@@ -1739,7 +1739,10 @@ likewise downloads and runs that module.
 4. **Integrated gate.** Run the ordinary compiler and adapter regressions plus
    the M9-specific release checks above. For optimizer-on/off comparisons, hold
    the compiler preset fixed; for native/browser optimized byte comparisons,
-   start from identical pre-Binaryen bytes.
+   start from identical pre-Binaryen bytes. [#99's integrated evidence](m9-binaryen/README.md)
+   records nine matching active pairs for MVP-compatible inputs and a release
+   blocker: both adapters' MVP policy rejects resizable-array modules before
+   optimization because the private allocator uses multi-value.
 
 The design interview is closed. This handoff does not authorize dependency
 acquisition, implementation, or release acceptance.

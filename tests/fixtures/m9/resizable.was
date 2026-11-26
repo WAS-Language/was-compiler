@@ -1,0 +1,1 @@
+fn main() -> number[] { return resizable([42]); }

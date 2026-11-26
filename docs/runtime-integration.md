@@ -159,6 +159,11 @@ checks ordered import/export names, kinds, and resolved external types (includin
 unused imports, memory limits and global mutability). Private indices may change.
 WAT is rendered from the same final Wasm bytes used for binary output.
 
+The [#99 integrated gates](m9-binaryen/README.md) found that active Binaryen
+rejects modules using `resizable(...)` because a private allocator helper needs
+Wasm multi-value. For those programs leave `--binaryen` off or use `-O0`. The
+M9 release remains blocked pending a decision on the supported feature envelope.
+
 Run the native checks from the repository root with cached dependencies. The
 feature-enabled runtime comparison uses Node.js and is ignored by default:
 

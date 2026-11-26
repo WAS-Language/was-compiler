@@ -91,3 +91,36 @@ fn check_environment() -> Result<(), Error> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{path::PathBuf, time::Instant};
+
+    use super::*;
+
+    #[test]
+    #[ignore = "requires M9_ARTIFACTS from tests/m9-native.mjs; measures the native post-processor"]
+    fn m9_post_processing_time() {
+        let dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+            .join(env::var_os("M9_ARTIFACTS").expect("set M9_ARTIFACTS"));
+
+        for (number, level) in [
+            (1, OptimizationLevel::Basic),
+            (2, OptimizationLevel::Standard),
+            (3, OptimizationLevel::Aggressive),
+        ] {
+            let input = fs::read(dir.join(format!("contracts-O{number}-input.wasm"))).unwrap();
+            let expected = fs::read(dir.join(format!("contracts-O{number}-native.wasm"))).unwrap();
+            assert_eq!(optimize(&input, level).unwrap(), expected);
+
+            for sample in 1..=7 {
+                let start = Instant::now();
+                let output = optimize(&input, level).unwrap();
+                let elapsed_ms = start.elapsed().as_secs_f64() * 1_000.0;
+
+                assert_eq!(output, expected);
+                println!("post_process_ms,{number},{sample},{elapsed_ms:.6}");
+            }
+        }
+    }
+}

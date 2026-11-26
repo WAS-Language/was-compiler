@@ -1,0 +1,4 @@
+fn main(input: number) -> number {
+    if input < 0 { return -input; }
+    return input + (20 - 3);
+}

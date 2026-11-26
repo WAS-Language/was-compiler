@@ -89,6 +89,10 @@ and exports. Only then does it print WAT from the optimized bytes that the
 worker downloads and executes. Missing assets, optimizer errors and guard
 failures stop the run: no CDN, no fallback module and no download.
 
+The [#99 integrated gates](m9-binaryen/README.md) found that active Binaryen
+rejects modules using `resizable(...)` because a private allocator helper needs
+Wasm multi-value. Uncheck Binaryen or use O0 for those programs.
+
 To exercise the worker without fetching dependencies, after the builds above:
 
 ```sh
