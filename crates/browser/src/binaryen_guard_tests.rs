@@ -137,7 +137,33 @@ fn private_body(instructions: &[Instruction<'_>], start: bool) -> Vec<u8> {
 }
 
 #[test]
-fn validates_both_complete_modules_under_mvp_without_start() {
+fn accepts_private_multi_value_results_on_either_side_of_the_guard() {
+    let mut types = TypeSection::new();
+    types.ty().function([], [ValType::I32, ValType::I64]);
+    let mut functions = FunctionSection::new();
+    functions.function(0);
+    let mut body = Function::new([]);
+    body.instruction(&Instruction::I32Const(42))
+        .instruction(&Instruction::I64Const(7))
+        .instruction(&Instruction::End);
+    let mut code = CodeSection::new();
+    code.function(&body);
+    let mut module = Module::new();
+    module.section(&types).section(&functions).section(&code);
+
+    let multi_value = module.finish();
+    let empty = Module::new().finish();
+    assert!(
+        wasmparser::Validator::new_with_features(wasmparser::WasmFeatures::MVP)
+            .validate_all(&multi_value)
+            .is_err()
+    );
+    check(&multi_value, &empty).unwrap();
+    check(&empty, &multi_value).unwrap();
+}
+
+#[test]
+fn validates_both_complete_modules_under_mvp_plus_multi_value_without_start() {
     let empty = Module::new().finish();
     check(&empty, &private_body(&[], false)).unwrap();
     let post_mvp = private_body(

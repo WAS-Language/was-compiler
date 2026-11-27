@@ -1,8 +1,18 @@
 # M9 integrated Binaryen release gates (#99)
 
-**Release blocked.** Both adapters reject ordinary compiler output using
+## Current envelope and release evidence
+
+Both adapters and the shared guard allow MVP plus multi-value for the private
+resizable allocator. The pinned Binaryen version, pass list, and public ABI are
+unchanged. The [expanded replay](multi-value/README.md) passed all 20 CLI/Chromium
+rows, including resizable mutation, traps and host reentry, plus the actual
+playground and applicable #99 gates. The MVP-only results below are historical.
+
+## Historical MVP-only result
+
+**Release blocked in this run.** Both adapters rejected ordinary compiler output using
 `resizable(...)` at every active level. Nine active native/Chromium pairs for
-MVP-compatible inputs are repeatable, byte-identical, and pass the exercised
+MVP-compatible inputs were repeatable, byte-identical, and passed the exercised
 semantic and revision-1 ABI checks. Those passes do not establish equivalence
 for all supported features. No profile change, fallback, or release approval is
 part of this run.
@@ -29,15 +39,14 @@ the MVP-only input assumption for this supported language feature.
 - **Chromium O1–O3:** the same post-processor used by the playground worker
   rejects the compiler output at `module.validate()`; no optimized bytes are
   returned. The shared guard would also reject multi-value in either input or
-  output under its current MVP policy.
+  output under the MVP policy used in this run.
 
 See the [per-level inputs and diagnostics](artifacts/). There is no optimized
 pair, semantic comparison, or timing for these rejected requests. This is not an
-optimized-byte discrepancy to waive. A separate decision is needed on the
-accepted Wasm feature envelope or MVP-compatible allocator lowering; then rerun
-both adapters' gates, including resizable mutation, trap, and host reentry
-comparisons. Until then, leave Binaryen off or use O0 for programs that need
-resizable arrays.
+optimized-byte discrepancy to waive. In that run, the workaround was to leave
+Binaryen off or use O0 for programs that needed resizable arrays. See the
+[current envelope and release evidence](#current-envelope-and-release-evidence) for
+the follow-up.
 
 ## Review follow-up
 
@@ -174,8 +183,9 @@ cargo test --locked --offline -p was-compiler-browser --features playground-bina
 node tests/playground-worker.mjs docs/probes/binaryen-96/node_modules/binaryen/index.js examples/browser/binaryen-check
 ```
 
-The next two commands **both exit 1** on the recorded blocker, after writing
-the artifacts for their full matrix. Run Chromium even when the native corpus
+To reproduce the historical blocker, use the archived MVP-only sources rather
+than the current tree. The next two commands **both exit 1** on that snapshot,
+after writing the artifacts for its full matrix. Run Chromium even when the native corpus
 returns 1; it consumes the retained inputs/status to test independently. Pass a
 new output directory to the native runner each time.
 

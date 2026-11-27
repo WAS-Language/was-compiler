@@ -10,7 +10,7 @@ export async function postProcess(input, level, showWat) {
 
     const module = binaryen.readBinary(input);
     try {
-        module.setFeatures(binaryen.Features.MVP);
+        module.setFeatures(binaryen.Features.MVP | binaryen.Features.Multivalue);
         binaryen.setOptimizeLevel(level);
         binaryen.setShrinkLevel(0);
         binaryen.setDebugInfo(false);

@@ -2,7 +2,7 @@ use std::{env, fs, io};
 
 use thiserror::Error;
 use was_compiler::OptimizationLevel;
-use wasm_opt::{FileType, OptimizationError, OptimizationOptions, Pass, ShrinkLevel};
+use wasm_opt::{Feature, FileType, OptimizationError, OptimizationOptions, Pass, ShrinkLevel};
 
 use crate::binaryen_guard;
 
@@ -38,6 +38,7 @@ pub(super) fn optimize(wasm: &[u8], level: OptimizationLevel) -> Result<Vec<u8>,
     // local-peephole-v1: the stock pipelines remove unused registered imports.
     options
         .mvp_features_only()
+        .enable_feature(Feature::Multivalue)
         .shrink_level(ShrinkLevel::Level0)
         .fast_math(false)
         .debug_info(false)

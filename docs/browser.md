@@ -67,8 +67,8 @@ Check **Post-process with Binaryen** to apply [`local-peephole-v1`](probes/binar
 inside the playground worker. The existing selector controls both the compiler
 preset and the Binaryen optimize level (default 1). O0 or an unchecked box
 never requests the optional assets. Source diagnostics come first. The worker
-runs only `optimize-instructions`, with MVP features, shrink level 0 and debug info
-off; it does not use the stock pipeline, which drops unused imports.
+runs only `optimize-instructions`, with MVP plus multi-value, shrink level 0 and
+debug info off; it does not use the stock pipeline, which drops unused imports.
 
 To enable it, keep the ordinary `pkg/` build above. From the project root,
 using cached dependencies and an already installed wasm-bindgen matching `Cargo.lock`:
@@ -84,15 +84,15 @@ is `fedab834a56e921e7c77296fdf87f28531fc550b6f7417f22ce7d72667107d7e`.
 Serve the copied ES module (with embedded Binaryen Wasm) and the guard package
 beside `worker.js` on the same origin. The guard is built separately so the
 ordinary package and `Compiler` class remain unchanged. It independently checks
-both binaries as MVP, rejects start functions and compares ordered, typed imports
-and exports. Only then does it print WAT from the optimized bytes that the
-worker downloads and executes. Missing assets, optimizer errors and guard
+both binaries under MVP plus multi-value, rejects start functions and compares
+ordered, typed imports and exports. Only then does it print WAT from the
+optimized bytes that the worker downloads and executes. Missing assets, optimizer errors and guard
 failures stop the run: no CDN, no fallback module and no download. The failure
 includes the underlying reason and tells you how to retry without Binaryen.
 
-The [#99 integrated gates](m9-binaryen/README.md) found that active Binaryen
-rejects modules using `resizable(...)` because a private allocator helper needs
-Wasm multi-value. Uncheck Binaryen or use O0 for those programs.
+Multi-value supports the private allocator helper used by `resizable(...)`
+without changing the public ABI. The [multi-value replay](m9-binaryen/multi-value/README.md)
+records byte and behavior parity with the CLI and validation of the real playground.
 
 To exercise the worker without fetching dependencies, after the builds above:
 

@@ -37,7 +37,14 @@ export async function matrix() {
                     const nativeInput = new Uint8Array(await (await load(`${prefix}-input.wasm`)).arrayBuffer());
                     equal(input, nativeInput, 'browser/native input');
                     const before = exercise(name, input);
-                    if (level === 0) continue; // actual worker O0 bypass is checked separately
+                    if (level === 0) {
+                        // The actual worker O0 bypass is checked separately.
+                        if (status[prefix] !== 'published') throw new Error('native O0 did not publish');
+                        const native = new Uint8Array(await (await load(`${prefix}-native.wasm`)).arrayBuffer());
+                        equal(input, native, 'browser/native O0 bypass bytes');
+                        row.output = input.toBase64();
+                        continue;
+                    }
                     const run = async () => (await postProcess(input, level, false)).bytes;
                     let output;
                     try {

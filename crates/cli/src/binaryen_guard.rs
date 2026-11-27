@@ -90,7 +90,8 @@ pub(super) fn check(input: &[u8], output: &[u8]) -> Result<(), GuardError> {
 }
 
 fn inspect(bytes: &[u8]) -> Result<Interface<'_>, InspectError> {
-    let types = Validator::new_with_features(WasmFeatures::MVP).validate_all(bytes)?;
+    let features = WasmFeatures::MVP | WasmFeatures::MULTI_VALUE;
+    let types = Validator::new_with_features(features).validate_all(bytes)?;
     let types = types.as_ref();
     let mut interface = Interface::default();
 

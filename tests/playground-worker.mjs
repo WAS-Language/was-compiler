@@ -157,7 +157,7 @@ test('default and explicit O1–O3 publish and run the import-preserving profile
         const { bytes: input, wat: ordinaryWat } = await baseline(level);
         const module = reference.readBinary(input);
         try {
-            module.setFeatures(reference.Features.MVP);
+            module.setFeatures(reference.Features.MVP | reference.Features.Multivalue);
             reference.setOptimizeLevel(level);
             reference.setShrinkLevel(0);
             reference.setDebugInfo(false);
@@ -178,4 +178,17 @@ test('default and explicit O1–O3 publish and run the import-preserving profile
         assert.deepEqual(new Uint8Array(executed), bytes, 'worker must instantiate the downloaded bytes');
     }
     assert.deepEqual(new Set(loads), new Set(assets));
+});
+
+test('active profiles publish and execute resizable modules through the real guard', {
+    skip: needsPackages,
+}, async t => {
+    const { send } = await stage(t, { optimizer: binaryenPath, guard: guardPath });
+    const source = 'fn main() -> number { let a = resizable([40]); a.push(2); return a[0] + a[1]; }';
+    const instantiate = t.mock.method(WebAssembly, 'instantiate');
+    for (const optimization of [1, 2, 3]) {
+        const { bytes } = success(await send({ source, binaryen: true, optimization }));
+        const executed = instantiate.mock.calls.at(-1).arguments[0];
+        assert.deepEqual(new Uint8Array(executed), bytes);
+    }
 });

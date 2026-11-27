@@ -144,9 +144,9 @@ external `wasm-opt` executable is needed. The CLI links `wasm-opt` 0.116.1
 (sys bindings 0.116.0 in the workspace lockfile), matching the playground's
 [Binaryen v116](probes/binaryen-96/README.md#versions-and-settings). Both use
 [`local-peephole-v1`](probes/binaryen-96/local-peephole-v1/README.md): only
-`optimize-instructions`, MVP features, shrink level 0, and no fast math or debug
-info. Stock profiles would remove unused imports. The same `-O1`–`-O3` selector
-sets the compiler preset and Binaryen optimize level; omission means `-O1`.
+`optimize-instructions`, MVP plus multi-value, shrink level 0, and no fast math or
+debug info. Stock profiles would remove unused imports. The same `-O1`–`-O3`
+selector sets the compiler preset and Binaryen optimize level; omission means `-O1`.
 Without `--binaryen`, output bytes are unchanged even in a feature-enabled build.
 
 Source diagnostics take precedence. An active request on a feature-disabled
@@ -158,15 +158,15 @@ Binaryen can deadlock on partial thread-pool startup. The CLI supplies that
 default except on Windows, where you must set `BINARYEN_CORES=1` before
 launching the CLI for an active request. Leave `BINARYEN_PRINT_FULL` unset or use a signed 32-bit integer
 so Binaryen can print validation diagnostics without aborting.
-Before publishing, the CLI validates MVP output, rejects start functions, and
-checks ordered import/export names, kinds, and resolved external types (including
-unused imports, memory limits and global mutability). Private indices may change.
+Before publishing, the CLI validates both modules under MVP plus multi-value,
+rejects start functions, and checks ordered import/export names, kinds, and
+resolved external types (including unused imports, memory limits and global
+mutability). Private indices may change.
 WAT is rendered from the same final Wasm bytes used for binary output.
 
-The [#99 integrated gates](m9-binaryen/README.md) found that active Binaryen
-rejects modules using `resizable(...)` because a private allocator helper needs
-Wasm multi-value. For those programs leave `--binaryen` off or use `-O0`. The
-M9 release remains blocked pending a decision on the supported feature envelope.
+Multi-value supports the private allocator helper used by `resizable(...)`
+without changing the public ABI. The [multi-value replay](m9-binaryen/multi-value/README.md)
+records byte and behavior parity with the playground.
 
 Run the native checks from the repository root with cached dependencies. The
 feature-enabled runtime comparison uses Node.js and is ignored by default:

@@ -142,7 +142,7 @@ read [the #98 CLI contract](docs/runtime-integration.md#optional-binaryen-post-p
 and [the #97 playground contract](docs/browser.md#optional-binaryen-post-processing).
 Use the playground contract for asset loading and worker validation. Before
 changing the M9 Wasm feature envelope or interpreting release readiness, read
-[#99's integrated gates and blocker](docs/m9-binaryen/README.md).
+[the current envelope and #99 replay evidence](docs/m9-binaryen/README.md).
 
 ### Preserve the internal boundaries
 

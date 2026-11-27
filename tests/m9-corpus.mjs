@@ -10,6 +10,10 @@ export const corpus = {
         ['change', 'a', 'change', ['number[]'], 'number'],
         ['from_host', 'z', 'bool', ['bool'], 'bool'],
     ] },
+    'resizable-reentry': { exports: null, hosts: [
+        ['change', 'a', 'change', ['number[]', 'bool'], 'number'],
+        ['record', 'a', 'record', ['number'], 'number'],
+    ] },
 };
 export const levels = [1, 2, 3];
 
@@ -29,8 +33,10 @@ export function exercise(name, bytes) {
     const module = new WebAssembly.Module(bytes);
     const imports = WebAssembly.Module.imports(module).map(i => `${i.module}.${i.name}:${i.kind}`);
     const names = WebAssembly.Module.exports(module).map(({ name, kind }) => `${name}:${kind}`);
-    const expectedImports = name === 'contracts' ? ['z.unused:function', 'a.record:function', 'a.change:function', 'z.bool:function'] : [];
+    const expectedImports = name === 'contracts' ? ['z.unused:function', 'a.record:function', 'a.change:function', 'z.bool:function']
+        : name === 'resizable-reentry' ? ['a.change:function', 'a.record:function'] : [];
     check(imports.join() === expectedImports.join(), `wrong ordered imports: ${imports}`);
+    if (name === 'resizable-reentry') return exerciseResizableReentry(module, names);
     const seen = [];
     let guestExports;
     function view() { return new DataView(guestExports.memory.buffer); }
@@ -115,4 +121,47 @@ export function exercise(name, bytes) {
     });
     check(count === 2 && strings.join() === '😀,α!', 'UTF-8 or string[] layout after growth');
     return [values, old, ...descriptor(values), bools, words, handles, guestExports.memory.buffer.byteLength];
+}
+
+function exerciseResizableReentry(module, names) {
+    check(names.join() === 'create:function,update:function,grow:function,shrink:function,read:function,memory:memory,__alloc:function',
+        'wrong resizable reentry export surface');
+    const effects = [];
+    const { exports } = new WebAssembly.Instance(module, { a: {
+        change(handle, grow) {
+            check(handle === values, 'callback did not receive the original handle');
+            check(grow === 0 || grow === 1, 'callback received a noncanonical bool');
+            effects.push(grow ? 'grow' : 'shrink');
+            if (grow) {
+                const previous = payload([10, 20]);
+                check(exports.grow(handle) === values, 'growth changed the handle');
+                check(payload([10, 20, 30]) !== previous, 'fixture did not relocate the payload');
+            } else {
+                check(payload([10, 42, 30]) === relocated, 'pending write did not target the relocated payload');
+                check(exports.shrink(handle) === 72, 'reentrant pop returned the wrong values');
+                payload([11]);
+            }
+            effects.push('rhs-ready');
+            return 42;
+        },
+        record(value) { effects.push(value); return value; },
+    } });
+    check(exports.memory.buffer.byteLength === 65536, 'wrong reentry fixture initial memory size');
+    const values = exports.create();
+    function payload(expected) {
+        const view = new DataView(exports.memory.buffer);
+        const data = view.getUint32(values, true);
+        const len = view.getUint32(values + 4, true);
+        check(len === expected.length && expected.every((value, i) =>
+            view.getFloat64(data + i * 8, true) === value), `expected array contents [${expected}]`);
+        return data;
+    }
+    check(exports.update(values, 1) === 42, 'pending write after growth returned the wrong value');
+    const relocated = payload([10, 42, 30]);
+    trap(() => exports.update(values, 0), 'shrink invalidated the pending index');
+    payload([11]);
+    const recovered = exports.read(values);
+    check(recovered === 12, 'same-instance call after trap did not observe the completed shrink');
+    check(effects.join() === 'grow,rhs-ready,42,shrink,rhs-ready', 'wrong callback order or effects after trap');
+    return [...effects, recovered];
 }

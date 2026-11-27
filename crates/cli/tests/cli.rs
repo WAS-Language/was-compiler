@@ -2348,6 +2348,42 @@ fn binaryen_publishes_the_optimized_module_as_wasm_and_wat() {
 
 #[cfg(feature = "binaryen")]
 #[test]
+fn binaryen_publishes_resizable_modules_at_every_active_level() {
+    let scratch = Scratch::new("binaryen-multi-value");
+    let source = include_str!("../../../tests/fixtures/m9/resizable.was");
+
+    for level in ["-O1", "-O2", "-O3"] {
+        let baseline = scratch.compile(source, &[level]);
+        let optimized = scratch.compile(source, &[level, "--binaryen"]);
+        assert_ne!(baseline, optimized, "{level}: optimizer must run");
+        assert!(
+            wasmparser::Validator::new_with_features(wasmparser::WasmFeatures::MVP)
+                .validate_all(&baseline)
+                .is_err()
+        );
+        let features = wasmparser::WasmFeatures::MVP | wasmparser::WasmFeatures::MULTI_VALUE;
+        wasmparser::Validator::new_with_features(features)
+            .validate_all(&optimized)
+            .unwrap();
+        let module = decode(&optimized);
+        let exports: Vec<_> = module
+            .exports
+            .iter()
+            .map(|(name, kind, _)| (name.as_str(), *kind))
+            .collect();
+        assert_eq!(
+            exports,
+            [
+                ("main", ExternalKind::Func),
+                ("memory", ExternalKind::Memory),
+                ("__alloc", ExternalKind::Func),
+            ]
+        );
+    }
+}
+
+#[cfg(feature = "binaryen")]
+#[test]
 #[ignore = "requires Node.js"]
 fn binaryen_preserves_host_effects_memory_traps_and_floating_results() {
     let scratch = Scratch::new("binaryen-runtime");

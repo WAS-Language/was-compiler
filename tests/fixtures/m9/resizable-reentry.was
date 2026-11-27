@@ -1,0 +1,21 @@
+fn create() -> number[] { return resizable([10, 20]); }
+
+fn update(values: number[], grow: bool) -> number {
+    values[1] = change(values, grow);
+    return record(values[1]);
+}
+
+fn grow(values: number[]) -> number[] {
+    values.reserve(8);
+    values.push(30);
+    return values;
+}
+
+fn shrink(values: number[]) -> number {
+    let last = values.pop();
+    let next = values.pop();
+    values[0] = 11;
+    return last + next;
+}
+
+fn read(values: number[]) -> number { return values[0] + len(values); }

@@ -1728,7 +1728,7 @@ likewise downloads and runs that module.
    preserved the interface in both bindings at all three levels. The
    [#97 playground](browser.md#optional-binaryen-post-processing) and
    [#98 native CLI](runtime-integration.md#optional-binaryen-post-processing)
-   use this narrower profile and share the MVP/ABI guard. The integrated
+   use this narrower profile and share the Wasm feature and ABI guard. The integrated
    release decision (#99) remains separate.
 2. **Native slice.** Add the opt-in CLI feature and activation flag without
    changing feature-disabled or inactive artifacts. Verify publication and
@@ -1740,9 +1740,12 @@ likewise downloads and runs that module.
    the M9-specific release checks above. For optimizer-on/off comparisons, hold
    the compiler preset fixed; for native/browser optimized byte comparisons,
    start from identical pre-Binaryen bytes. [#99's integrated evidence](m9-binaryen/README.md)
-   records nine matching active pairs for MVP-compatible inputs and a release
-   blocker: both adapters' MVP policy rejects resizable-array modules before
-   optimization because the private allocator uses multi-value.
+   records nine matching active pairs for MVP-compatible inputs and the historical
+   MVP-only blocker for resizable arrays. Both adapters and the shared guard now
+   allow MVP plus multi-value without changing allocator lowering or the public
+   ABI. The [expanded 20-case parity replay](m9-binaryen/multi-value/README.md)
+   passed the M9 compatibility gate, including real playground checks and
+   resizable mutation, traps, and host reentry. It does not establish a speedup.
 
 The design interview is closed. This handoff does not authorize dependency
 acquisition, implementation, or release acceptance.
