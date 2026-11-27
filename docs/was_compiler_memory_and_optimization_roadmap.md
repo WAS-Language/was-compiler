@@ -1766,15 +1766,105 @@ acquisition, implementation, or release acceptance.
 
 **Goal:** Build a reusable, conservative model of memory, host and call effects for advanced optimization without retroactively changing M2–M9 semantics.
 
-### Scope
+The user confirmed the consolidated M10 design on 2026-11-27, closing the
+interview. [ADR 0014](adr/0014-keep-m10-effect-and-alias-facts-private.md) records
+why the new facts stay separate from lowering and why object identity does not
+establish storage disjointness. Design confirmation does not authorize
+implementation or establish milestone acceptance.
 
-- Define effects such as allocation, trap, guest-memory reads/writes, host calls, possible reentry, handle publication and retention. Distinguish local-object writes from writes observable through aliases.
-- Track object identity and may-alias relationships across assignment, calls, returned handles, captures and collection elements; use unknown/top states when proofs are absent.
-- Start intraprocedurally with conservative call summaries; add interprocedural summaries only when supported by soundness tests.
-- Keep revision-1 host behavior conservative: unknown host calls may observe and retain handles; no purity or nonretention is inferred from signatures alone.
-- Provide diagnostics explaining blocked optimizations, not just yes/no answers. Store semantic facts separately from both Typed AST mutation and Wasm emission.
+### M10 interview decisions (round 1; confirmed)
 
-**Exit gate:** Adversarial alias, host callback, capture, recursion, trap and reentry tests demonstrate conservative soundness; at least one formerly unproven optimization candidate is correctly classified without changing public ABI rights.
+- M10 is private, test-exercised analysis only. Prove at least one previously
+  unproven candidate and explain blocked cases without changing emitted Wasm,
+  presets, compilation diagnostics, adapters or ABI. Using the proof to change
+  code or storage requires separate authorization; M2 and M6 stay unchanged.
+- Start with one callable body at a time. Account for argument evaluation and
+  capture accesses in that body; fall back to conservative callee effects rather
+  than inspecting other bodies or solving recursive call cycles. A known lexical
+  target alone does not establish harmlessness.
+- Unknown host callbacks block proofs that live guest storage is unobservable
+  across the call, even without handle arguments. Exported memory, previously
+  acquired handles and reentry remain possible under revision 1. Distinguish this
+  barrier from publication through the current argument list; it does not by
+  itself invalidate facts about uncaptured scalar locals. No purity, nonretention
+  or nonreentry is inferred from a host signature.
+- Separate array object identity from payload storage overlap. Different raw
+  descriptors may refer to overlapping bytes, and relocation does not change
+  array identity. Distinct handles alone do not establish disjoint storage; use
+  a conservative fallback when overlap is unknown.
+
+### M10 interview decisions (round 2; confirmed)
+
+- The first new proof is a direct fixed `number[]` literal whose handle is copied
+  into a second ordinary local. Writes and reads through both names must resolve
+  to the same array object, with only a scalar returned. A probe that writes
+  `7` and `9` through opposite names and reads through their aliases returns
+  `16`. M10 should classify the literal as a temporary candidate; M1 leaves the
+  alias copy unproven and M2 must continue to reject it.
+- Distinguish allocation, possible traps, guest-memory reads and writes, host
+  calls and possible reentry, and potential handle publication. Attribute
+  memory effects to a proven object where possible, otherwise to an unknown
+  target. Local writes still count as writes and checked accesses may trap.
+  Byte-range precision and proof of actual host retention are not required.
+- Keep a demonstrated potential publication path distinct from an unknown
+  effect or unsupported-code blocker. Returning the alias identifies a path;
+  a host callback without handle arguments can block the proof without showing
+  new publication. Report positive proofs, paths and blockers through private,
+  deterministic facts, not through user-facing compiler warnings.
+
+### M10 interview decisions (round 3; confirmed)
+
+- Keep the first positive proof invocation-wide and straight-line. Unsupported
+  branches, loops, calls or local callable declarations block it even when
+  structurally unreachable. An unreachable unsupported node is not evidence
+  that its effects execute. Defer reachability pruning, branch joins, loop
+  fixed points and last-use reasoning.
+- Track ordinary local copies of direct fixed `number[]` and `bool[]` literals
+  by resolved binding identity, including chains of copies. Indexed writes are
+  not handle rebinding; handle reassignment blocks the first-slice proof. Defer
+  positive proofs through parameters, call results, captures, collection
+  elements and resizable arrays.
+- Allow existing checked `len`, index reads, ordinary element stores and numeric
+  indexed compounds in the positive subset. Record possible traps separately
+  from access effects; compounds read the old value and may write the new one.
+  A lifetime proof implies no nontrapping, reordering or reclamation guarantee.
+- Unknown or externally supplied handles, including distinct parameters, do not
+  establish disjoint storage. Supported fresh literals executed separately in
+  the same invocation may establish both distinct objects and nonoverlapping
+  payloads. Keep these separate from facts about two aliases of one object.
+
+### M10 interview decisions (round 4; confirmed)
+
+- Borrow a source-analyzed typed program at a private test-only boundary. Do not
+  mutate the tree, enter the production pipeline, extend M1's M2-facing facts,
+  or add a validator, IR or public analysis API. The checked backend remains
+  authoritative for compilation and forged typed input.
+- Assert analysis outcomes and reasons independently from runtime behavior.
+  Cover the new alias proof and controls for two fresh literals, overlapping raw
+  payloads, handle rebinding, returning or passing an alias, a host callback with
+  no handle arguments, captures, recursive calls and structurally unreachable
+  blockers. Use bounded execution to check alias-visible writes, preservation of
+  completed effects after a trap, and resumption of an outer call after a host
+  callback catches an inner reentrant trap.
+- Require deterministic facts, unchanged M1/M2 behavior and byte and diagnostic
+  noninterference across presets. Compare ordinary compilation on the same corpus
+  with and without invoking the private analysis. Run focused proof and ignored
+  runtime cases explicitly, plus the [offline fast chain](validation.md#fast-chain).
+  Do not require a performance benefit or fresh adapter release evidence for a
+  test-only change. If production or adapter code changes, require freshly rebuilt
+  browser and full-workspace validation; that does not authorize such a change.
+
+### Deferred precision
+
+Precise facts through handle reassignment, calls, returned handles, captures and
+collection elements are not required for M10 completion. Neither are
+interprocedural summaries, byte-range reasoning or actual host retention proofs.
+Unknown effects and storage relationships remain conservative; host registration
+still supplies no purity, nonretention or nonreentry contract.
+
+**Exit gate:** The private analysis proves the previously unproven local-alias
+candidate, explains the adversarial blockers, and passes the round 4 correctness
+and noninterference gates without changing emitted code or public ABI rights.
 
 ---
 
@@ -1947,7 +2037,7 @@ milestone-specific status.
 10. **ABI numeric boundaries (M7 design resolved):** retain `f64` for all `number` signatures and numeric array elements. ABI changes are outside M7; see §11.
 11. **Optimization failure behavior (M9 design):** report a requested optimization's failure without publishing an artifact or silently falling back. See §13.
 12. **Memory diagnostics:** M0/M2 establish test-only instrumentation boundaries; which additional counters and opt-in reports are worthwhile for M14 without shipping a debugging runtime in release builds?
-13. **M10 effect granularity:** which calls, memory effects and alias classes merit precise modeling after M9 versus unknown conservative fallback?
+13. **M10 effect granularity (design resolved):** require the bounded intraprocedural proof and conservative fallbacks in §14.
 14. **M11 managed host protocol:** what opt-in provenance and lifecycle mechanism enables reclaiming enrolled handles without changing revision-1 raw retention?
 15. **M12 SSA design:** use block parameters or phi nodes, what verification and CFG-to-structured-Wasm strategy, and how long should the legacy codegen coexist?
 16. **M14 profiling:** which workload format, performance counters and offline profile compatibility policy are practical for browser and native compilation?

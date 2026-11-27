@@ -118,6 +118,29 @@ A parenthesized unary typed lambda or placeholder region invoked directly with
 the preceding pipeline input, without producing a callable value. A placeholder
 stage's sole parameter type is determined within its region, never by that input.
 
+## Memory and host interaction
+
+**Array object identity**:
+The collection shared by an array's aliases, independent of its bindings and
+where its elements are currently stored.
+_Avoid_: Payload address, binding identity
+
+**Payload storage overlap**:
+The sharing of one or more payload bytes by accesses through handles, even when
+those handles refer to different raw descriptors.
+_Avoid_: Same object, equal handles
+
+**Handle publication**:
+Making a guest handle available beyond its current invocation, for example by
+returning it or passing it to a host callback; publication does not require that
+its recipient actually retain it.
+_Avoid_: Host observation, host retention
+
+**Host observation**:
+A host callback's ability to inspect guest memory, use previously acquired
+handles or reenter guest exports, even without receiving a new handle.
+_Avoid_: Handle publication, handle-argument access
+
 ## Optimization
 
 **Compiler preset**:
