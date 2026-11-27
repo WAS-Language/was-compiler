@@ -21,6 +21,12 @@ recorder, read the [M5 sampling and provenance contract](benchmarks/m5-strings-2
 Its raw samples complement, not replace, #79's deterministic construction evidence;
 the historical scalar/calls/captures suite remains distinct.
 
+## M4/M5 official Linux performance reference
+
+Use the [177-case Linux baseline and matched-comparison protocol](benchmarks/m4-m5-aa-2026-11-27/baseline.md)
+for M4 and M5 performance evaluation. The Windows measurements remain historical
+and are not timing acceptance criteria.
+
 ## M6 ordinary range-loop measurements (#86)
 
 The dedicated `m6_ranges` target and Node harness compare the allocated

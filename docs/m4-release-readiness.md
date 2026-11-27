@@ -1,6 +1,14 @@
 # M4 resizable arrays — integrated validation and release readiness (#72)
 
-## Decision — 2026-10-30
+## Current performance decision — 2026-11-27
+
+The [official Linux baseline](benchmarks/m4-m5-aa-2026-11-27/baseline.md)
+replaces Windows timing for M4 performance evaluation. **The historical timing
+signal no longer blocks M4 acceptance.** Existing correctness and deterministic
+accounting evidence retain their original scope; this is not a timing guarantee
+or an explanation of the historical variability.
+
+## Historical decision — 2026-10-30
 
 **Correctness, portability, architecture, adapter and measurement-execution gates
 passed. Integrated M4 release acceptance remains pending explicit disposition of
@@ -131,9 +139,17 @@ not explain the residual difference from #71. No power/thermal state, scheduler
 load, engine tier stability or statistical-significance evidence was collected.
 There is no matched changed-code experiment or identified compiler regression to
 fix. These samples include JS loops/crossings and runtime work, not isolated Wasm
-latency or compiler timing. Do not discard the slow run or choose the fast run as
-proof of suitability. Per #72's escalation rule, release acceptance stays pending
-explicit performance-signal disposition or further controlled measurement.
+latency or compiler timing. Neither run alone established suitability. At the
+time, #72 left acceptance pending explicit disposition or further controlled
+measurement; see the [current performance decision](#current-performance-decision--2026-11-27).
+
+## Controlled timing follow-up — 2026-11-27
+
+The [three-session A/A investigation](benchmarks/m4-m5-aa-2026-11-27/README.md)
+reproduced the module and accounting results and observed up to 32.7% median
+variation within one pair of identical artifacts. The historical timing baseline
+is not comparable to the Linux replay. Future comparisons use fresh matched
+runs against the official Linux reference.
 
 ## Retained contracts and non-authorizations
 
@@ -172,5 +188,5 @@ Reviewers reconciled test counts, source/module/accounting hashes, timing median
 contract names and links from recorded evidence; they did not witness sequential
 execution or rerun builds/tests/measurements. Final checks resolved 576 local
 link paths, verified all 220 executable-input hashes and all 18 committed
-measurement-file hashes, and passed staged/unstaged Git whitespace checks. Review
-does not turn the pending performance decision into an implicit acceptance.
+measurement-file hashes, and passed staged/unstaged Git whitespace checks. That
+review did not resolve the historical timing signal.

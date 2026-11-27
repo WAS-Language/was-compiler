@@ -217,8 +217,9 @@ changing the M9 Wasm feature envelope or interpreting release readiness, read
   and release decision](docs/m4-release-readiness.md) and [contract-to-test map](docs/m4-contract-test-map.md).
   All eight execution gates passed, including 1,602 full-workspace tests with none
   failed/ignored and freshly rebuilt browser coverage. Sequential accounting and
-  module bytes reproduce; material timing variability leaves integrated release
-  acceptance pending explicit performance-signal disposition.
+  module bytes reproduce. For M4/M5 timing comparisons, use the [official Linux
+  baseline](docs/benchmarks/m4-m5-aa-2026-11-27/baseline.md); historical Windows
+  timings no longer block acceptance.
 - The planning walker is sequential and structural, not semantic analysis or code
   emission. Keep exhaustive node traversal centralized and policies separate.
   Locals traverse expressions to collect nested declarations, without validating
@@ -396,8 +397,8 @@ changing the M9 Wasm feature envelope or interpreting release readiness, read
   release decision](docs/m5-release-readiness.md) and [contract-to-test map](docs/m5-contract-test-map.md).
   All eight execution gates passed, including 1,701 full-workspace tests with none
   failed/ignored and freshly rebuilt browser coverage. Deterministic construction
-  reproduces; material unexplained timing variability leaves integrated M5 acceptance
-  pending explicit performance-signal disposition. M4's pending decision is unchanged.
+  reproduces; the M5 release record distinguishes the official Linux baseline from
+  historical timing.
   Before changing private string allocation/copy observations, read
   [#78's concat tracer and accounting boundaries](docs/m5-string-observations.md).
   Before changing ordinary M5 runtime/native compiler timing or interpreting its
@@ -425,7 +426,7 @@ changing the M9 Wasm feature envelope or interpreting release readiness, read
   see [the construction and mutation contract](docs/resizable-arrays.md) for numeric bounds,
   raw unconsumed-slot copying, source/typed-node migration and focused evidence.
   Historical #65–#71 records retain their slice scope. For final-source execution
-  gates, contract coverage and the pending performance-signal decision, use
+  gates, contract coverage and the current performance decision, use
   [#72's integrated release record](docs/m4-release-readiness.md), not earlier
   subset successes or timeouts.
 - `//` line comments and non-nesting `/* ... */` block comments are supported

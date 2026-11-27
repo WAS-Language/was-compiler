@@ -1,6 +1,14 @@
 # M5 strings — integrated validation and release readiness (#81)
 
-## Decision — 2026-10-30
+## Current performance decision — 2026-11-27
+
+The [official Linux baseline](benchmarks/m4-m5-aa-2026-11-27/baseline.md)
+replaces Windows timing for M5 performance evaluation. **The historical timing
+signal no longer blocks M5 acceptance.** Existing correctness and deterministic
+construction evidence retain their original scope; this is not a timing guarantee
+or an explanation of the historical variability.
+
+## Historical decision — 2026-10-30
 
 **Both slice correctness gates, deterministic construction, portability,
 architecture, fresh-browser compatibility and measurement execution passed on
@@ -21,8 +29,8 @@ local/unpublished `docs/adr/0010-immutable-string-operations-and-fragment-constr
 and other design edits were preserved; historical proposed/pending wording is not final-source
 evidence. Historical #73–#80 records are not rewritten as integrated passes.
 
-**M4's pending performance-signal disposition remains unchanged.** M5 uses M4
-fragment arrays but neither approves M4 performance nor changes its release decision.
+**This historical M5 run did not resolve M4's timing signal.** M5 uses M4
+fragment arrays, but each milestone has its own decision.
 See [M4 release readiness](m4-release-readiness.md).
 
 ## Stable-source provenance
@@ -164,7 +172,7 @@ construction. At 1,025 entries, completed active capacity is **8,192 bytes** ver
 capacity, engine RSS and distinct category peaks are not interchangeable or summed
 into an invented peak. No constant-retained-memory or reclamation claim follows.
 
-**Performance characterization executed; acceptance remains pending.** All **233
+**Performance characterization executed; acceptance was pending after this run.** All **233
 #80 timing input hashes**, both native executable hashes and all corpus modules
 match historical #80. Each new run contains all 630 native/1,845 runtime samples,
 including adversarial repetitive replacement. Native source/prepared-typed compilation
@@ -180,13 +188,24 @@ historical #80 comparisons, per-case ratios span **0.3685–2.1845× native** an
 and fast cases alike. There is no changed-code experiment or measured causal
 explanation, stable budget, statistical-significance proof or universal speedup.
 
-This is the explicit escalation required by #81: **do not mark integrated M5
-release acceptance complete until the material-variable signal receives an
-explicit acceptance/disposition decision or further controlled investigation.**
+This is the explicit escalation required by #81: **this run did not close
+integrated M5 acceptance without an explicit disposition or further controlled
+investigation.** See the [current performance decision](#current-performance-decision--2026-11-27).
 Passing correctness and deterministic construction are separate positive results;
 M4 performance acceptance is neither required to be silently granted nor disposed
 of here. No arbitrary timing threshold or favorable-run selection substitutes
 for that decision.
+
+## Controlled timing follow-up — 2026-11-27
+
+The [three-session A/A investigation](benchmarks/m4-m5-aa-2026-11-27/README.md)
+reproduced the runtime module, native corpus and deterministic construction
+accounting. Local A/A variability differed across source compilation, prepared
+typed compilation and guest runtime. The historical timing baseline is not
+comparable to the Linux replay. The [frozen local baseline and native A/B](benchmarks/m4-m5-aa-2026-11-27/baseline.md)
+found no native case meeting the predeclared escalation rule against #80 on
+Linux. This does not explain historical variability. Future comparisons use
+fresh matched runs against the official Linux reference.
 
 ## Coverage limits and retained boundaries
 
@@ -217,5 +236,5 @@ replaced with explicit local/unpublished references; re-review confirmed resolut
 Spec found no actionable findings. **No outstanding findings remain on either axis.**
 Reviewers independently reconciled test names/counts, raw timing summaries/ratios,
 construction records and evidence hashes, but did not rerun builds or measurements.
-The release conclusion remains pending timing-signal disposition; completed review
-is not an implicit performance acceptance or closure of that decision.
+The completed historical review did not explain the timing variability or itself
+resolve the performance decision.

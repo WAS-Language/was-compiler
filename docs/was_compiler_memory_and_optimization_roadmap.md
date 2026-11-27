@@ -766,8 +766,9 @@ remain separately authorized work; no default or release decision is implied.
 including 1,602 full-workspace tests with none failed/ignored, freshly rebuilt
 browser coverage and two sequential measurement recordings. The
 [contract-to-test map](m4-contract-test-map.md) records actual coverage and limits.
-Accounting and module bytes reproduce #71 exactly; material timing variability
-leaves **integrated release acceptance pending explicit performance-signal disposition**.
+Accounting and module bytes reproduce #71 exactly. The [official Linux baseline](benchmarks/m4-m5-aa-2026-11-27/baseline.md)
+supersedes historical Windows timing for M4 and M5; those timing signals no longer
+block acceptance.
 No new default, optimization or general reclamation is authorized.
 
 **Current slices (#65/#66/#67/#68):** `resizable(source)` creates a fresh, resize-authorized
@@ -1050,8 +1051,8 @@ with empty pop trapping. The constructor is implemented by #65, reserve by #66,
 push by #67 and pop/remove by #68; `len` already exists. Capacity shrinking remains
 unimplemented. [#72's final-source evidence](m4-release-readiness.md) supplies
 completed correctness/portability/adapter gates and sequential measurements;
-historical slice records alone do not close M4. Integrated release acceptance
-remains pending explicit disposition of the material timing signal.
+historical slice records alone do not close M4. See the integrated release record's
+current decision for the superseded Windows timing signal.
 
 ### Specific tests
 
@@ -1192,9 +1193,9 @@ string_join(parts: string[], separator: string) -> string
   argument effects/trap order, retained handles after traps, memory growth/reentry
   and optimization-preset parity. Programs without new operations preserve bytes
   and helper ordering except deliberate new-name reservation errors.
-- Fragment construction uses implemented M4 behavior but does not dispose of
-  M4's pending performance acceptance. Correctness, measurement evidence and
-  integrated release decisions remain separate.
+- Fragment construction uses implemented M4 behavior but does not determine
+  M4's performance acceptance. Correctness, measurement evidence and integrated
+  release decisions remain separate.
 
 #### Efficient string construction — acceptance criteria (user-specified)
 
@@ -1305,8 +1306,9 @@ implementation authorization and release acceptance remain separate.
   This is not blanket permission for the other candidate optimizations. In
   particular, string fusion needs its own contract reconciliation before approval.
 - **Release dependencies:** M6 design may proceed now, but integrated M6 release
-  acceptance requires explicit disposition of M4/M5's pending performance signals.
-  M6 work does not silently approve either milestone.
+  acceptance required a separate M4/M5 performance decision. The Windows timing
+  dependency was resolved by the [official Linux baseline](benchmarks/m4-m5-aa-2026-11-27/baseline.md);
+  M6 still has its own release gates.
 - **Internal-only boundary:** No new source syntax, ownership annotations, public
   descriptor layout, host release obligations or general heap reset. Unsupported
   cases retain existing lowering and lifetime guarantees.
@@ -1373,8 +1375,8 @@ Round 3 confirms proof and completion gates:
   native tests, strict native Clippy, portable-core build, workspace-boundary checks,
   freshly rebuilt browser checks, full ignored-workspace execution and strict browser
   Clippy. Require adapter parity and a contract-to-test map. Acceptance additionally
-  requires performance disposition above and explicit disposition of M4/M5 pending
-  signals. Focused success alone is not integrated acceptance; `None` stays default
+  requires M6's own performance disposition. The original M4/M5 timing dependency
+  no longer blocks. Focused success alone is not integrated acceptance; `None` stays default
   after acceptance. Update relevant range/optimization contracts and ADR 0001's
   deferral with the narrow M6 exception, preserving historical release evidence and
   explicit deferred-candidate status.

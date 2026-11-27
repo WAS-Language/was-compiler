@@ -26,8 +26,8 @@ fixed/resizable arrays and join. [#81 integrated validation](m5-release-readines
 now records both final-source slice gates, reproduced deterministic construction,
 ordinary runtime/native measurements and rebuilt-browser parity. The
 [contract-to-test map](m5-contract-test-map.md) distinguishes inventories from actual
-execution and gaps. Material unexplained timing variability leaves integrated M5
-release acceptance pending explicit disposition; M4's pending decision is unchanged.
+execution and gaps. The [official Linux baseline](benchmarks/m4-m5-aa-2026-11-27/baseline.md)
+replaces historical Windows timing for M4 and M5 performance evaluation.
 Historical validation sections below retain their original subset scope.
 
 The accepted design is recorded in local ADR 0010 and memory-roadmap §9; design
