@@ -1,4 +1,4 @@
-//! Private M10 #100 proof for direct fixed numeric literals and local handle copies.
+//! Private M10 proof for direct fixed numeric/boolean literals and local handle copies.
 //! Input must come from source analysis. This is not a checked-tree validator or
 //! a storage policy; temporary candidates may still trap.
 
@@ -13,6 +13,7 @@ use crate::{
     },
 };
 
+// The binding of a supported fresh fixed literal, never an arbitrary handle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Object(VariableId);
 
@@ -20,10 +21,44 @@ struct Object(VariableId);
 struct Facts<'tree> {
     function: &'tree TypedFunction,
     aliases: Vec<(VariableId, Object)>,
+    reachable_alias_count: usize,
     // Ok proves every reported origin temporary; aliases are structural, not executed facts.
     proof: Proof,
     // Ordered possible effects of the supported prefix, not an execution trace.
     effects: Vec<(Object, Effect)>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ObjectIdentity {
+    Same,
+    Distinct,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PayloadStorage {
+    SameAllocation, // May have an empty payload, so this does not assert byte overlap.
+    Disjoint,
+    Unknown,
+}
+
+impl Facts<'_> {
+    // Relations hold when both bindings have completed in the same invocation.
+    fn relations(&self, left: VariableId, right: VariableId) -> (ObjectIdentity, PayloadStorage) {
+        match (self.reachable_origin(left), self.reachable_origin(right)) {
+            (Some(a), Some(b)) if a == b => (ObjectIdentity::Same, PayloadStorage::SameAllocation),
+            // Disjointness follows from separate fixed allocations, not distinct handles.
+            (Some(_), Some(_)) => (ObjectIdentity::Distinct, PayloadStorage::Disjoint),
+            _ => (ObjectIdentity::Unknown, PayloadStorage::Unknown),
+        }
+    }
+
+    fn reachable_origin(&self, binding: VariableId) -> Option<Object> {
+        self.proof.ok()?;
+        self.aliases[..self.reachable_alias_count]
+            .iter()
+            .find_map(|&(id, origin)| (id == binding).then_some(origin))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,14 +88,13 @@ fn analyze(program: &TypedProgram) -> Vec<Facts<'_>> {
             Facts {
                 function,
                 aliases: analysis.aliases,
+                reachable_alias_count: analysis.reachable_alias_count,
                 proof,
                 effects: analysis.effects,
             }
         })
         .collect()
 }
-
-const NUMBERS: Type = Type::Array(ArrayElementType::Number);
 
 type Proof<T = ()> = Result<T, Blocker>;
 
@@ -69,6 +103,7 @@ struct Analysis {
     objects: HashMap<VariableId, Object>,
     aliases: Vec<(VariableId, Object)>,
     effects: Vec<(Object, Effect)>,
+    reachable_alias_count: usize,
     after_return: bool,
 }
 
@@ -91,23 +126,24 @@ impl Analysis {
 
     fn check_statement(&mut self, statement: &TypedStatementKind) -> Proof {
         match statement {
-            TypedStatementKind::Let { id, ty, value, .. } if *ty == NUMBERS => {
-                let object =
-                    if let TypedExprKind::Array(items, ArrayElementType::Number) = &value.kind {
-                        let object = Object(*id);
-                        self.record(object, Effect::MayTrap);
-                        self.record(object, Effect::Allocate);
-                        self.record(object, Effect::WriteDescriptor);
-                        for item in items {
-                            self.check_scalar(item)?;
-                            self.record(object, Effect::WriteElement);
-                        }
-                        object
-                    } else {
-                        self.resolve_object(value)?
-                    };
+            TypedStatementKind::Let { id, ty, value, .. } if is_supported_array_type(*ty) => {
+                let object = if let TypedExprKind::Array(items, _) = &value.kind {
+                    let object = Object(*id);
+                    self.record(object, Effect::MayTrap);
+                    self.record(object, Effect::Allocate);
+                    self.record(object, Effect::WriteDescriptor);
+                    for item in items {
+                        self.check_store(object, item)?;
+                    }
+                    object
+                } else {
+                    self.resolve_object(value)?
+                };
                 self.objects.insert(*id, object);
                 self.aliases.push((*id, object));
+                if !self.after_return {
+                    self.reachable_alias_count = self.aliases.len();
+                }
                 Ok(())
             }
             TypedStatementKind::Let { value, .. }
@@ -116,7 +152,7 @@ impl Analysis {
             TypedStatementKind::Return(None) => Ok(()),
             TypedStatementKind::Assignment { target, .. }
                 if matches!(target.kind, TypedExprKind::Identifier { .. })
-                    && target.ty == NUMBERS =>
+                    && target.ty.value_type().is_some_and(is_supported_array_type) =>
             {
                 Err(Blocker::HandleReassignment)
             }
@@ -144,6 +180,10 @@ impl Analysis {
 
     fn check_store(&mut self, object: Object, value: &TypedExpr) -> Proof {
         self.check_scalar(value)?;
+        // Checked boolean stores consume the scalar before writing the byte.
+        if value.ty == Type::Bool {
+            self.record(object, Effect::MayTrap);
+        }
         self.record(object, Effect::WriteElement);
         Ok(())
     }
@@ -209,6 +249,9 @@ impl Analysis {
             TypedExprKind::Index { .. } => {
                 let object = self.check_index_access(expr)?;
                 self.record(object, Effect::ReadElement);
+                if expr.ty == Type::Bool {
+                    self.record(object, Effect::MayTrap);
+                }
                 Ok(())
             }
             TypedExprKind::Call {
@@ -227,6 +270,14 @@ impl Analysis {
             _ => Err(Blocker::Unsupported),
         }
     }
+}
+
+// This is type eligibility only; fixed storage must come from literal provenance.
+fn is_supported_array_type(ty: Type) -> bool {
+    matches!(
+        ty,
+        Type::Array(ArrayElementType::Number | ArrayElementType::Bool)
+    )
 }
 
 fn is_scalar(ty: Type) -> bool {
@@ -305,18 +356,10 @@ fn checked_compound_reads_old_element_before_rhs_and_may_write_after() {
         .map(|effect| (object, effect))
     );
 
-    use wasmparser::{Operator, Parser, Payload, Validator};
+    use wasmparser::Operator;
 
     let bytes = crate::codegen::compile(&program).unwrap();
-    Validator::new().validate_all(&bytes).unwrap();
-    let main = Parser::new(0)
-        .parse_all(&bytes)
-        .find_map(|payload| match payload.unwrap() {
-            Payload::CodeSectionEntry(body) => Some(body),
-            _ => None,
-        })
-        .unwrap();
-    let accesses: Vec<_> = main
+    let accesses: Vec<_> = validated_main_body(&bytes)
         .get_operators_reader()
         .unwrap()
         .into_iter()
@@ -331,14 +374,147 @@ fn checked_compound_reads_old_element_before_rhs_and_may_write_after() {
     assert_eq!(accesses, ["store", "load", "len", "store", "load"]);
 }
 
+// The probe modules define main first, before their runtime helpers.
+fn validated_main_body(bytes: &[u8]) -> wasmparser::FunctionBody<'_> {
+    use wasmparser::{Parser, Payload, Validator};
+
+    Validator::new().validate_all(bytes).unwrap();
+    Parser::new(0)
+        .parse_all(bytes)
+        .find_map(|payload| match payload.unwrap() {
+            Payload::CodeSectionEntry(body) => Some(body),
+            _ => None,
+        })
+        .unwrap()
+}
+
+const BOOL_CHAIN: &str = "fn main(i: number) -> bool {
+    let a = [false]; let b = a; let c = b;
+    c[i] = true; return b[len(a) - 1];
+}";
+
+#[test]
+fn boolean_copy_chain_attributes_checked_accesses_to_the_literal() {
+    use Effect::*;
+    use wasmparser::Operator;
+
+    let program = crate::Compiler::new().analyze(BOOL_CHAIN).unwrap();
+    let reports = analyze(&program);
+    let facts = &reports[0];
+    assert_eq!(facts.proof, Ok(()));
+    assert_eq!(facts.aliases.len(), 3);
+    let object = facts.aliases[0].1;
+    assert!(facts.aliases.iter().all(|&(_, alias)| alias == object));
+    assert_eq!(
+        facts.effects,
+        [
+            MayTrap,
+            Allocate,
+            WriteDescriptor,
+            MayTrap,
+            WriteElement,
+            MayTrap,
+            ReadIndexMetadata,
+            MayTrap,
+            WriteElement,
+            MayTrap,
+            ReadLengthMetadata,
+            MayTrap,
+            ReadIndexMetadata,
+            ReadElement,
+            MayTrap,
+        ]
+        .map(|effect| (object, effect))
+    );
+
+    let bytes = crate::codegen::compile(&program).unwrap();
+    let accesses: Vec<_> = validated_main_body(&bytes)
+        .get_operators_reader()
+        .unwrap()
+        .into_iter()
+        .map(Result::unwrap)
+        .filter_map(|op| match op {
+            Operator::I32Store8 { memarg } => Some(("store", memarg.offset)),
+            Operator::I32Load8U { memarg } => Some(("load", memarg.offset)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(accesses, [("store", 8), ("store", 0), ("load", 0)]);
+}
+
+#[test]
+fn fresh_literals_are_distinct_and_disjoint_but_copies_share_storage() {
+    use ObjectIdentity::*;
+    use PayloadStorage::{Disjoint, SameAllocation};
+
+    for (literal, result) in [("[0]", "number"), ("[false]", "bool")] {
+        let program = crate::Compiler::new()
+            .analyze(&format!(
+                "fn main() -> {result} {{ let a = {literal}; let b = a; let c = b; let d = {literal}; return c[0]; let dead = {literal}; }}"
+            ))
+            .unwrap();
+        let reports = analyze(&program);
+        let facts = &reports[0];
+        assert_eq!(facts.proof, Ok(()));
+
+        let [a, b, c, d, dead] = facts
+            .function
+            .body
+            .iter()
+            .filter_map(|stmt| match stmt.kind {
+                TypedStatementKind::Let { id, .. } => Some(id),
+                _ => None,
+            })
+            .collect::<Vec<_>>()[..]
+        else {
+            panic!("expected five bindings");
+        };
+        assert_eq!(facts.relations(a, c), (Same, SameAllocation));
+        assert_eq!(facts.relations(b, c), (Same, SameAllocation));
+        assert_eq!(facts.relations(c, d), (Distinct, Disjoint));
+        assert_eq!(facts.relations(d, a), (Distinct, Disjoint));
+        assert_eq!(facts.relations(a, dead), (Unknown, PayloadStorage::Unknown));
+    }
+}
+
+const RAW_OVERLAP: &str =
+    "fn main(a: bool[], b: bool[]) -> bool { let copy = a; copy[1] = true; return b[0]; }";
+
+#[test]
+fn distinct_raw_parameters_have_unknown_object_and_payload_relations() {
+    let program = crate::Compiler::new().analyze(RAW_OVERLAP).unwrap();
+    let reports = analyze(&program);
+    let facts = &reports[0];
+    let [a, b] = facts.function.params.as_slice() else {
+        panic!("expected two array parameters");
+    };
+    assert_eq!(facts.proof, Err(Blocker::Unsupported));
+    assert_eq!(
+        facts.relations(a.id, b.id),
+        (ObjectIdentity::Unknown, PayloadStorage::Unknown)
+    );
+}
+
 #[test]
 fn handle_rebinding_blocks_proof_even_after_return() {
     use crate::Compiler;
 
-    for body in ["b = a; return b[0];", "return b[0]; b = a;"] {
-        let source = format!("fn main() -> number {{ let a = [1]; let b = a; {body} }}");
-        let program = Compiler::new().analyze(&source).unwrap();
-        assert_eq!(analyze(&program)[0].proof, Err(Blocker::HandleReassignment));
+    for (literal, result) in [("[1]", "number"), ("[true]", "bool")] {
+        for body in ["b = a; return b[0];", "return b[0]; b = a;"] {
+            let source =
+                format!("fn main() -> {result} {{ let a = {literal}; let b = a; {body} }}");
+            let program = Compiler::new().analyze(&source).unwrap();
+            let reports = analyze(&program);
+            let facts = &reports[0];
+            assert_eq!(facts.proof, Err(Blocker::HandleReassignment));
+            let [(a, _), (b, _)] = facts.aliases.as_slice() else {
+                panic!("expected two recorded aliases");
+            };
+            assert_eq!(
+                facts.relations(*a, *b),
+                (ObjectIdentity::Unknown, PayloadStorage::Unknown)
+            );
+        }
     }
 }
 
@@ -352,6 +528,10 @@ fn handles_without_supported_local_provenance_cannot_earn_a_proof() {
         "fn main() -> number { let a = [1]; let b = resizable(a); return b[0]; }",
         "fn main() -> number { let a = [1]; let f = () => a[0]; return f(); }",
         "fn main() -> number { let a = [1]; return main(); }",
+        "fn main() -> bool { let a = [false]; let b = resizable(a); return b[0]; }",
+        "fn main() -> bool { let a = make(); let b = a; return b[0]; } fn make() -> bool[] { return [true]; }",
+        "fn main() -> bool { let a = [false]; let b = a; let f = () => b[0]; return f(); }",
+        "fn main() -> number { let a = [\"text\"]; let b = a; return len(b); }",
     ] {
         let program = Compiler::new().analyze(source).unwrap();
         assert_eq!(
@@ -390,38 +570,71 @@ const LEVELS: [crate::OptimizationLevel; 4] = [
 #[test]
 fn private_analysis_is_deterministic_and_preserves_ordinary_bytes() {
     let mut compiler = crate::Compiler::new();
-    let program = compiler.analyze(PROBE).unwrap();
-    let before = LEVELS.map(|level| {
-        compiler.set_optimization_level(level);
-        compiler.compile(&program).unwrap()
-    });
-    assert_eq!(analyze(&program), analyze(&program));
+    for source in [PROBE, BOOL_CHAIN, RAW_OVERLAP] {
+        let program = compiler.analyze(source).unwrap();
+        let before = LEVELS.map(|level| {
+            compiler.set_optimization_level(level);
+            compiler.compile(&program).unwrap()
+        });
+        assert_eq!(analyze(&program), analyze(&program));
 
-    for (level, bytes) in LEVELS.into_iter().zip(before) {
-        compiler.set_optimization_level(level);
-        assert_eq!(compiler.compile(&program).unwrap(), bytes, "{level:?}");
+        for (level, bytes) in LEVELS.into_iter().zip(before) {
+            compiler.set_optimization_level(level);
+            assert_eq!(compiler.compile(&program).unwrap(), bytes, "{level:?}");
+        }
     }
 }
 
 #[test]
 #[ignore = "requires Node.js"]
 fn ordinary_wasm_reads_alias_visible_writes() {
+    run_wasm(PROBE, "assert.equal(e.main(), 16);");
+    run_wasm(BOOL_CHAIN, "assert.equal(e.main(0), 1);");
+}
+
+#[test]
+#[ignore = "requires Node.js"]
+fn distinct_revision_one_raw_descriptors_can_share_payload_bytes() {
+    run_wasm(
+        RAW_OVERLAP,
+        r#"
+        const payload = e.__alloc(8);
+        const a = e.__alloc(8), b = e.__alloc(8), disjoint = e.__alloc(8);
+        const view = new DataView(e.memory.buffer);
+        function descriptor(handle, data) {
+            view.setUint32(handle, data, true);
+            view.setUint32(handle + 4, 2, true);
+        }
+        assert.notEqual(a, b);
+        descriptor(a, payload);
+        descriptor(b, payload + 1); // Only a[1] and b[0] share a byte.
+        descriptor(disjoint, payload + 2);
+        assert.equal(e.main(a, disjoint), 0);
+        assert.equal(view.getUint8(payload + 1), 1);
+        view.setUint8(payload + 1, 0);
+        assert.equal(e.main(a, b), 1);
+        assert.deepEqual([...new Uint8Array(e.memory.buffer, payload, 3)], [0, 1, 0]);
+    "#,
+    );
+}
+
+fn run_wasm(source: &str, script: &str) {
     use std::{process::Command, time::Duration};
 
-    let script = r#"
+    let bootstrap = r#"
         const assert = require('node:assert/strict');
         const bytes = require('node:fs').readFileSync(0);
-        const guest = new WebAssembly.Instance(new WebAssembly.Module(bytes));
-        assert.equal(guest.exports.main(), 16);
+        const e = new WebAssembly.Instance(new WebAssembly.Module(bytes)).exports;
     "#;
+    let script = format!("{bootstrap}{script}");
     let mut compiler = crate::Compiler::new();
-    let program = compiler.analyze(PROBE).unwrap();
+    let program = compiler.analyze(source).unwrap();
     for level in LEVELS {
         compiler.set_optimization_level(level);
         let bytes = compiler.compile(&program).unwrap();
         wasmparser::Validator::new().validate_all(&bytes).unwrap();
         let output = crate::test_process::output(
-            Command::new("node").args(["-e", script]),
+            Command::new("node").arg("-e").arg(&script),
             Some(&bytes),
             Duration::from_secs(15),
         );
