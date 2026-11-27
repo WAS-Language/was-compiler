@@ -1,0 +1,17 @@
+fn scalar(start: number) -> number {
+    let total = start;
+    for i in 1..=5 { total += i * 2; }
+    return total;
+}
+
+fn resized() -> number {
+    let values = resizable([10, 20]);
+    values.reserve(8);
+    values.push(35);
+    return values[0] + values[1] + values[2];
+}
+
+fn indexed(index: number) -> number {
+    let values = [42];
+    return values[index];
+}

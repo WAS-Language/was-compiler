@@ -116,3 +116,27 @@ For modified Rust files, use `rustfmt --edition 2024 --config skip_children=true
 with explicit paths, then `git --no-pager diff --check`. Review status/diff; preserve
 existing fixtures and `target/wp7-inference`. Report missing prerequisites and
 unverified gates rather than fetching tools or claiming partial runs passed.
+
+### Opt-in Wasmtime execution
+
+Use an installed Wasmtime CLI (verified with **50.0.0**) and Node.js **24.2+**.
+From the repository root, build the ordinary CLI and request the gate explicitly:
+
+```sh
+CARGO_TARGET_DIR=target/wasmtime-gate cargo build --locked --offline -p was-compiler-cli
+node tests/wasmtime.mjs target/wasmtime-gate/debug/was-compiler
+node --test tests/wasmtime.test.mjs
+```
+
+The runner accepts an optional second argument for the Wasmtime executable and
+prints its version. It compiles the same import-free fixture to raw Wasm at O0
+and with the CLI's default preset, without Binaryen. Each preset checks scalar
+arithmetic, resizing with a scalar result, and an out-of-bounds access that must
+trap at `unreachable` in the requested export. Each invocation has 100,000 fuel
+units, a 10-second external deadline, and Wasmtime caching disabled. Missing
+tooling, fuel exhaustion, timeouts and other tool errors fail the gate. The Node
+unit tests check the result classifier without requiring Wasmtime.
+
+This gate is not part of the fast/full chains or the M9 Binaryen matrix. Node
+checks the import list, but Wasmtime executes all guest cases. Existing Node and
+Chromium suites still cover callbacks, reentry and persistent instance state.
