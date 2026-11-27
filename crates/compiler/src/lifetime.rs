@@ -329,6 +329,15 @@ mod tests {
     use crate::Compiler;
 
     #[test]
+    fn lifetime_leaves_m10_numeric_probe_unproven() {
+        let source = include_str!("../../../tests/fixtures/m10-local-alias.was");
+        let program = Compiler::new().analyze(source).unwrap();
+        let facts = analyze(&program);
+        assert_eq!(facts.len(), 1);
+        assert!(matches!(facts[0].outcome, Outcome::Unproven(_)));
+    }
+
+    #[test]
     fn lifetime_alias_return_is_an_identified_path_not_just_an_unknown_alias() {
         assert_eq!(
             outcomes("fn main() -> number[] { let a = [1]; let b = a; let c = b; return c; }"),

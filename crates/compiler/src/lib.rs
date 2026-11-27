@@ -12,6 +12,8 @@ pub mod host;
 pub mod lexer;
 #[cfg(test)]
 mod lifetime;
+#[cfg(test)]
+mod local_alias;
 mod match_patterns;
 mod number_literal;
 mod optimization;

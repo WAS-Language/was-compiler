@@ -107,6 +107,7 @@ bypasses the compiler's optimization/options orchestration and retains baseline 
 | `crates/compiler/src/host.rs`, `crates/compiler/src/exports.rs` | Ordered host declarations, private external-type eligibility, and owned export selection |
 | `crates/compiler/src/optimization.rs` | Preset-to-lowering policy selection; borrowed `Cow<TypedProgram>` boundary without AST rewrites |
 | `crates/compiler/src/lifetime.rs`, `crates/compiler/src/lifetime/` | Private `cfg(test)` M1 classifier and tests; borrowed direct-body array origins, invocation-wide closed proof and owner-qualified conservative explanations; not part of the production pipeline |
+| `crates/compiler/src/local_alias.rs` | Private `cfg(test)` M10 #100 local numeric alias proof and possible effects, independent of M1, M2 and checked lowering |
 | `crates/compiler/src/codegen/representation.rs` | Private per-body `Facts` cache for exact-i32 literal/add-sub/negation and eligible ordinary-local/read proofs |
 | `crates/compiler/src/codegen/abi.rs` | Internal language-to-Wasm signatures, separate external signature checks, and named memory-layout constants |
 | `crates/compiler/src/codegen/layout.rs`, `crates/compiler/src/codegen/indices.rs` | Signatures, callees, exports, distinct Wasm index types |

@@ -229,6 +229,7 @@ fn checked_capacity_includes_aligned_empty_and_unreachable_literals() {
 #[test]
 fn excluded_forms_and_no_candidates_emit_no_region_machinery() {
     for source in [
+        include_str!("../../../../../tests/fixtures/m10-local-alias.was"),
         "fn main() -> number { return 1; }",
         "fn main() -> number[] { let a = [1]; return a; }",
         "fn main() -> number { let a = [1]; let b = a; return b[0]; }",
