@@ -27,6 +27,10 @@ harness = false
 name = "m8_scalars"
 harness = false
 
+[[bench]]
+name = "applications"
+harness = false
+
 [dev-dependencies]
 divan = "0.1.21"
 wasmparser.workspace = true

@@ -1,0 +1,1248 @@
+{
+  "node": "26.13.1",
+  "v8": "14.6.202.34-node.40",
+  "engineCache": "potential (not cold compilation)",
+  "warmupsPerCase": 2,
+  "samplesPerCase": 5,
+  "repetitions": [
+    {
+      "order": "forward",
+      "cases": [
+        {
+          "workload": "report",
+          "size": 16,
+          "preset": "o0",
+          "file": "report-16-o0.wasm",
+          "wasmBytes": 3869,
+          "samples": [
+            {
+              "compileNs": 11282,
+              "instantiateNs": 23565,
+              "executeNs": 6022
+            },
+            {
+              "compileNs": 9358,
+              "instantiateNs": 26130,
+              "executeNs": 5680
+            },
+            {
+              "compileNs": 8726,
+              "instantiateNs": 20569,
+              "executeNs": 5340
+            },
+            {
+              "compileNs": 7915,
+              "instantiateNs": 20168,
+              "executeNs": 6653
+            },
+            {
+              "compileNs": 8376,
+              "instantiateNs": 20830,
+              "executeNs": 6893
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 16,
+          "preset": "default",
+          "file": "report-16-default.wasm",
+          "wasmBytes": 3869,
+          "samples": [
+            {
+              "compileNs": 8496,
+              "instantiateNs": 23986,
+              "executeNs": 5250
+            },
+            {
+              "compileNs": 8066,
+              "instantiateNs": 20149,
+              "executeNs": 5130
+            },
+            {
+              "compileNs": 8056,
+              "instantiateNs": 17834,
+              "executeNs": 6553
+            },
+            {
+              "compileNs": 7795,
+              "instantiateNs": 17945,
+              "executeNs": 6623
+            },
+            {
+              "compileNs": 9137,
+              "instantiateNs": 30799,
+              "executeNs": 7404
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 128,
+          "preset": "o0",
+          "file": "report-128-o0.wasm",
+          "wasmBytes": 5060,
+          "samples": [
+            {
+              "compileNs": 8336,
+              "instantiateNs": 19968,
+              "executeNs": 28955
+            },
+            {
+              "compileNs": 8275,
+              "instantiateNs": 19868,
+              "executeNs": 28364
+            },
+            {
+              "compileNs": 7845,
+              "instantiateNs": 18375,
+              "executeNs": 28575
+            },
+            {
+              "compileNs": 7805,
+              "instantiateNs": 17022,
+              "executeNs": 28405
+            },
+            {
+              "compileNs": 7565,
+              "instantiateNs": 20389,
+              "executeNs": 27051
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 128,
+          "preset": "default",
+          "file": "report-128-default.wasm",
+          "wasmBytes": 5060,
+          "samples": [
+            {
+              "compileNs": 9117,
+              "instantiateNs": 22213,
+              "executeNs": 27192
+            },
+            {
+              "compileNs": 10531,
+              "instantiateNs": 21341,
+              "executeNs": 29376
+            },
+            {
+              "compileNs": 8466,
+              "instantiateNs": 19337,
+              "executeNs": 28304
+            },
+            {
+              "compileNs": 7595,
+              "instantiateNs": 21391,
+              "executeNs": 28344
+            },
+            {
+              "compileNs": 7775,
+              "instantiateNs": 23555,
+              "executeNs": 28284
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 1024,
+          "preset": "o0",
+          "file": "report-1024-o0.wasm",
+          "wasmBytes": 14692,
+          "samples": [
+            {
+              "compileNs": 10169,
+              "instantiateNs": 24197,
+              "executeNs": 222135
+            },
+            {
+              "compileNs": 9178,
+              "instantiateNs": 19317,
+              "executeNs": 223608
+            },
+            {
+              "compileNs": 9027,
+              "instantiateNs": 18846,
+              "executeNs": 219991
+            },
+            {
+              "compileNs": 8697,
+              "instantiateNs": 21882,
+              "executeNs": 233967
+            },
+            {
+              "compileNs": 9078,
+              "instantiateNs": 22162,
+              "executeNs": 556975
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 1024,
+          "preset": "default",
+          "file": "report-1024-default.wasm",
+          "wasmBytes": 14692,
+          "samples": [
+            {
+              "compileNs": 13035,
+              "instantiateNs": 30128,
+              "executeNs": 535243
+            },
+            {
+              "compileNs": 14618,
+              "instantiateNs": 26220,
+              "executeNs": 252523
+            },
+            {
+              "compileNs": 47351,
+              "instantiateNs": 28324,
+              "executeNs": 94030
+            },
+            {
+              "compileNs": 10480,
+              "instantiateNs": 23024,
+              "executeNs": 93729
+            },
+            {
+              "compileNs": 9809,
+              "instantiateNs": 25609,
+              "executeNs": 93669
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 16,
+          "preset": "o0",
+          "file": "aggregate-16-o0.wasm",
+          "wasmBytes": 1542,
+          "samples": [
+            {
+              "compileNs": 5821,
+              "instantiateNs": 17173,
+              "executeNs": 1212
+            },
+            {
+              "compileNs": 5390,
+              "instantiateNs": 26871,
+              "executeNs": 1252
+            },
+            {
+              "compileNs": 5591,
+              "instantiateNs": 16411,
+              "executeNs": 1052
+            },
+            {
+              "compileNs": 5009,
+              "instantiateNs": 16190,
+              "executeNs": 1102
+            },
+            {
+              "compileNs": 4709,
+              "instantiateNs": 18175,
+              "executeNs": 2675
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 16,
+          "preset": "default",
+          "file": "aggregate-16-default.wasm",
+          "wasmBytes": 1495,
+          "samples": [
+            {
+              "compileNs": 5110,
+              "instantiateNs": 16561,
+              "executeNs": 972
+            },
+            {
+              "compileNs": 4579,
+              "instantiateNs": 15249,
+              "executeNs": 952
+            },
+            {
+              "compileNs": 4709,
+              "instantiateNs": 16522,
+              "executeNs": 952
+            },
+            {
+              "compileNs": 4739,
+              "instantiateNs": 14688,
+              "executeNs": 882
+            },
+            {
+              "compileNs": 4629,
+              "instantiateNs": 17203,
+              "executeNs": 922
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 128,
+          "preset": "o0",
+          "file": "aggregate-128-o0.wasm",
+          "wasmBytes": 3223,
+          "samples": [
+            {
+              "compileNs": 4849,
+              "instantiateNs": 19557,
+              "executeNs": 2936
+            },
+            {
+              "compileNs": 4909,
+              "instantiateNs": 16160,
+              "executeNs": 2906
+            },
+            {
+              "compileNs": 4850,
+              "instantiateNs": 17473,
+              "executeNs": 2886
+            },
+            {
+              "compileNs": 4769,
+              "instantiateNs": 13636,
+              "executeNs": 4369
+            },
+            {
+              "compileNs": 4689,
+              "instantiateNs": 14958,
+              "executeNs": 2856
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 128,
+          "preset": "default",
+          "file": "aggregate-128-default.wasm",
+          "wasmBytes": 2544,
+          "samples": [
+            {
+              "compileNs": 5160,
+              "instantiateNs": 14247,
+              "executeNs": 2786
+            },
+            {
+              "compileNs": 4639,
+              "instantiateNs": 14047,
+              "executeNs": 2725
+            },
+            {
+              "compileNs": 4478,
+              "instantiateNs": 14718,
+              "executeNs": 2766
+            },
+            {
+              "compileNs": 4418,
+              "instantiateNs": 18795,
+              "executeNs": 2726
+            },
+            {
+              "compileNs": 4849,
+              "instantiateNs": 13696,
+              "executeNs": 4259
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 1024,
+          "preset": "o0",
+          "file": "aggregate-1024-o0.wasm",
+          "wasmBytes": 16665,
+          "samples": [
+            {
+              "compileNs": 5580,
+              "instantiateNs": 17814,
+              "executeNs": 22713
+            },
+            {
+              "compileNs": 5911,
+              "instantiateNs": 15660,
+              "executeNs": 20289
+            },
+            {
+              "compileNs": 5511,
+              "instantiateNs": 15640,
+              "executeNs": 21401
+            },
+            {
+              "compileNs": 5621,
+              "instantiateNs": 17704,
+              "executeNs": 20148
+            },
+            {
+              "compileNs": 5511,
+              "instantiateNs": 13817,
+              "executeNs": 20008
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 1024,
+          "preset": "default",
+          "file": "aggregate-1024-default.wasm",
+          "wasmBytes": 10931,
+          "samples": [
+            {
+              "compileNs": 6302,
+              "instantiateNs": 19397,
+              "executeNs": 20289
+            },
+            {
+              "compileNs": 5701,
+              "instantiateNs": 13776,
+              "executeNs": 22613
+            },
+            {
+              "compileNs": 5150,
+              "instantiateNs": 15961,
+              "executeNs": 20289
+            },
+            {
+              "compileNs": 5180,
+              "instantiateNs": 16231,
+              "executeNs": 21672
+            },
+            {
+              "compileNs": 5170,
+              "instantiateNs": 19868,
+              "executeNs": 20149
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "order": "reverse",
+      "cases": [
+        {
+          "workload": "aggregate",
+          "size": 1024,
+          "preset": "default",
+          "file": "aggregate-1024-default.wasm",
+          "wasmBytes": 10931,
+          "samples": [
+            {
+              "compileNs": 5160,
+              "instantiateNs": 13826,
+              "executeNs": 20218
+            },
+            {
+              "compileNs": 5180,
+              "instantiateNs": 18085,
+              "executeNs": 21662
+            },
+            {
+              "compileNs": 5260,
+              "instantiateNs": 19698,
+              "executeNs": 20239
+            },
+            {
+              "compileNs": 6854,
+              "instantiateNs": 25368,
+              "executeNs": 20319
+            },
+            {
+              "compileNs": 5381,
+              "instantiateNs": 18435,
+              "executeNs": 20289
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 1024,
+          "preset": "o0",
+          "file": "aggregate-1024-o0.wasm",
+          "wasmBytes": 16665,
+          "samples": [
+            {
+              "compileNs": 5651,
+              "instantiateNs": 15470,
+              "executeNs": 20018
+            },
+            {
+              "compileNs": 5450,
+              "instantiateNs": 16792,
+              "executeNs": 20089
+            },
+            {
+              "compileNs": 5691,
+              "instantiateNs": 13997,
+              "executeNs": 21050
+            },
+            {
+              "compileNs": 10329,
+              "instantiateNs": 27212,
+              "executeNs": 20710
+            },
+            {
+              "compileNs": 6412,
+              "instantiateNs": 24447,
+              "executeNs": 22743
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 128,
+          "preset": "default",
+          "file": "aggregate-128-default.wasm",
+          "wasmBytes": 2544,
+          "samples": [
+            {
+              "compileNs": 4930,
+              "instantiateNs": 14097,
+              "executeNs": 4278
+            },
+            {
+              "compileNs": 4569,
+              "instantiateNs": 14177,
+              "executeNs": 2705
+            },
+            {
+              "compileNs": 4538,
+              "instantiateNs": 19687,
+              "executeNs": 2745
+            },
+            {
+              "compileNs": 4689,
+              "instantiateNs": 15660,
+              "executeNs": 2725
+            },
+            {
+              "compileNs": 4499,
+              "instantiateNs": 16561,
+              "executeNs": 2695
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 128,
+          "preset": "o0",
+          "file": "aggregate-128-o0.wasm",
+          "wasmBytes": 3223,
+          "samples": [
+            {
+              "compileNs": 4679,
+              "instantiateNs": 14057,
+              "executeNs": 2875
+            },
+            {
+              "compileNs": 4689,
+              "instantiateNs": 15229,
+              "executeNs": 4328
+            },
+            {
+              "compileNs": 4629,
+              "instantiateNs": 19537,
+              "executeNs": 2906
+            },
+            {
+              "compileNs": 4749,
+              "instantiateNs": 13406,
+              "executeNs": 2845
+            },
+            {
+              "compileNs": 4359,
+              "instantiateNs": 16572,
+              "executeNs": 2865
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 16,
+          "preset": "default",
+          "file": "aggregate-16-default.wasm",
+          "wasmBytes": 1495,
+          "samples": [
+            {
+              "compileNs": 5020,
+              "instantiateNs": 18104,
+              "executeNs": 1021
+            },
+            {
+              "compileNs": 4749,
+              "instantiateNs": 16041,
+              "executeNs": 942
+            },
+            {
+              "compileNs": 4589,
+              "instantiateNs": 15329,
+              "executeNs": 872
+            },
+            {
+              "compileNs": 4458,
+              "instantiateNs": 15980,
+              "executeNs": 902
+            },
+            {
+              "compileNs": 4629,
+              "instantiateNs": 13947,
+              "executeNs": 932
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 16,
+          "preset": "o0",
+          "file": "aggregate-16-o0.wasm",
+          "wasmBytes": 1542,
+          "samples": [
+            {
+              "compileNs": 9699,
+              "instantiateNs": 26320,
+              "executeNs": 1804
+            },
+            {
+              "compileNs": 5621,
+              "instantiateNs": 15360,
+              "executeNs": 1102
+            },
+            {
+              "compileNs": 4779,
+              "instantiateNs": 15720,
+              "executeNs": 1072
+            },
+            {
+              "compileNs": 4649,
+              "instantiateNs": 17734,
+              "executeNs": 1002
+            },
+            {
+              "compileNs": 4779,
+              "instantiateNs": 13967,
+              "executeNs": 2515
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 1024,
+          "preset": "default",
+          "file": "report-1024-default.wasm",
+          "wasmBytes": 14692,
+          "samples": [
+            {
+              "compileNs": 9809,
+              "instantiateNs": 21962,
+              "executeNs": 89692
+            },
+            {
+              "compileNs": 9328,
+              "instantiateNs": 22804,
+              "executeNs": 86044
+            },
+            {
+              "compileNs": 9117,
+              "instantiateNs": 19207,
+              "executeNs": 93499
+            },
+            {
+              "compileNs": 8947,
+              "instantiateNs": 22593,
+              "executeNs": 85784
+            },
+            {
+              "compileNs": 11381,
+              "instantiateNs": 26050,
+              "executeNs": 91215
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 1024,
+          "preset": "o0",
+          "file": "report-1024-o0.wasm",
+          "wasmBytes": 14692,
+          "samples": [
+            {
+              "compileNs": 8947,
+              "instantiateNs": 18866,
+              "executeNs": 86796
+            },
+            {
+              "compileNs": 8746,
+              "instantiateNs": 20279,
+              "executeNs": 85965
+            },
+            {
+              "compileNs": 8636,
+              "instantiateNs": 23054,
+              "executeNs": 93188
+            },
+            {
+              "compileNs": 9228,
+              "instantiateNs": 19758,
+              "executeNs": 85724
+            },
+            {
+              "compileNs": 8526,
+              "instantiateNs": 22423,
+              "executeNs": 88840
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 128,
+          "preset": "default",
+          "file": "report-128-default.wasm",
+          "wasmBytes": 5060,
+          "samples": [
+            {
+              "compileNs": 7755,
+              "instantiateNs": 17132,
+              "executeNs": 27303
+            },
+            {
+              "compileNs": 7244,
+              "instantiateNs": 17243,
+              "executeNs": 26841
+            },
+            {
+              "compileNs": 7124,
+              "instantiateNs": 18525,
+              "executeNs": 27012
+            },
+            {
+              "compileNs": 7263,
+              "instantiateNs": 16581,
+              "executeNs": 26801
+            },
+            {
+              "compileNs": 6953,
+              "instantiateNs": 23816,
+              "executeNs": 26882
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 128,
+          "preset": "o0",
+          "file": "report-128-o0.wasm",
+          "wasmBytes": 5060,
+          "samples": [
+            {
+              "compileNs": 7435,
+              "instantiateNs": 17203,
+              "executeNs": 26881
+            },
+            {
+              "compileNs": 7174,
+              "instantiateNs": 18045,
+              "executeNs": 27162
+            },
+            {
+              "compileNs": 13817,
+              "instantiateNs": 17904,
+              "executeNs": 27102
+            },
+            {
+              "compileNs": 7674,
+              "instantiateNs": 20961,
+              "executeNs": 27141
+            },
+            {
+              "compileNs": 7294,
+              "instantiateNs": 18045,
+              "executeNs": 26851
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 16,
+          "preset": "default",
+          "file": "report-16-default.wasm",
+          "wasmBytes": 3869,
+          "samples": [
+            {
+              "compileNs": 7214,
+              "instantiateNs": 17012,
+              "executeNs": 4890
+            },
+            {
+              "compileNs": 6793,
+              "instantiateNs": 16572,
+              "executeNs": 4709
+            },
+            {
+              "compileNs": 6622,
+              "instantiateNs": 16121,
+              "executeNs": 4719
+            },
+            {
+              "compileNs": 6492,
+              "instantiateNs": 22964,
+              "executeNs": 4859
+            },
+            {
+              "compileNs": 6983,
+              "instantiateNs": 16722,
+              "executeNs": 4699
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 16,
+          "preset": "o0",
+          "file": "report-16-o0.wasm",
+          "wasmBytes": 3869,
+          "samples": [
+            {
+              "compileNs": 6914,
+              "instantiateNs": 19697,
+              "executeNs": 4880
+            },
+            {
+              "compileNs": 7053,
+              "instantiateNs": 16211,
+              "executeNs": 4829
+            },
+            {
+              "compileNs": 6612,
+              "instantiateNs": 17674,
+              "executeNs": 4809
+            },
+            {
+              "compileNs": 6943,
+              "instantiateNs": 18596,
+              "executeNs": 4809
+            },
+            {
+              "compileNs": 6703,
+              "instantiateNs": 17955,
+              "executeNs": 4909
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "order": "forward",
+      "cases": [
+        {
+          "workload": "report",
+          "size": 16,
+          "preset": "o0",
+          "file": "report-16-o0.wasm",
+          "wasmBytes": 3869,
+          "samples": [
+            {
+              "compileNs": 7114,
+              "instantiateNs": 21782,
+              "executeNs": 5009
+            },
+            {
+              "compileNs": 7103,
+              "instantiateNs": 16661,
+              "executeNs": 4830
+            },
+            {
+              "compileNs": 6643,
+              "instantiateNs": 18866,
+              "executeNs": 4739
+            },
+            {
+              "compileNs": 6523,
+              "instantiateNs": 16030,
+              "executeNs": 5000
+            },
+            {
+              "compileNs": 6793,
+              "instantiateNs": 18355,
+              "executeNs": 4929
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 16,
+          "preset": "default",
+          "file": "report-16-default.wasm",
+          "wasmBytes": 3869,
+          "samples": [
+            {
+              "compileNs": 8176,
+              "instantiateNs": 22894,
+              "executeNs": 6653
+            },
+            {
+              "compileNs": 7294,
+              "instantiateNs": 19838,
+              "executeNs": 6503
+            },
+            {
+              "compileNs": 6984,
+              "instantiateNs": 16511,
+              "executeNs": 4739
+            },
+            {
+              "compileNs": 6723,
+              "instantiateNs": 15801,
+              "executeNs": 4749
+            },
+            {
+              "compileNs": 6472,
+              "instantiateNs": 19137,
+              "executeNs": 4759
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 128,
+          "preset": "o0",
+          "file": "report-128-o0.wasm",
+          "wasmBytes": 5060,
+          "samples": [
+            {
+              "compileNs": 7023,
+              "instantiateNs": 21881,
+              "executeNs": 28013
+            },
+            {
+              "compileNs": 7365,
+              "instantiateNs": 19818,
+              "executeNs": 28394
+            },
+            {
+              "compileNs": 7174,
+              "instantiateNs": 18155,
+              "executeNs": 28334
+            },
+            {
+              "compileNs": 7094,
+              "instantiateNs": 18706,
+              "executeNs": 26871
+            },
+            {
+              "compileNs": 7164,
+              "instantiateNs": 16541,
+              "executeNs": 28094
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 128,
+          "preset": "default",
+          "file": "report-128-default.wasm",
+          "wasmBytes": 5060,
+          "samples": [
+            {
+              "compileNs": 7164,
+              "instantiateNs": 20780,
+              "executeNs": 28525
+            },
+            {
+              "compileNs": 7324,
+              "instantiateNs": 20128,
+              "executeNs": 26811
+            },
+            {
+              "compileNs": 7324,
+              "instantiateNs": 19037,
+              "executeNs": 28184
+            },
+            {
+              "compileNs": 7223,
+              "instantiateNs": 16521,
+              "executeNs": 27964
+            },
+            {
+              "compileNs": 6913,
+              "instantiateNs": 23625,
+              "executeNs": 28474
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 1024,
+          "preset": "o0",
+          "file": "report-1024-o0.wasm",
+          "wasmBytes": 14692,
+          "samples": [
+            {
+              "compileNs": 8796,
+              "instantiateNs": 18946,
+              "executeNs": 90573
+            },
+            {
+              "compileNs": 10059,
+              "instantiateNs": 26671,
+              "executeNs": 91685
+            },
+            {
+              "compileNs": 8366,
+              "instantiateNs": 18385,
+              "executeNs": 239328
+            },
+            {
+              "compileNs": 13556,
+              "instantiateNs": 23164,
+              "executeNs": 97296
+            },
+            {
+              "compileNs": 9509,
+              "instantiateNs": 20068,
+              "executeNs": 89922
+            }
+          ]
+        },
+        {
+          "workload": "report",
+          "size": 1024,
+          "preset": "default",
+          "file": "report-1024-default.wasm",
+          "wasmBytes": 14692,
+          "samples": [
+            {
+              "compileNs": 10249,
+              "instantiateNs": 24598,
+              "executeNs": 88569
+            },
+            {
+              "compileNs": 8376,
+              "instantiateNs": 19527,
+              "executeNs": 206074
+            },
+            {
+              "compileNs": 11522,
+              "instantiateNs": 31360,
+              "executeNs": 90072
+            },
+            {
+              "compileNs": 9268,
+              "instantiateNs": 24827,
+              "executeNs": 88499
+            },
+            {
+              "compileNs": 8687,
+              "instantiateNs": 19437,
+              "executeNs": 104159
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 16,
+          "preset": "o0",
+          "file": "aggregate-16-o0.wasm",
+          "wasmBytes": 1542,
+          "samples": [
+            {
+              "compileNs": 5531,
+              "instantiateNs": 17323,
+              "executeNs": 1143
+            },
+            {
+              "compileNs": 5049,
+              "instantiateNs": 15900,
+              "executeNs": 1012
+            },
+            {
+              "compileNs": 4739,
+              "instantiateNs": 15229,
+              "executeNs": 1032
+            },
+            {
+              "compileNs": 4578,
+              "instantiateNs": 13556,
+              "executeNs": 1062
+            },
+            {
+              "compileNs": 4439,
+              "instantiateNs": 16932,
+              "executeNs": 1042
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 16,
+          "preset": "default",
+          "file": "aggregate-16-default.wasm",
+          "wasmBytes": 1495,
+          "samples": [
+            {
+              "compileNs": 5149,
+              "instantiateNs": 18495,
+              "executeNs": 1012
+            },
+            {
+              "compileNs": 5149,
+              "instantiateNs": 14397,
+              "executeNs": 932
+            },
+            {
+              "compileNs": 4529,
+              "instantiateNs": 13355,
+              "executeNs": 922
+            },
+            {
+              "compileNs": 4409,
+              "instantiateNs": 16441,
+              "executeNs": 872
+            },
+            {
+              "compileNs": 4459,
+              "instantiateNs": 18706,
+              "executeNs": 911
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 128,
+          "preset": "o0",
+          "file": "aggregate-128-o0.wasm",
+          "wasmBytes": 3223,
+          "samples": [
+            {
+              "compileNs": 4919,
+              "instantiateNs": 15981,
+              "executeNs": 2935
+            },
+            {
+              "compileNs": 4819,
+              "instantiateNs": 18967,
+              "executeNs": 3076
+            },
+            {
+              "compileNs": 4789,
+              "instantiateNs": 18766,
+              "executeNs": 3036
+            },
+            {
+              "compileNs": 4719,
+              "instantiateNs": 14368,
+              "executeNs": 2806
+            },
+            {
+              "compileNs": 4588,
+              "instantiateNs": 13165,
+              "executeNs": 2885
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 128,
+          "preset": "default",
+          "file": "aggregate-128-default.wasm",
+          "wasmBytes": 2544,
+          "samples": [
+            {
+              "compileNs": 5200,
+              "instantiateNs": 18485,
+              "executeNs": 2796
+            },
+            {
+              "compileNs": 4839,
+              "instantiateNs": 17053,
+              "executeNs": 2716
+            },
+            {
+              "compileNs": 4528,
+              "instantiateNs": 16281,
+              "executeNs": 2695
+            },
+            {
+              "compileNs": 4519,
+              "instantiateNs": 13085,
+              "executeNs": 2695
+            },
+            {
+              "compileNs": 4238,
+              "instantiateNs": 13005,
+              "executeNs": 2695
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 1024,
+          "preset": "o0",
+          "file": "aggregate-1024-o0.wasm",
+          "wasmBytes": 16665,
+          "samples": [
+            {
+              "compileNs": 12934,
+              "instantiateNs": 19507,
+              "executeNs": 20028
+            },
+            {
+              "compileNs": 5570,
+              "instantiateNs": 16802,
+              "executeNs": 20258
+            },
+            {
+              "compileNs": 5530,
+              "instantiateNs": 15099,
+              "executeNs": 20079
+            },
+            {
+              "compileNs": 5461,
+              "instantiateNs": 13496,
+              "executeNs": 20048
+            },
+            {
+              "compileNs": 5210,
+              "instantiateNs": 14578,
+              "executeNs": 19848
+            }
+          ]
+        },
+        {
+          "workload": "aggregate",
+          "size": 1024,
+          "preset": "default",
+          "file": "aggregate-1024-default.wasm",
+          "wasmBytes": 10931,
+          "samples": [
+            {
+              "compileNs": 5550,
+              "instantiateNs": 15851,
+              "executeNs": 20469
+            },
+            {
+              "compileNs": 5130,
+              "instantiateNs": 19768,
+              "executeNs": 20189
+            },
+            {
+              "compileNs": 5350,
+              "instantiateNs": 19538,
+              "executeNs": 20288
+            },
+            {
+              "compileNs": 5320,
+              "instantiateNs": 13526,
+              "executeNs": 21401
+            },
+            {
+              "compileNs": 4789,
+              "instantiateNs": 13205,
+              "executeNs": 20189
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

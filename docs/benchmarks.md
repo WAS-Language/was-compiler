@@ -43,6 +43,15 @@ to implement folding or a release decision. The [final-source isolated compariso
 holds M6/M7 fixed and reports Wasm size savings, a warmed guest regression signal,
 and timing uncertainty separately.
 
+## Application benchmarks
+
+The [application corpus and initial Linux baseline](benchmarks/applications-2026-11-27/README.md)
+exercise a UTF-8 report and a numeric aggregation at three sizes, in O0 and the
+public default preset. The opt-in runner separates native source-to-Wasm time,
+module size, Node module compilation, instantiation and guest execution. It
+complements, rather than replaces, the workload-specific microbenchmarks and
+introduces no timing gate.
+
 ## Timing contract
 
 | Measurement | Prepared outside timing | Included in timing |
@@ -57,8 +66,8 @@ The timed closures return `()` and explicitly `black_box_drop` their outputs so
 Divan does not move output destruction outside the timed region. Inputs cross a
 black-box boundary too. Setup and validation are outside the measured loop; each
 invocation recreates the stateful processor. There are no registered hosts or
-production API changes. These native compiler measurements explicitly select
-`None` and use optimized Cargo bench builds. Enabled numeric presets retain
+production API changes. The original native compiler suite explicitly selects `None` and uses optimized
+Cargo bench builds. Enabled numeric presets retain
 byte identity with one another, not necessarily with `None`.
 Stage medians do not necessarily sum to the end-to-end median: setup, intermediate
 lifetimes, cache state, and scheduling differ.
