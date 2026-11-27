@@ -1,14 +1,37 @@
 # M6 final-source release readiness — #87
 
-**Historical #87 evidence.** See the [later default-preset decision](m8-release-readiness.md#default-preset-decision)
-for current activation and M6 performance disposition. At #87, integrated
-release acceptance was pending. The final-source native tests and
-range-record elimination evidence passed. Strict native Clippy failed on an
-unrelated existing lint; browser smoke, rebuilt-browser parity and the full
-ignored workspace run remain unverified. Performance disposition is also pending.
-The only implemented M6 optimization is the direct range-loop slice approved in
-[ADR 0011](adr/0011-bounded-m6-range-scalar-replacement.md). These measurements
-used `None` as the byte baseline.
+**Current disposition: the bounded M6 slice is in the experimental default,
+and the current-source correctness gates pass.** The [default-preset decision](m8-release-readiness.md#default-preset-decision)
+accepts the observed compile-time, size and longer-loop trade-offs in exchange
+for deterministic range-record elimination and the measured short-loop benefit.
+This is not a general speedup or a causal explanation of timing variability.
+The only implemented M6 optimization is direct range-loop scalar replacement
+as approved in [ADR 0011](adr/0011-bounded-m6-range-scalar-replacement.md).
+Explicit `None` (`-O0`) and direct codegen remain the byte baseline.
+
+## Current-source recheck — 2026-11-27
+
+The recheck used `e16293fa5aafa4717547de2c62586c3b9980cf7e` plus pending adapter,
+benchmark and documentation changes. Compiler implementation and M6 fixtures
+were unchanged during this review. `wasm-pack` 0.15.1 rebuilt ordinary `pkg/`
+offline using the locally cached wasm-bindgen CLI **0.2.130**, matching the current
+lockfile. All 25 browser smoke groups passed (Node 26.13.1). Workspace all-target
+typecheck, strict native and browser-target Clippy (`-D warnings`), and the
+standalone core Wasm build passed.
+
+After rebuilding `pkg/`, `cargo test --locked --offline --workspace -- --include-ignored`
+passed **1,737 tests across 97 result summaries**, none failed or ignored. This
+includes all three CLI and the rebuilt browser M6 adapter tests, both private
+allocation tests, and the benchmark corpus correctness preflight. The adapter
+cases check bytes/WAT, diagnostics and bounded execution at each preset;
+the allocation checks still distinguish the one 32-byte baseline record from
+zero records on the eligible enabled path. No new timing run was made: the
+performance trade-offs are those already recorded below and accepted for the
+experimental default. The official Linux M4/M5 baseline separately removed the
+historical Windows timing dependency.
+
+The remaining sections preserve the original #87 evidence, including its failed
+or skipped gates. The new run does not retroactively change those results.
 
 ## Final-source provenance
 
@@ -55,17 +78,12 @@ Decoded and byte checks establish `None`/direct-codegen compatibility, enabled
 preset identity, ineligible controls with unchanged bytes, and preserved module
 surface and helper ordering on the tested inputs. This is not a claim of universal
 `None`/enabled byte identity: other enabled optimizations can still change bytes.
-The browser M6 matrix is present and typechecked but was not executed.
+The browser M6 matrix was typechecked but not executed in #87.
 
-Once the offline prerequisite and unrelated Clippy blocker are resolved, rerun
-any affected gates on stable final executable sources. In particular, rerun
-strict native Clippy and the documented
-[browser build](validation.md#finite-direct-commands), then run
-`cargo test --offline --workspace -- --include-ignored`, which includes browser
-smoke and per-preset parity. For focused verification or troubleshooting, run
-`node tests/browser.cjs pkg` or
-`cargo test --offline -p was-compiler-browser --test m6_range_adapters -- --include-ignored`
-after the same fresh build.
+#87 called for rerunning strict native Clippy and completing the offline browser
+and full workspace gates. The [current-source recheck](#current-source-recheck--2026-11-27)
+records the later results. For future reruns, use the documented
+[browser build and validation commands](validation.md#finite-direct-commands).
 
 An executable input change invalidates affected earlier evidence; regenerate
 browser output and rerun the relevant correctness and measurement checks rather
@@ -126,21 +144,14 @@ establish a general speedup, a regression threshold, or a causal explanation.
 
 ## Decisions still required
 
-1. **Correctness gates:** resolve the existing strict-native-Clippy failure and
-   make wasm-bindgen CLI `0.2.129` available offline; complete the fresh-browser
-   smoke, per-preset adapter verification and full ignored workspace gates.
-2. **M6 performance:** explicitly accept the observed compile/size and longer-loop
-   costs and unexplained variability as trade-offs for the record elimination, or
-   request further controlled measurements or scoped changes before acceptance.
-3. **M4 and M5 performance:** explicitly dispose of the pending signals in the
-   [M4 release record](m4-release-readiness.md) and
-   [M5 release record](m5-release-readiness.md). The latest comments on
-   [#72](https://github.com/WAS-Language/was-compiler/issues/72#issuecomment-6521885957)
-   and [#81](https://github.com/WAS-Language/was-compiler/issues/81#issuecomment-6535983467)
-   close evidence work, not the performance decisions. No approval was recorded
-   in #87 or the slice completion notes.
+This heading is retained for historical links. At #87, correctness and performance
+were still pending. The [current-source recheck](#current-source-recheck--2026-11-27)
+closes the correctness gaps on current sources. The
+[experimental default decision](m8-release-readiness.md#default-preset-decision)
+accepts the M6 performance trade-offs for that scope, and the
+[official Linux M4/M5 baseline](benchmarks/m4-m5-aa-2026-11-27/baseline.md)
+supersedes the historical Windows timing dependency.
 
-Completing this evidence record does not approve M4, M5, or M6. Closure
-specialization, string fusion, temporary-array reuse, compact layouts, broader
-range replacement and later milestones remain deferred. No heap reset, general
+Closure specialization, string fusion, temporary-array reuse, compact layouts,
+broader range replacement and later milestones remain deferred. No heap reset, general
 reclamation, ownership or ABI change, or new public control is authorized.

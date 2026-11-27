@@ -805,7 +805,7 @@ refactors; specify and test any intentional behavior change explicitly.
   and populate those locals directly for typed `Range` roots. Before changing
   selection or validation, read the [private range contract](docs/memory-abi.md#private-range-record)
   and [M6 decision](docs/adr/0011-bounded-m6-range-scalar-replacement.md). Before
-  interpreting M6 acceptance, read [#87's final-source gates and pending decisions](docs/m6-release-readiness.md).
+  interpreting M6 acceptance, read [the current gates and experimental disposition](docs/m6-release-readiness.md).
   Test signed endpoints before exact `f64` conversion/yield (zero is +0).
   Continue exits a body latch block, then `I64Add` advances and the loop retests;
   resolve branch depths from label identity, including nested expression regions.

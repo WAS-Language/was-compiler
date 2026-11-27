@@ -42,9 +42,9 @@ repeated samples and controls. Material regressions or unexplained timing
 variability require explicit disposition, not an invented threshold or favorable-run
 selection. Final-source offline native/portable/browser/full ignored-workspace and
 strict Clippy gates, adapter parity and a contract-to-test map are required.
-Integrated acceptance also requires explicit disposition of M4/M5's pending
-performance signals; it does not approve either milestone implicitly. `None`
-remains default even after acceptance.
+The interview also required a separate M4/M5 performance disposition and kept
+`None` as the default at that point. See [current M6 release readiness](../m6-release-readiness.md)
+for the later default-preset decision and resolution of the M4/M5 dependency.
 
 The user confirmed all three rounds and the final shared understanding on
 2026-11-16, closing the design interview. Design confirmation does not itself
