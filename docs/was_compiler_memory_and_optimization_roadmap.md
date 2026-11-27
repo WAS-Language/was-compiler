@@ -1453,6 +1453,11 @@ Explore inline storage only when aliasing and host contracts make it observation
 
 **Goal:** Lower operations to `i32` only where the existing `number` semantics can be preserved exactly.
 
+The [bounded M7 subset and current gates](integer-specialization.md#current-source-recheck--2026-11-27)
+are verified. The [later default-preset decision](m8-release-readiness.md#default-preset-decision)
+accepts its trade-offs for the experimental compiler. The interview decisions
+below describe the original scope and activation constraints.
+
 ### Representation policy
 
 - Keep **one source-language type**: `number`.
@@ -1627,7 +1632,8 @@ The user confirmed the shared understanding after all three rounds, closing the
 M8 design interview. The separately authorized [#92 arithmetic slice](adr/0012-fold-scalars-during-checked-lowering.md#implemented-slice-92)
 is implemented after verification of WP12's correctness exit. [#93 completes the
 scalar whitelist](adr/0012-fold-scalars-during-checked-lowering.md#implemented-slice-93).
-[#95 and its follow-up record final-source correctness](m8-release-readiness.md).
+[#95 and its follow-ups record final-source correctness](m8-release-readiness.md),
+including the [current recheck](m8-release-readiness.md#current-source-recheck--2026-11-27).
 The [default-preset decision](m8-release-readiness.md#default-preset-decision)
 supersedes the interview-era activation decision: `Basic` is the default for the
 experimental compiler. Explicit `None` and direct codegen preserve baseline bytes.

@@ -9,6 +9,18 @@ The original #95 run and the [committed-lockfile follow-up](#committed-lockfile-
 precede the change in default. They preserve the validation history and the
 performance signals that informed the decision.
 
+## Current-source recheck — 2026-11-27
+
+The [workspace recheck](m6-release-readiness.md#current-source-recheck--2026-11-27)
+passed with the current lockfile, a fresh offline browser package, strict native
+and browser-target Clippy, and 1,737 tests with none failed or ignored. Focused
+reruns passed all 14 `codegen::folding_tests` (including ignored Node cases),
+the private corpus isolation preflight, and both `m8_benchmarks` tests. The
+shared adapter matrix checks the default against `Basic` and explicit `None`
+against direct codegen. These reruns verify correctness and parity, not fresh
+timing. The [experimental default decision](#default-preset-decision) remains
+in force, including the unresolved `wide_closed` timing signal.
+
 ## Correctness evidence
 
 The [checked-lowering contract](adr/0012-fold-scalars-during-checked-lowering.md)
@@ -22,7 +34,7 @@ M6 and M7 enabled; its off arm is **not** `None`.
 | Original checked diagnostics | [Forged input checks](../crates/compiler/src/codegen/folding_tests.rs#L554) expect the first invalid literal, owning function and span in short-circuit RHSs, unreachable statements and unexported bodies at every preset. The arithmetic test also checks the private off arm and malformed source diagnostic parity. |
 | Effects, traps and nested sites | [Decoded and executed cases](../crates/compiler/src/codegen/folding_tests.rs#L291) cover contracts, normalized defaults, local callables and skipped RHSs in both arms. Runtime checks expect exact host effects for normal return, early contract failure, and a trapping default after both written arguments. |
 | M6/M7 composition and original planning | The [decoded composition test](../crates/compiler/src/codegen/folding_tests.rs#L65) verifies unchanged non-code sections, helper bodies, calls and local types across the toggle: the direct loop still omits range helper calls, the exact local remains `i32`, and the multiplication-derived local remains `f64`. [Corpus preflight](../crates/compiler/src/compiler/m8_measurement.rs) checks isolated output, and the [ordinary corpus oracle](../crates/compiler/tests/m8_benchmarks.rs) checks preset results and growth; the no-fold M6/M7 controls are separate from the folded-workload measurements. |
-| Adapter parity and default compatibility | The [shared matrix](../tests/support/m6_adapter_cases.rs) checks enabled-preset byte identity and default/direct-codegen parity. The CLI and freshly built browser compare Wasm **and** WAT to core at each preset, check their defaults against `None`, and execute the new composition case: folded range bounds, an integer local and a fractional folded operand in one function. The [independent runtime oracle](../tests/support/m6_adapter_runtime.cjs) expects result `25` and host checkpoints `[3, 4, 5]`. |
+| Adapter parity and default compatibility | The [shared matrix](../tests/support/m6_adapter_cases.rs) checks enabled-preset byte identity and explicit `None`/direct-codegen parity. The CLI and freshly built browser compare Wasm **and** WAT to core at each preset, check their defaults against `Basic` (against `None` in the original pre-default-change run), and execute the new composition case: folded range bounds, an integer local and a fractional folded operand in one function. The [independent runtime oracle](../tests/support/m6_adapter_runtime.cjs) expects result `25` and host checkpoints `[3, 4, 5]`. |
 
 These are fixture-level byte and behavior checks, not a claim of universal
 `None`/enabled byte identity, general guest speedup, or whole-loop allocation freedom.
@@ -97,6 +109,8 @@ browser checks used the fresh package built in the scratch tree.
 This clears the M8 execution blockers, not the remaining performance decisions.
 
 ## Performance signals recorded at #95
+
+These dispositions preceded the [later default-preset decision](#default-preset-decision).
 
 - **M8 ([#94](benchmarks/m8-folding-94/README.md)):** Matched forward/reverse
   sessions with M6/M7 fixed reproduce **3,441 → 2,914 Wasm bytes (−527, −15.3%)**

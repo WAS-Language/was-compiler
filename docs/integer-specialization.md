@@ -14,24 +14,14 @@ via ticket #40 extends that implementation to eligible never-reassigned ordinary
 numeric local storage and read-fact propagation in `Basic`, `Standard`, and
 `Aggressive`. User authorization via ticket #41 adds proven numeric comparisons
 and safe unary negation independently of ordinary-local storage, composing with
-existing proofs when locals are eligible. This subset remains **experimental**: cumulative measurements show a
-module-size benefit, but mixed timing results include material regression signals
-pending explicit user acceptance. Historical [#39 correctness gates](#correctness-validation-2026-10-17)
-and review against `09dcb5c` retain their #39-only scope. Final [#40 correctness
-gates passed](#correctness-validation-2026-10-20), and its [review is complete](#review-completion-40).
-[#42 integrated validation and decision](#42-integrated-validation-and-release-readiness-2026-10-20)
-now records the complete composition/current-source adapter gates and repeated
-matched measurements. The decision remains **keep experimental pending explicit
-regression/release acceptance**. Neither correctness validation, implementation
-authorization nor measurements establish that acceptance. `None` remains the
-default and byte-compatibility baseline. [#88's current-source M7 measurements](benchmarks/integer-current-88/README.md)
-reproduce the size benefit on the 26 M7-focused workloads, find higher compilation
-medians and mixed guest timings, and report `loop_local` separately as M6/M7
-composition. [#89's current-source correctness run](#89-current-source-correctness-and-m6-composition-2026-11-22)
-verifies the native subset and composition, but browser and strict-native-Clippy
-release gates remain open. [#90's disposition brief](#90-m7-release-readiness-and-maintainer-disposition)
-brings both records together: the size benefit is demonstrated, but M7 remains
-experimental pending passing gates and explicit maintainer disposition.
+existing proofs when locals are eligible. This subset remains **experimental**.
+[#42](#42-integrated-validation-and-release-readiness-2026-10-20) records the earlier
+composition gates and matched measurements. [#88](benchmarks/integer-current-88/README.md)
+reproduced the size benefit on 26 M7-focused workloads, with higher compilation
+medians and mixed guest timings. [#90](#90-m7-release-readiness-and-maintainer-disposition)
+records the historical hold. The [current-source recheck](#current-source-recheck--2026-11-27)
+records the present execution gates; the default-preset decision above governs
+activation and accepts those trade-offs only for the existing experimental subset.
 
 The approved #39/#40/#41 subset is a narrow scheduling exception ahead of deferred
 WP12, not general WP13 authorization. #41 preserves the existing proof interface,
@@ -39,6 +29,18 @@ checked lowering and public boundaries; it adds no broader optimization authorit
 The [extension plan](was_language_extensions_plan.md#issue-38--proven-integer-specialization-baseline-exception)
 reconciles this exception with the ordered work packages. The broader optimizer
 candidates and WP13 entry gates remain unchanged.
+
+## Current-source recheck — 2026-11-27
+
+The [current workspace gates](m6-release-readiness.md#current-source-recheck--2026-11-27)
+passed on the rebuilt browser package and current lockfile, including strict
+native/browser Clippy, 25 browser smoke groups and 1,737 workspace tests with
+none failed or ignored. The focused offline rerun with ignored cases enabled
+passed 35 core tests (`integer_baselines`, `integer_locals`,
+`integer_specialization`), seven CLI `integer` tests, and four tests in the
+rebuilt browser's `integer_specialization_adapters` target. Coverage includes
+decoded storage, numeric edges, bounded effects and traps, and same-preset
+Wasm/WAT and diagnostic parity. No controlled timing run was made in this recheck.
 
 <a id="implemented-subset-39-literalsadd-sub-40-ordinary-locals"></a>
 
@@ -557,7 +559,10 @@ final sources. The M7 subset stays experimental and `None` stays the default.
 
 ## #90 M7 release readiness and maintainer disposition
 
-**Not ready for release acceptance.** The [#88 current-source measurements](benchmarks/integer-current-88/README.md)
+**Historical disposition: release acceptance was pending at #90.** See the
+[current recheck](#current-source-recheck--2026-11-27) and the
+[later experimental default decision](m8-release-readiness.md#default-preset-decision).
+The [#88 current-source measurements](benchmarks/integer-current-88/README.md)
 and [#89 current-source correctness run](#89-current-source-correctness-and-m6-composition-2026-11-22)
 cover the same production implementation. #89 added a decoded composition test,
 not a production change. [#42](#42-integrated-validation-and-release-readiness-2026-10-20)
